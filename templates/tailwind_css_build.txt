@@ -1,0 +1,2 @@
+ npx tailwindcss -i theme/static_src/s
+rc/input.css -o theme/static/css/dist/output.css --watch~

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Generate Pickup Code{% endblock title %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-8">
+    <h1 class="text-3xl font-bold text-gray-900 border-b pb-4">
+        🔑 Secure Student Pickup Code Generator
+    </h1>
+
+    <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+        <h2 class="text-xl font-semibold mb-4 text-blue-600">Generate New Code</h2>
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            
+            <div>
+                {{ form.student.label_tag }}
+                {{ form.student }}
+                {% if form.student.errors %}
+                    <p class="text-red-500 text-sm mt-1">{{ form.student.errors }}</p>
+                {% endif %}
+            </div>
+
+            <button type="submit" 
+                    class="w-full py-3 px-4 rounded-lg text-white font-semibold bg-green-600 hover:bg-green-700 transition duration-150">
+                Generate New Verification Code
+            </button>
+        </form>
+    </div>
+
+    {% if latest_code %}
+    <div class="bg-green-50 p-6 rounded-xl shadow-2xl border-4 border-green-300 text-center">
+        <h2 class="text-2xl font-bold text-green-800 mb-4">Active Pickup Code Generated!</h2>
+        
+        <div class="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-8">
+            {% if latest_code.qr_code %}
+            <div class="p-3 bg-white border border-gray-200 rounded-lg shadow-md">
+                <img src="{{ latest_code.qr_code.url }}" alt="QR Code for Pickup" class="w-36 h-36">
+            </div>
+            {% endif %}
+
+            <div class="text-left space-y-2">
+                <p class="text-sm font-medium text-gray-600">Student:</p>
+                <p class="text-xl font-extrabold text-gray-900">{{ latest_code.student.get_full_name }}</p>
+                
+                <p class="text-sm font-medium text-gray-600">Verification Code (UUID):</p>
+                <p class="text-base font-mono bg-white p-2 border rounded-md select-all text-blue-700">
+                    {{ latest_code.code }}
+                </p>
+                
+                <p class="text-sm font-medium text-red-600 mt-3">
+                    Expires at: {{ latest_code.expires_at|date:"F j, H:i" }} 
+                    ({{ latest_code.expires_at|timesince }} from now)
+                </p>
+            </div>
+        </div>
+        
+    </div>
+    {% else %}
+    <div class="bg-yellow-50 p-6 rounded-xl shadow-inner text-center border border-yellow-200">
+        <p class="text-lg text-yellow-800">No active, unverified codes found. Please generate a new one above.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock content %}

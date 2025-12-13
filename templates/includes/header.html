@@ -1,0 +1,54 @@
+{% load static %}
+<header class="fixed top-0 left-0 right-0 bg-white shadow-md z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center h-16">
+            <div class="flex-shrink-0">
+                <a href="{% url 'home' %}" class="text-2xl font-bold text-blue-600">
+                    SMS <span class="text-gray-900 text-base font-normal">| Management</span>
+                </a>
+            </div>
+
+            <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                {% if user.is_authenticated %}
+                    {% if user.role == 'ADMIN' or user.role == 'STAFF' %}
+                        <a href="{% url 'management:backup_restore' %}" 
+                           class="text-gray-500 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
+                           Data Management
+                        </a>
+                        <a href="{% url 'pickup:pickup_scanner' %}" 
+                           class="text-gray-500 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
+                           Verify Pickup
+                        </a>
+                    {% endif %}
+                    {% if user.role == 'PARENT' %}
+                        <a href="{% url 'pickup:generate_pickup_code' %}" 
+                           class="text-gray-500 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
+                           Generate Code
+                        </a>
+                    {% endif %}
+                    <a href="{% url 'brillspay:product_list' %}" 
+                       class="text-gray-500 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
+                       Store
+                    </a>
+                {% endif %}
+            </div>
+
+            <div class="flex items-center">
+                {% if user.is_authenticated %}
+                <span class="text-sm font-medium text-gray-700 mr-4 hidden sm:block">
+                    Hello, {{ user.first_name }} ({{ user.role }})
+                </span>
+                <a href="{% url 'accounts:logout' %}" 
+                   class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 transition">
+                   Logout
+                </a>
+                {% else %}
+                <a href="{% url 'accounts:login' %}" 
+                   class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
+                   Login
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</header>

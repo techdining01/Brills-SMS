@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="max-w-xl mx-auto p-8 bg-white shadow-2xl rounded-xl border border-blue-200">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6 border-b pb-3">Security Pickup Code Generator</h1>
+    
+    {% if active_code %}
+    <div class="text-center space-y-4">
+        <p class="text-xl font-medium text-green-600">Active Code:</p>
+        <div class="bg-green-100 border-2 border-green-500 rounded-lg p-3 inline-block">
+            <p class="text-3xl font-extrabold tracking-widest text-green-700">{{ active_code.code }}</p>
+        </div>
+        
+        {% if qrcode_base64 %}
+        <div class="mt-6 border border-gray-300 p-4 inline-block rounded-lg shadow-inner">
+            <img src="data:image/png;base64,{{ qrcode_base64 }}" alt="QR Code" class="mx-auto w-48 h-48"/>
+        </div>
+        {% endif %}
+
+        <p class="mt-4 text-lg font-medium text-gray-700">Expires in:</p>
+        <p id="countdown-timer" class="text-4xl font-extrabold text-red-600 mb-6">
+            --:--
+        </p>
+
+    </div>
+    {% else %}
+    <div class="text-center">
+        <p class="text-lg text-gray-600 mb-6">No active code found. Generate a new one now.</p>
+        
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-200">
+                Generate New Pickup Code
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
+</div>
+
+{% if active_code %}
+<script>
+    // Get the expiration timestamp in milliseconds
+    const expiryTime = new Date("{{ active_code.expires_at|date:'c' }}").getTime();
+    const timerElement = document.getElementById('countdown-timer');
+
+    function updateCountdown() {
+        const now = new Date().getTime();
+        const distance = expiryTime - now;
+
+        if (distance < 0) {
+            clearInterval(countdownInterval);
+            timerElement.innerHTML = "EXPIRED";
+            // Optional: Reload the page to show the "Generate New" button
+            setTimeout(() => { location.reload(); }, 2000); 
+            return;
+        }
+
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+        const minutesDisplay = String(minutes).padStart(2, '0');
+        const secondsDisplay = String(seconds).padStart(2, '0');
+
+        timerElement.innerHTML = minutesDisplay + ":" + secondsDisplay;
+    }
+
+    // Update the count down every 1 second
+    const countdownInterval = setInterval(updateCountdown, 1000);
+    // Call immediately to show time without waiting for 1 second
+    updateCountdown(); 
+</script>
+{% endif %}
+{% endblock content %}

@@ -1,0 +1,39 @@
+{% extends "base_auth.html" %} 
+{% load static %}
+
+{% block title %}Select Role{% endblock title %}
+
+{% block content %}
+<div class="flex items-center justify-center min-h-screen bg-gray-100">
+    <div class="w-full max-w-md p-8 space-y-8 bg-white rounded-xl shadow-2xl">
+        <div class="text-center">
+            <h2 class="text-3xl font-extrabold text-gray-900">
+                Welcome to BrillsPay SMS
+            </h2>
+            <p class="mt-2 text-sm text-gray-600">
+                Choose your role to continue registration.
+            </p>
+        </div>
+        
+        <div class="space-y-4">
+            {% for key, label in roles %}
+                {% if key != 'ADMIN' %} <a href="{% url 'accounts:register' role=key|lower %}"
+                   class="flex items-center justify-between p-4 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition duration-200 shadow-sm hover:shadow-md">
+                    <span class="text-lg font-semibold text-gray-700">Register as {{ label }}</span>
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </a>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <div class="mt-6 text-center">
+            <p class="text-sm text-gray-600">
+                Already have an account? 
+                <a href="{% url 'accounts:login' %}" class="font-medium text-blue-600 hover:text-blue-500">
+                    Sign in here
+                </a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock content %}

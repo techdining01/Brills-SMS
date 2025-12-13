@@ -1,0 +1,12 @@
+{% extends "base_auth.html" %}
+
+{% block content %}
+    <div class="text-center py-20 bg-white rounded-lg shadow-lg">
+        <h1 class="text-5xl font-extrabold text-blue-700">Welcome to School SMS</h1>
+        <p class="mt-4 text-xl text-gray-600">Your Comprehensive School Management & PWA</p>
+        <div class="mt-8 flex justify-center space-x-4">
+            <a href="{% url 'accounts:login' %}" class="px-6 py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition">Login</a>
+            <a href="{% url 'sms:communication_center' %}" class="px-6 py-3 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 transition">PTA Center</a>
+        </div>
+    </div>
+{% endblock content %}

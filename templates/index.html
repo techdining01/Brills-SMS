@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Admin Dashboard{% endblock title %}
+
+{% block content %}
+<div class="flex h-full min-h-screen">
+    
+    <aside class="w-64 bg-gray-800 text-white flex-shrink-0">
+        <div class="p-6">
+            <h1 class="text-2xl font-extrabold text-blue-400">BrillsPay Admin</h1>
+            <p class="text-xs text-gray-400 mt-1">{{ user.get_role_display }} Portal</p>
+        </div>
+
+        <nav class="mt-6">
+            <div class="space-y-2">
+                
+                <a href="{% url 'home' %}" class="flex items-center p-3 text-sm font-medium transition duration-150 bg-gray-700 text-white border-l-4 border-blue-500">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l-2-2m-2 2v10a1 1 0 01-1 1h-3"></path></svg>
+                    Dashboard
+                </a>
+
+                <h3 class="text-xs uppercase text-gray-500 pt-4 px-3">Management</h3>
+
+                {% if user.role == 'ADMIN' or user.role == 'STAFF' %}
+                <a href="{% url 'admin:index' %}" target="_blank" class="flex items-center p-3 text-sm font-medium text-gray-300 hover:bg-gray-700 transition duration-150">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M5 14H3V2h2"></path></svg>
+                    Django Admin (Users)
+                </a>
+                {% endif %}
+
+                {% if user.role == 'ADMIN' or user.role == 'STAFF' %}
+                <a href="{% url 'ecommerce:admin_product_list' %}" class="flex items-center p-3 text-sm font-medium text-gray-300 hover:bg-gray-700 transition duration-150">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                    Inventory (BrillsPay)
+                </a>
+                {% endif %}
+                
+                {% if user.role == 'ADMIN' or user.role == 'STAFF' %}
+                <a href="{% url 'sms:exam_list' %}" class="flex items-center p-3 text-sm font-medium text-gray-300 hover:bg-gray-700 transition duration-150">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    Exam Creation
+                </a>
+                {% endif %}
+
+                <h3 class="text-xs uppercase text-gray-500 pt-4 px-3">Operations</h3>
+                
+                {% if user.role == 'ADMIN' or user.role == 'STAFF' %}
+                <a href="{% url 'sms:pickup_verification' %}" class="flex items-center p-3 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-green-400 transition duration-150">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2v2m-4 5a2 2 0 01-2-2V7m-2 7h.01M1 12h14"></path></svg>
+                    Pickup Terminal
+                </a>
+                {% endif %}
+
+                {% if user.role == 'STUDENT' %}
+                <a href="{% url 'sms:student_exam_list' %}" class="flex items-center p-3 text-sm font-medium text-gray-300 hover:bg-gray-700 transition duration-150">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-2 2m-2 2l-4-5 2-5"></path></svg>
+                    My Exams
+                </a>
+                {% endif %}
+
+                {% if user.role == 'PARENT' %}
+                <a href="{% url 'sms:generate_pickup_code' %}" class="flex items-center p-3 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-yellow-400 transition duration-150">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6-6h6m6 0h6m-3-3l3 3-3 3"></path></svg>
+                    Generate Pickup Code
+                </a>
+                {% endif %}
+            </div>
+        </nav>
+    </aside>
+
+    <main class="flex-1 p-8 bg-gray-100 overflow-y-auto">
+        
+        <header class="bg-white shadow rounded-xl p-6 mb-8">
+            <h2 class="text-3xl font-bold text-gray-900">
+                Welcome back, {{ user.first_name|default:user.username }}!
+            </h2>
+            <p class="mt-2 text-gray-600">
+                Your dashboard provides quick access to tools related to your role ({{ user.get_role_display }}).
+            </p>
+        </header>
+
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+            {% if user.role == 'ADMIN' or user.role == 'STAFF' %}
+            
+            <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-semibold text-gray-800">Inventory Status</h3>
+                    <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.41 9.696 5 8.5 5A6.5 6.5 0 002 11.5c0 1.657.49 3.237 1.35 4.56C4.417 17.65 6.007 19 8.5 19h7a6.5 6.5 0 006.5-6.5c0-2.484-1.34-4.575-3.328-5.747"></path></svg>
+                </div>
+                <p class="mt-4 text-gray-600">Manage products, update stock levels, and check sales data for BrillsPay.</p>
+                <a href="{% url 'ecommerce:admin_product_list' %}" class="mt-4 inline-block text-blue-600 font-medium hover:text-blue-800">Go to Inventory &rarr;</a>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-semibold text-gray-800">Pickup Terminal</h3>
+                    <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.047 12.003 12.003 0 00-2.395 7.828c.553 4.28 2.502 8.163 5.484 10.329l1.171.996a1 1 0 001.378 0l1.172-.996c2.982-2.166 4.931-6.049 5.484-10.329a12.003 12.003 0 00-2.395-7.828z"></path></svg>
+                </div>
+                <p class="mt-4 text-gray-600">Access the real-time terminal to verify student pickup codes.</p>
+                <a href="{% url 'sms:pickup_verification' %}" class="mt-4 inline-block text-green-600 font-medium hover:text-green-800">Open Terminal &rarr;</a>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-semibold text-gray-800">Academic Tools</h3>
+                    <svg class="w-8 h-8 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.41 9.696 5 8.5 5A6.5 6.5 0 002 11.5c0 1.657.49 3.237 1.35 4.56C4.417 17.65 6.007 19 8.5 19h7a6.5 6.5 0 006.5-6.5c0-2.484-1.34-4.575-3.328-5.747"></path></svg>
+                </div>
+                <p class="mt-4 text-gray-600">Create, edit, and manage exams and questions for all subjects.</p>
+                <a href="{% url 'sms:exam_list' %}" class="mt-4 inline-block text-indigo-600 font-medium hover:text-indigo-800">Manage Exams &rarr;</a>
+            </div>
+
+            {% endif %}
+
+            {% if user.role == 'PARENT' %}
+            
+            <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-semibold text-gray-800">Pickup Generation</h3>
+                    <svg class="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6-6h6m6 0h6m-3-3l3 3-3 3"></path></svg>
+                </div>
+                <p class="mt-4 text-gray-600">Generate a secure, time-sensitive code for picking up your child(ren).</p>
+                <a href="{% url 'sms:generate_pickup_code' %}" class="mt-4 inline-block text-yellow-600 font-medium hover:text-yellow-800">Generate Code &rarr;</a>
+            </div>
+            
+            <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-semibold text-gray-800">School Store</h3>
+                    <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                </div>
+                <p class="mt-4 text-gray-600">Purchase uniforms, books, and supplies from the BrillsPay School Store.</p>
+                <a href="{% url 'ecommerce:product_list' %}" class="mt-4 inline-block text-red-600 font-medium hover:text-red-800">Visit Store &rarr;</a>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-semibold text-gray-800">Your Children</h3>
+                    <svg class="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857m0 0a5.002 5.002 0 019.288 0M5 14H3V2h2"></path></svg>
+                </div>
+                <p class="mt-4 text-gray-600">View academic progress (grades) and information for your linked students.</p>
+                <a href="#" class="mt-4 inline-block text-purple-600 font-medium hover:text-purple-800">View Records &rarr;</a>
+            </div>
+
+            {% endif %}
+
+            {% if user.role == 'STUDENT' %}
+            
+            <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-semibold text-gray-800">My Available Exams</h3>
+                    <svg class="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-2 2m-2 2l-4-5 2-5"></path></svg>
+                </div>
+                <p class="mt-4 text-gray-600">See the list of exams and quizzes currently assigned to your class.</p>
+                <a href="{% url 'sms:student_exam_list' %}" class="mt-4 inline-block text-orange-600 font-medium hover:text-orange-800">Start Exam &rarr;</a>
+            </div>
+            
+            <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-semibold text-gray-800">School Store</h3>
+                    <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                </div>
+                <p class="mt-4 text-gray-600">Browse uniforms, books, and supplies (Parent/Guardian required for purchase).</p>
+                <a href="{% url 'ecommerce:product_list' %}" class="mt-4 inline-block text-red-600 font-medium hover:text-red-800">Visit Store &rarr;</a>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-semibold text-gray-800">My Academic Records</h3>
+                    <svg class="w-8 h-8 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                </div>
+                <p class="mt-4 text-gray-600">Review your past grades, scores, and academic history.</p>
+                <a href="#" class="mt-4 inline-block text-teal-600 font-medium hover:text-teal-800">View Grades &rarr;</a>
+            </div>
+
+            {% endif %}
+
+        </section>
+    </main>
+</div>
+{% endblock content %}

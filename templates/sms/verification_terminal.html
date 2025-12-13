@@ -1,0 +1,102 @@
+{% extends "base_auth.html" %}
+
+{% block title %}Verification Terminal{% endblock title %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-8">
+    <h1 class="text-3xl font-bold text-gray-900 border-b pb-4">
+        ✅ Student Pickup Verification Terminal
+    </h1>
+
+    <div class="bg-white p-6 rounded-xl shadow-2xl border border-gray-100">
+        <label for="pickup-code-input" class="block text-xl font-semibold text-gray-700 mb-3">Enter or Scan Code (UUID)</label>
+        <input type="text" id="pickup-code-input" placeholder="Paste or type UUID here..."
+               class="w-full p-3 text-lg border-2 border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 font-mono"
+               autofocus>
+        <p class="mt-2 text-sm text-gray-500">Press **Enter** to verify the code.</p>
+    </div>
+
+    <div id="verification-status" class="min-h-[150px] p-6 rounded-xl shadow-inner bg-gray-50 border border-gray-200">
+        <p id="initial-message" class="text-center text-lg text-gray-500 pt-8">Awaiting code input...</p>
+    </div>
+
+    <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+        <h2 class="text-xl font-semibold mb-3 text-gray-700">Recent Verifications</h2>
+        <ul id="verification-log" class="space-y-2 text-sm max-h-60 overflow-y-auto">
+            </ul>
+    </div>
+</div>
+
+<script>
+    const inputElement = document.getElementById('pickup-code-input');
+    const statusElement = document.getElementById('verification-status');
+    const logElement = document.getElementById('verification-log');
+    const initialMessage = document.getElementById('initial-message');
+
+    // 1. Establish WebSocket connection
+    const pickupSocket = new WebSocket(
+        'ws://' + window.location.host + '/ws/pickup/'
+    );
+
+    pickupSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        const result = data;
+        
+        // Hide initial message
+        if(initialMessage) initialMessage.style.display = 'none';
+
+        // 2. Update Status Display
+        let statusClass = '';
+        let statusMessage = '';
+        let logEntry = '';
+
+        if (result.status === 'success') {
+            statusClass = 'bg-green-100 border-green-500 text-green-900';
+            statusMessage = `
+                <p class="text-4xl font-extrabold mb-2">✅ VERIFIED!</p>
+                <p class="text-xl">Student: <strong class="text-green-700">${result.student_name}</strong></p>
+                <p class="text-md text-gray-700">Parent: ${result.parent_name}</p>
+                <p class="text-sm mt-2">Verified by ${result.verified_by} at ${result.time}</p>
+            `;
+            logEntry = `<li class="p-2 border-l-4 border-green-500 bg-green-50">✅ ${result.student_name} verified by ${result.verified_by} at ${result.time}</li>`;
+
+        } else {
+            statusClass = 'bg-red-100 border-red-500 text-red-900';
+            statusMessage = `
+                <p class="text-4xl font-extrabold mb-2">❌ DENIED</p>
+                <p class="text-xl">${result.message}</p>
+                <p class="text-sm mt-2 text-red-700">${result.details || ''}</p>
+            `;
+            logEntry = `<li class="p-2 border-l-4 border-red-500 bg-red-50">❌ Verification failed: ${result.message}</li>`;
+        }
+
+        statusElement.className = `min-h-[150px] p-6 rounded-xl shadow-2xl transition duration-300 border-4 ${statusClass}`;
+        statusElement.innerHTML = statusMessage;
+        
+        // 3. Update Log
+        logElement.insertAdjacentHTML('afterbegin', logEntry);
+
+        // 4. Clear Input for next scan
+        inputElement.value = '';
+    };
+
+    pickupSocket.onclose = function(e) {
+        console.error('Pickup socket closed unexpectedly');
+    };
+
+    // 5. Handle input submission (Enter key)
+    inputElement.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            const code = inputElement.value.trim();
+            if (code) {
+                // Send the code to the consumer
+                pickupSocket.send(JSON.stringify({
+                    'code': code
+                }));
+            }
+            e.preventDefault(); // Prevent form submission behavior
+        }
+    });
+
+</script>
+{% endblock content %}

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Data Management & Backup{% endblock title %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-8">
+    <h1 class="text-3xl font-bold text-gray-800 border-b pb-4">Database Backup & Restore</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="p-4 rounded-lg {% if message.tags == 'error' %}bg-red-100 text-red-700 border-red-400{% else %}bg-green-100 text-green-700 border-green-400{% endif %} border-l-4" role="alert">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+        <h2 class="text-xl font-semibold mb-4 text-blue-700">Create New Backup</h2>
+        <p class="text-gray-600 mb-4">Export all current application data (users, products, exams) to a new file.</p>
+        
+        <form method="post" class="inline-block" onsubmit="return confirm('Are you sure you want to create a new backup?');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="backup">
+            <button type="submit" class="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition">
+                🚀 Run Backup Now
+            </button>
+        </form>
+    </div>
+
+    <div class="bg-red-50 p-6 rounded-xl shadow-lg border border-red-200">
+        <h2 class="text-xl font-semibold mb-4 text-red-700">Restore from Backup (DANGER ZONE)</h2>
+        {% if latest_file %}
+            <p class="text-gray-700 mb-4">
+                <strong>Latest Backup File:</strong> <span class="font-mono">{{ latest_file }}</span>
+                <br>
+                <span class="font-bold text-red-600">WARNING:</span> Restoring will permanently delete all data added since this backup was created.
+            </p>
+            <form method="post" onsubmit="return confirm('ABSOLUTELY SURE? Type YES to confirm:');" class="space-y-4">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="restore">
+                <input type="text" name="confirm_restore" placeholder="Type YES to confirm restore" required
+                       class="w-full p-2 border border-red-400 rounded-lg focus:ring-red-500 focus:border-red-500">
+                
+                <button type="submit" class="px-6 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition">
+                    🚨 Restore Database
+                </button>
+            </form>
+        {% else %}
+            <p class="text-gray-600">No backups found in the system directory.</p>
+        {% endif %}
+    </div>
+
+    <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+        <h2 class="text-xl font-semibold mb-4 text-gray-800">Backup History</h2>
+        {% if all_files %}
+            <ul class="space-y-1 list-disc list-inside">
+                {% for file in all_files %}
+                    <li class="font-mono text-sm">{{ file }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="text-gray-500">No backup files created yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock content %}

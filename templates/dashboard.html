@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock title %}
+
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">Welcome, {{ user.get_full_name }}!</h1>
+
+<div class="bg-white p-6 rounded-xl shadow-lg">
+    <h2 class="text-xl font-semibold mb-4">Latest Exam Scores (Sample)</h2>
+    <div class="w-full h-80">
+        <canvas id="examScoreChart"></canvas>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('examScoreChart');
+
+    // Data passed from the Django context
+    const scores = JSON.parse('{{ scores|safe }}');
+    const labels = JSON.parse('{{ labels|safe }}');
+
+    new Chart(ctx, {
+        type: 'bar', // Type can be 'line', 'bar', 'pie', etc.
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Score Percentage',
+                data: scores,
+                backgroundColor: 'rgba(59, 130, 246, 0.7)', // Blue-600
+                borderColor: 'rgba(29, 78, 216, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock extra_js %}

@@ -1,0 +1,31 @@
+{% load static %}
+{% if messages %}
+    <div class="message-container space-y-3 mb-6">
+        {% for message in messages %}
+            {% comment %} Determine alert style based on message tag {% endcomment %}
+            {% if message.tags == 'success' %}
+                {% set alert_classes = 'bg-green-100 border-green-400 text-green-700' %}
+            {% elif message.tags == 'warning' %}
+                {% set alert_classes = 'bg-yellow-100 border-yellow-400 text-yellow-700' %}
+            {% elif message.tags == 'error' or message.tags == 'danger' %}
+                {% set alert_classes = 'bg-red-100 border-red-400 text-red-700' %}
+            {% else %}
+                {% set alert_classes = 'bg-blue-100 border-blue-400 text-blue-700' %}
+            {% endif %}
+
+            <div class="{{ alert_classes }} border-l-4 p-4 rounded-lg shadow-md flex justify-between items-center" 
+                 role="alert"
+                 id="message-{{ forloop.counter }}">
+                
+                <p class="font-bold">{{ message|safe }}</p>
+                
+                <button type="button" 
+                        class="ml-4 -mr-1 text-current hover:text-gray-900 transition" 
+                        onclick="document.getElementById('message-{{ forloop.counter }}').style.display='none';" 
+                        aria-label="Close">
+                    <svg class="h-5 w-5 fill-current" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><title>Close</title><path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.854l-2.651 2.995a1.2 1.2 0 1 1-1.697-1.697l2.995-2.651-2.995-2.651a1.2 1.2 0 0 1 1.697-1.697L10 8.303l2.651-2.995a1.2 1.2 0 0 1 1.697 1.697L11.854 10l2.995 2.651a1.2 1.2 0 0 1 0 1.697z"/></svg>
+                </button>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}

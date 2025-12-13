@@ -1,0 +1,33 @@
+{% extends "base_auth.html" %}
+
+{% block title %}Parent Dashboard{% endblock title %}
+
+{% block content %}
+    <div class="max-w-7xl mx-auto space-y-8">
+        <h1 class="text-4xl font-extrabold text-gray-900 border-b pb-4">
+            Hello, <span class="text-green-600">{{ parent_name }}</span>!
+        </h1>
+
+        <div class="bg-blue-50 border-l-4 border-blue-400 text-blue-800 p-4" role="alert">
+            <p class="font-bold">Dashboard Placeholder</p>
+            <p>This is where you will see summaries for all your children, including performance charts, pickup code generation, and billing information.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+            <a href="{% url 'sms:communication_center' %}" class="block p-6 bg-white rounded-xl shadow-lg hover:shadow-xl transition duration-300 border border-gray-100">
+                <h3 class="text-xl font-semibold text-blue-700">PTA Communication Center</h3>
+                <p class="mt-2 text-gray-600">Start meetings and bi-directional chats with staff and teachers.</p>
+            </a>
+            
+            <a href="#" class="block p-6 bg-white rounded-xl shadow-lg hover:shadow-xl transition duration-300 border border-gray-100">
+                <h3 class="text-xl font-semibold text-gray-700">Generate Pickup Code</h3>
+                <p class="mt-2 text-gray-600">Securely generate temporary codes for student collection.</p>
+            </a>
+
+            <a href="#" class="block p-6 bg-white rounded-xl shadow-lg hover:shadow-xl transition duration-300 border border-gray-100">
+                <h3 class="text-xl font-semibold text-gray-700">View Billing History</h3>
+                <p class="mt-2 text-gray-600">Review and pay tuition/fee statements.</p>
+            </a>
+        </div>
+    </div>
+{% endblock content %}
