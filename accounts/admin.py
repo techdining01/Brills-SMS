@@ -25,7 +25,7 @@ STUDENT_USER_FIELDSETS = (
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth import get_user_model
-from .forms import CustomUserCreationForm # Use the base creation form
+# from .forms import CustomUserCreationForm # Use the base creation form
 
 User = get_user_model()
 
@@ -35,86 +35,106 @@ def approve_users(modeladmin, request, queryset):
     # Set is_approved and also set is_active to True, as they can now log in
     queryset.update(is_approved=True, is_active=True)
 
-class CustomUserAdmin(UserAdmin):
-    add_form = CustomUserCreationForm # Use the custom form for creating users in the admin
+# class CustomUserAdmin(UserAdmin):
+#     add_form = CustomUserCreationForm
     
-    # Custom fields for display on the change list page
-    list_display = (
-        'username', 
-        'email', 
-        'first_name', 
-        'role', 
-        'is_approved', # CRITICAL: Show approval status
-        'is_active', 
-        'is_staff'
-    )
+#     # ... (list_display remains the same) ...
+#     list_display = (
+#         'username', 
+#         'email', 
+#         'first_name', 
+#         'role', 
+#         'is_approved',
+#         'is_active', 
+#         'is_staff'
+#     )
     
-    # Fields to show when editing a user
-    fieldsets = (
-        (None, {'fields': ('username', 'password')}),
-        ('Personal info', {'fields': ('first_name', 'last_name', 'email', 'profile_picture', 'phone_number', 'address')}),
-        ('School Role', {'fields': ('role', 'student_class', 'parents')}),
-        ('Permissions', {
-            'fields': ('is_active', 'is_staff', 'is_superuser', 'is_approved', 'groups', 'user_permissions'), # CRITICAL: Include is_approved
-        }),
-        ('Important dates', {'fields': ('last_login', 'date_joined')}),
-    )
-    
-    # Filters for easy review
-    list_filter = ('role', 'is_approved', 'is_active', 'is_staff')
-    
-    # Add the custom action
-    actions = [approve_users]
+#     fieldsets = (
+#         # Use 'password' for the password hashing field
+#         (None, {'fields': ('username', 'password')}), 
+#         ('Personal info', {'fields': ('first_name', 'last_name', 'email', 'profile_picture', 'phone_number', 'address')}),
+#         ('School Role', {'fields': ('role', 'student_class', 'parents')}),
+#         ('Permissions', {
+#             'fields': ('is_active', 'is_staff', 'is_superuser', 'is_approved', 'groups', 'user_permissions'),
+#         }),
+#         ('Important dates', {'fields': ('last_login', 'date_joined')}),
+#     )
 
-# Unregister the default UserAdmin and register our custom one
-try:
-    admin.site.unregister(User)
-except admin.sites.NotRegistered:
-    pass
+#     add_fieldsets = (
+#         (None, {
+#             'classes': ('wide',),
+#             # CRITICAL: Do NOT include 'usable_password'. Use the standard AbstractUser fields.
+#             'fields': ('username', 'email', 'first_name', 'last_name', 'phone_number', 'profile_picture', 'password', 'password2'),
+#         }),
+#     )
+
+#     list_display = (
+#         'username', 
+#         'email', 
+#         'first_name', 
+#         'role', 
+#         'is_approved',
+#         'is_active', 
+#         'is_staff'
+#     )
+
     
-admin.site.register(User, CustomUserAdmin)
+#     # Fields to show when editing a user
+#     # Filters for easy review
+#     list_filter = ('role', 'is_approved', 'is_active', 'is_staff')
+    
+#     # Add the custom action
+#     actions = [approve_users]
+
+# # Unregister the default UserAdmin and register our custom one
+# try:
+#     admin.site.unregister(User)
+# except admin.sites.NotRegistered:
+#     pass
+    
+# admin.site.register(User, CustomUserAdmin)
 
 
-@admin.register(Student)
-class StudentAdmin(admin.ModelAdmin):
-    list_display = (
-        'username', 'email', 'first_name', 'last_name', 'student_class', 
-        'is_active',  
-    )
+# @admin.register(Student)
+# class StudentAdmin(admin.ModelAdmin):
+#     list_display = (
+#         'username', 'email', 'first_name', 'last_name', 'student_class', 
+#         'is_active',  
+#     )
      
-    list_filter = ('student_class', 'is_active')
+#     list_filter = ('student_class', 'is_active')
 
-    search_fields = ('username', 'first_name', 'last_name', 'email')
+#     search_fields = ('username', 'first_name', 'last_name', 'email')
 
-    # Check your fieldsets definition:
-    fieldsets = (
-        ('Personal Info', {
-            # Make sure 'role' is NOT here.
-            'fields': ( 'username', 'first_name', 'last_name', 'email', 
-                       'phone_number', 'address', 'password') 
-        }),
-        ('Academic Info', {
-            'fields': ('student_class', 'parents') 
-        }),
-    )
+#     # Check your fieldsets definition:
+#     fieldsets = (
+#         ('Personal Info', {
+#             # Make sure 'role' is NOT here.
+#             'fields': ( 'username', 'first_name', 'last_name', 'email', 
+#                        'phone_number', 'address', 'password') 
+#         }),
+#         ('Academic Info', {
+#             'fields': ('student_class', 'parents') 
+#         }),
+#     )
     
-    # You also removed 'role' from get_readonly_fields, which is good:
-    def get_readonly_fields(self, request, obj=None):
-        if obj:
-            # We want to keep this line to prevent editing if the role was initially correct
-            return self.readonly_fields + ('role',) 
-        return self.readonly_fields
-    def save(self, commit=True):
-        instance = super().save(commit=False)
-        instance.role = User.Role.STUDENT 
+#     # You also removed 'role' from get_readonly_fields, which is good:
+#     def get_readonly_fields(self, request, obj=None):
+#         if obj:
+#             # We want to keep this line to prevent editing if the role was initially correct
+#             return self.readonly_fields + ('role',) 
+#         return self.readonly_fields
+#     def save(self, commit=True):
+#         instance = super().save(commit=False)
+#         instance.role = User.Role.STUDENT 
         
-        # Check if this is a NEW user being created (no primary key yet)
-        if not instance.pk:
-            # Set a placeholder password that cannot be used for login
-            instance.set_unusable_password() 
+#         # # Check if this is a NEW user being created (no primary key yet)
+#         # if not instance.pk:
+#         #     # Set a placeholder password that cannot be used for login
+#         #     instance.set_password() 
             
-        if commit:
-            instance.save()
-        return instance
+#         if commit:
+#             instance.save()
+#         return instance
     
 

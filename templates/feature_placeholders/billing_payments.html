@@ -1,8 +1,9 @@
-{% extends "base_auth.html" %}
+{% extends "base.html" %}
+{% block title %}Billing & Payments{% endblock title %}
 {% block content %}
-    <h1 class="text-3xl font-bold mb-4">{{ title }}</h1>
-    <div class="p-6 bg-yellow-100 border-l-4 border-yellow-500 rounded-lg">
-        <p class="font-semibold">Feature Under Construction:</p>
-        <p>This page will show all fee structures, payment history, and allow new online payments.</p>
+    <h1 class="display-6 mb-4">Billing & Payments</h1>
+    <div class="alert alert-warning border-start border-5 border-warning py-3" role="alert">
+        <p class="fw-bold mb-1">Feature Under Construction:</p>
+        <p class="mb-0">This page will show all fee structures, payment history, and allow new online payments.</p>
     </div>
 {% endblock content %}

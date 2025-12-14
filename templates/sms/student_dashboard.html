@@ -1,113 +1,44 @@
-{% extends "base_auth.html" %}
-
-{% block title %}{{ student_name }} Dashboard{% endblock title %}
+{% extends "base.html" %}
+{% block title %}Student Corner{% endblock title %}
 
 {% block content %}
-    <div class="max-w-7xl mx-auto space-y-8">
-        <h1 class="text-4xl font-extrabold text-gray-900 border-b pb-4">
-            Welcome, <span class="text-blue-600">{{ student_name }}</span>!
-        </h1>
+    <h1 class="display-5 fw-bold mb-4 text-success">
+        <i class="fas fa-graduation-cap me-2"></i> Student Corner
+    </h1>
+    <p class="lead text-muted mb-5">Welcome, {{ request.user.first_name }}. Here is an overview of your academic life.</p>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            
-            <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                <h2 class="text-2xl font-semibold mb-4 text-gray-800">Overall Subject Mastery</h2>
-                <div class="h-80">
-                    <canvas id="subjectPerformanceChart"></canvas>
+    <div class="alert alert-success border-start border-5 border-success py-3" role="alert">
+        <h4 class="alert-heading fw-bold">Student Dashboard Under Construction!</h4>
+        <p class="mb-0">This section will soon display your current grades, attendance, and quick access to learning materials.</p>
+    </div>
+
+    <div class="row mt-5 g-4">
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title text-danger"><i class="fas fa-chart-line me-2"></i> My Performance</h5>
+                    <p class="card-text small text-muted">View your subject scores, report cards, and academic trends.</p>
+                    <a href="{% url 'sms:my_performance' %}" class="btn btn-sm btn-danger">View Grades</a>
                 </div>
             </div>
-
-            <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                <h2 class="text-2xl font-semibold mb-4 text-gray-800">Recent Exam Score History</h2>
-                <div class="h-80">
-                    <canvas id="scoreHistoryChart"></canvas>
-                </div>
-            </div>
-
         </div>
-        
-        <div class="pt-4">
-            <h2 class="text-2xl font-semibold mb-4 text-gray-800">Quick Actions</h2>
-            <a href="#" class="inline-block px-6 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition">
-                Start New CBT Exam (Link to Subject List)
-            </a>
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title text-info"><i class="fas fa-book-open me-2"></i> Class Resources</h5>
+                    <p class="card-text small text-muted">Access notes, assignments, and study materials for your classes.</p>
+                    <a href="{% url 'sms:class_resources' %}" class="btn btn-sm btn-info text-white">View Resources</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title text-primary"><i class="fas fa-envelope me-2"></i> Teacher Messages</h5>
+                    <p class="card-text small text-muted">Read announcements and messages from your teachers.</p>
+                    <a href="{% url 'sms:message_center' %}" class="btn btn-sm btn-primary">Go to Messages</a>
+                </div>
+            </div>
         </div>
     </div>
 {% endblock content %}
-
-{% block extra_js %}
-<script>
-    // Data passed from Django context (already JSON-parsed)
-    const subjectLabels = {{ subject_labels|safe }};
-    const subjectScores = {{ subject_scores|safe }};
-    const historyLabels = {{ history_labels|safe }};
-    const historyScores = {{ history_scores|safe }};
-
-    // --- Chart 1: Subject Performance (Radar) ---
-    const ctxSubject = document.getElementById('subjectPerformanceChart').getContext('2d');
-    new Chart(ctxSubject, {
-        type: 'radar',
-        data: {
-            labels: subjectLabels,
-            datasets: [{
-                label: 'Score Percentage (%)',
-                data: subjectScores,
-                backgroundColor: 'rgba(59, 130, 246, 0.2)', // Blue-500 with opacity
-                borderColor: 'rgba(59, 130, 246, 1)',
-                borderWidth: 2,
-                pointBackgroundColor: 'rgba(59, 130, 246, 1)'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                r: {
-                    angleLines: { display: false },
-                    suggestedMin: 0,
-                    suggestedMax: 100,
-                    pointLabels: { font: { size: 14 } }
-                }
-            },
-            plugins: {
-                legend: { position: 'top' },
-                title: { display: false }
-            }
-        }
-    });
-
-    // --- Chart 2: Score History (Line) ---
-    const ctxHistory = document.getElementById('scoreHistoryChart').getContext('2d');
-    new Chart(ctxHistory, {
-        type: 'line',
-        data: {
-            labels: historyLabels,
-            datasets: [{
-                label: 'Exam Score',
-                data: historyScores,
-                backgroundColor: 'rgba(16, 185, 129, 0.2)', // Green-500 with opacity
-                borderColor: 'rgba(16, 185, 129, 1)',
-                borderWidth: 2,
-                tension: 0.3,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    suggestedMin: 50,
-                    suggestedMax: 100,
-                    title: { display: true, text: 'Score (%)' }
-                }
-            },
-            plugins: {
-                legend: { position: 'top' },
-                title: { display: false }
-            }
-        }
-    });
-</script>
-{% endblock extra_js %}

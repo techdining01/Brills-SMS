@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+    <div class="row g-3">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="fw-bold">Welcome, {{ request.user.first_name }}</h5>
+                    <p class="text-muted mb-0">Parent Dashboard</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <a href="{% url 'brillspay_store' %}" class="card h-100 text-decoration-none shadow-sm">
+                <div class="card-body">
+                    <h6 class="fw-bold">BrillsPay Store</h6>
+                    <p class="text-muted small">Pay fees & buy items</p>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

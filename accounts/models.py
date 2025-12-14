@@ -4,7 +4,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db.models import Q
 from PIL import Image
 from django.utils import timezone 
-from sms.models import SchoolClass
+# from exams.models import SchoolClass
 from django.utils.crypto import get_random_string
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import BaseUserManager
@@ -27,7 +27,7 @@ class User(AbstractUser):
         )
 
     student_class = models.ForeignKey(
-        SchoolClass, 
+        'exams.SchoolClass', 
         on_delete=models.SET_NULL, 
         null=True, 
         blank=True,

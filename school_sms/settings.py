@@ -46,13 +46,13 @@ INSTALLED_APPS = [
     'rest_framework',
     'channels',
     'tailwind',             
-    'theme',                         
     'storages',             #3# For AWS S3 integration
     
 
     # Local Apps (The four pillars of this project)
+    'exams',                         
     'accounts.apps.AccountsConfig',
-    'sms.apps.SmsConfig',
+    # 'sms.apps.SmsConfig',
     'brillspay.apps.BrillspayConfig',
     'pickup.apps.PickupConfig',
     'management.apps.ManagementConfig'
@@ -67,6 +67,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'accounts.middleware.IdleTimeoutMiddleware',  # Custom middleware for session timeout
 ]
 
 ROOT_URLCONF = 'school_sms.urls'
@@ -145,8 +146,13 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 # Login URLs
 LOGIN_URL = '/auth/login/'
-LOGIN_REDIRECT_URL =  '/'
-LOGOUT_REDIRECT_URL =  '/auth/login/'
+LOGIN_REDIRECT_URL = ''
+LOGOUT_REDIRECT_URL = '/auth/login/'
+
+# settings.py
+SESSION_COOKIE_AGE = 1200 # 20 minutes
+SESSION_SAVE_EVERY_REQUEST = True
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

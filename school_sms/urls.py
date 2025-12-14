@@ -23,7 +23,7 @@ urlpatterns = [
     path('', school_sms_views.HomeView.as_view(), name='home'),
     path('auth/', include('accounts.urls')), 
     path('brillspay/', include('brillspay.urls')),
-    path('sms/', include('sms.urls')),
+    # path('sms/', include('sms.urls')),
     path('pickup/', include('pickup.urls')),
     path('management/', include('management.urls')),
 ]

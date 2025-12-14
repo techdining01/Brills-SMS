@@ -1,8 +1,42 @@
-{% extends "base_auth.html" %}
+{% extends "base.html" %}
+{% block title %}Account Settings & Profile{% endblock title %}
 {% block content %}
-    <h1 class="text-3xl font-bold mb-4">{{ title }}</h1>
-    <div class="p-6 bg-blue-100 border-l-4 border-blue-500 rounded-lg">
-        <p class="font-semibold">Feature Under Construction:</p>
-        <p>This page will allow you to update your profile details and change your password.</p>
+    <h1 class="display-6 mb-4">Account Settings & Profile</h1>
+    <div class="alert alert-primary border-start border-5 border-primary py-3" role="alert">
+        <p class="fw-bold mb-1">Feature Under Construction:</p>
+        <p class="mb-0">This page will allow you to update your profile details and change your password.</p>
+    </div>
+{% endblock content %}
+{% endextends %}
+{% extends "base.html" %}
+{% block title %}BrillsPay SMS{% endblock title %}
+
+{% block content %}
+    <!-- Main content will be injected here -->
+
+
+{% if user.is_authenticated %}
+    
+    <div id="sidebar" class="sidebar bg-light border-end p-3">
+        <h2 class="h4 fw-bold text-primary mb-4">BrillsPay SMS</h2>
+        
+        <nav class="d-flex flex-column">
+            {% if user.role == user.Role.ADMIN %}
+            <p class="small text-muted text-uppercase fw-bold mb-2">Admin Menu</p>
+            <a href="{% url 'sms:accounts_admin_dashboard' %}" class="sidebar-link mb-2 {% if request.path == '/accounts/admin_dashboard/' %}active{% endif %}">
+                <i class="fas fa-tachometer-alt fa-fw me-2"></i> Admin Dashboard        
+            </a>    
+            {% endif %}
+            <p class="small text-muted text-uppercase fw-bold mb-2 mt-4">Main Menu</p>
+            <a href="{% url 'home' %}" class="sidebar-link mb-2 {% if request.path == '/' or request.path == '/dashboard/' %}active{% endif %}">
+                <i class="fas fa-home fa-fw me-2"></i> Dashboard    
+            </a>
+            <a href="{% url 'accounts:settings_profile' %}" class="sidebar-link mb-2 {% if request.path == '/accounts/settings/profile/' %}active{% endif %}">
+                <i class="fas fa-user-cog fa-fw me-2"></i> Account Settings & Profile   
+            </a>
+            <a href="{% url 'accounts:logout' %}" class="sidebar-link mt-4 text-danger">
+                <i class="fas fa-sign-out-alt fa-fw me-2"></i> Logout
+            </a>
+        </nav>
     </div>
 {% endblock content %}
