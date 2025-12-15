@@ -20,4 +20,10 @@ urlpatterns += [
     # path('payment/callback/', views.payment_callback, name='payment_callback'),
     path('checkout/', views.checkout, name='checkout'),
 
+
+    # Order management for admins
+    path("admin/orders/", views.admin_orders, name="admin_orders"),
+    path("admin/orders/<int:order_id>/", views.admin_order_detail, name="admin_order_detail"),
+    path("admin/products/stock/<int:product_id>/", views.admin_update_stock, name="admin_update_stock"),
+
 ]

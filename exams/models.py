@@ -78,6 +78,32 @@ class Exam(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     is_published = models.BooleanField(default=False)
     allow_retake = models.BooleanField(default=False) # if true, students can retake
+    requires_payment = models.BooleanField(default=False)
+    price = models.PositiveIntegerField(default=0) 
+
+class ExamAccessOverride(models.Model):
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        limit_choices_to={"role": "STUDENT"}
+    )
+    exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
+    granted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="granted_exam_access"
+    )
+    reason = models.CharField(max_length=255, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("student", "exam")
+
+    def __str__(self):
+        return f"{self.student} → {self.exam} (Override)"
+
 
 
 class Question(models.Model):
@@ -243,3 +269,17 @@ class Broadcast(models.Model):
     
     def __str__(self):
         return f"Broadcast by {self.sender.username} to {self.target_class.name if self.target_class else 'All'}"
+    
+
+
+class SystemLog(models.Model):
+    level = models.CharField(max_length=20)
+    source = models.CharField(max_length=100)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.level} | {self.source}"

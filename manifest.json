@@ -1,0 +1,8 @@
+{
+  "name": "Brills School SMS",
+  "short_name": "BrillsSMS",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#0d6efd",
+  "background_color": "#ffffff"
+}

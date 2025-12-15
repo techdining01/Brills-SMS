@@ -1,4 +1,3 @@
-from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -6,31 +5,27 @@ from .forms import LoginForm, StudentCreateForm, StaffCreateForm, ParentCreateFo
 from .models import User
 from django.core.mail import send_mail
 from django.conf import settings
-from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.shortcuts import get_object_or_404
-from django.core.mail import send_mail
 from django.conf import settings
-# accounts/views.py
-from django.shortcuts import render, redirect
 from django.contrib import messages
-from django.contrib.auth import login
 from .models import User
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Q
-from exams.models import PTARequest, Notification
 from django.views.decorators.csrf import csrf_exempt    
+from django.contrib import messages
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse
+from django.contrib.auth import get_user_model
 
+User = get_user_model()
 
-EXEMPT_URLS = ['/', '/login/', '/register/']
-
-
-
+import logging
+logger = logging.getLogger("system")
 
 
 def login_view(request):
     if request.user.is_authenticated:
-        return redirect('dashboard_redirect')
+        return redirect('accounts:dashboard_redirect')
 
     form = LoginForm(request, data=request.POST or None)
     if request.method == 'POST' and form.is_valid():
@@ -80,21 +75,20 @@ def register_view(request):
     return render(request, 'register.html')
 
 
-
 @login_required
 def dashboard_redirect(request):
     role = request.user.role
 
     if role == User.Role.ADMIN:
-        return redirect('accounts:admin_dashboard')
+        return redirect('exams:admin_dashboard')
     elif role == User.Role.STAFF:
-        return redirect('accounts:staff_dashboard')
+        return redirect('exams:staff_dashboard')
     elif role == User.Role.STUDENT:
-        return redirect('accounts:student_dashboard')
+        return redirect('exams:student_dashboard')
     elif role == User.Role.PARENT:
-        return redirect('accounts:parent_dashboard')
+        return redirect('exams:parent_dashboard')
     
-    return redirect('accounts:landing_page')
+    return redirect('landing_page')
 
 @login_required
 def post_login_router(request):
@@ -104,18 +98,18 @@ def post_login_router(request):
         return redirect('accounts:pending_approval')
 
     if user.role == 'ADMIN':
-        return redirect('accounts:admin_dashboard')
+        return redirect('exams:admin_dashboard')
 
     if user.role == 'STAFF':
-        return redirect('accounts:teacher_dashboard')
+        return redirect('exams:teacher_dashboard')
 
     if user.role == 'STUDENT':
-        return redirect('accounts:student_dashboard')
+        return redirect('exams:student_dashboard')
 
     if user.role == 'PARENT':
-        return redirect('accounts:parent_dashboard')
+        return redirect('exams:parent_dashboard')
 
-    return redirect('accounts:landing_page')
+    return redirect('landing_page')
 
 
 @login_required
@@ -210,3 +204,41 @@ def admin_reset_password(request, user_id):
 
     return render(request, 'admin/reset_password.html', {'u': user})
 
+
+@staff_member_required
+def admin_users(request):
+    role = request.GET.get("role")
+    status = request.GET.get("status")
+
+    users = User.objects.all().order_by("-date_joined")
+
+    if role:
+        users = users.filter(role=role)
+
+    if status == "pending":
+        users = users.filter(is_approved=False)
+    elif status == "approved":
+        users = users.filter(is_approved=True)
+
+    context = {
+        "users": users,
+        "role": role,
+        "status": status,
+    }
+    return render(request, "admin/users/list.html", context)
+
+
+
+@staff_member_required
+def bulk_approve_users(request):
+    if request.method == "POST":
+        ids = request.POST.getlist("user_ids[]")
+
+        updated = User.objects.filter(id__in=ids).update(is_approved=True)
+
+        return JsonResponse({
+            "success": True,
+            "approved_count": updated
+        })
+
+    return JsonResponse({"success": False}, status=400)

@@ -8,10 +8,3 @@ def landing_page(request):
     return render(request, 'exams/landing_page.html')
 
 
-# from django.http import HttpResponse
-
-# # def landing_page(request):
-# #     return HttpResponse("LANDING PAGE — NO AUTH — OK")
-
-# def landing_page(request):
-#     return render(request, 'core/landing_raw.html')

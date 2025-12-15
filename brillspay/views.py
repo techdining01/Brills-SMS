@@ -8,9 +8,13 @@ from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 import requests
+from exams.models import Exam
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib import messages
+
 
 import logging
-payment_logger = logging.getLogger('brillspay')
+logger = logging.getLogger("system")
 
 
 @login_required
@@ -96,6 +100,22 @@ def checkout(request):
     return redirect('view_cart')
 
 
+@login_required
+def exam_checkout(request, exam_id):
+    exam = get_object_or_404(Exam, id=exam_id)
+
+    order, created = Order.objects.get_or_create(
+        user=request.user,
+        exam=exam,
+        defaults={"total": exam.price}
+    )
+
+    return render(request, "brillspay/exam_checkout.html", {
+        "exam": exam,
+        "order": order,
+        "paystack_key": settings.PAYSTACK_PUBLIC_KEY
+    })
+
 
 @csrf_exempt
 def paystack_webhook(request):
@@ -145,63 +165,38 @@ def transactions_dashboard(request):
     })
 
 
+@staff_member_required
+def admin_orders(request):
+    orders = Order.objects.select_related("user").prefetch_related("items")
+
+    return render(request, "adminpanel/orders/list.html", {
+        "orders": orders
+    })
 
 
+@staff_member_required
+def admin_order_detail(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+
+    return render(request, "adminpanel/orders/detail.html", {
+        "order": order
+    })
 
 
+@staff_member_required
+def admin_update_stock(request, product_id):
+    product = get_object_or_404(Product, id=product_id)
+
+    if request.method == "POST":
+        qty = int(request.POST.get("quantity", 0))
+        product.stock += qty
+        product.save(update_fields=["stock"])
+
+        messages.success(request, "Stock updated successfully")
+        return redirect("shop:admin_orders")
+
+    return render(request, "adminpanel/products/update_stock.html", {
+        "product": product
+    })
 
 
-
-
-# import logging
-# logger = logging.getLogger('brillspay')
-
-# logger.info(f"Payment verified: {reference}")
-
-
-@csrf_exempt
-def paystack_webhook(request):
-    signature = request.headers.get('x-paystack-signature')
-    payload = request.body
-
-    computed = hmac.new(
-        key=settings.PAYSTACK_SECRET_KEY.encode(),
-        msg=payload,
-        digestmod=hashlib.sha512
-    ).hexdigest()
-
-    if signature != computed:
-        return HttpResponse(status=401)
-
-    event = json.loads(payload)
-    data = event['data']
-
-    if event['event'] == 'charge.success':
-        reference = data['reference']
-        amount = data['amount'] / 100
-
-        transaction, created = PaymentTransaction.objects.get_or_create(
-            reference=reference,
-            defaults={
-                'order': Order.objects.get(paystack_reference=reference),
-                'amount': amount,
-                'status': data['status'],
-                'gateway_response': data,
-                'verified': True
-            }
-        )
-
-        order = transaction.order
-        order.status = 'paid'
-        order.payment_verified = True
-        order.save()    
-        
-    payment_logger.info(
-        f"PAYMENT VERIFIED | Ref={reference} | User={order.user_id} | Amount={amount}"
-    )
-
-    payment_logger.warning(
-        f"PAYMENT FAILED | Payload={data}"
-    )
-
-    return HttpResponse(status=200)

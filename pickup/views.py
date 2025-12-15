@@ -26,7 +26,7 @@ def is_admin_or_staff(user):
 
 
 import logging
-pickup_logger = logging.getLogger('pickups')
+logger = logging.getLogger("system")
 
 
 @login_required
