@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Generate Pickup{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h4 class="mb-3">Generate Pickup Code</h4>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="mb-3">
+      <label class="form-label">Bearer Name</label>
+      <input type="text" name="bearer_name" class="form-control" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Relationship</label>
+      <input type="text" name="relationship" class="form-control">
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Select Students</label>
+      {% for s in students %}
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" name="students" value="{{ s.id }}">
+        <label class="form-check-label">
+          {{ s.get_full_name }} ({{ s.student_class }})
+        </label>
+      </div>
+      {% endfor %}
+    </div>
+
+    <button class="btn btn-success">Generate Pickup</button>
+  </form>
+</div>
+{% endblock %}

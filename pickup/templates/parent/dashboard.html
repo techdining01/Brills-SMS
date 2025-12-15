@@ -1,0 +1,37 @@
+
+{% extends "base.html" %}
+{% block title %}Parent Pickup Dashboard{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between mb-3">
+    <h4>Pickup Dashboard</h4>
+    <a href="{% url 'pickups:generate_pickup' %}" class="btn btn-primary">
+      Generate Pickup
+    </a>
+  </div>
+
+  {% if pickups %}
+  <div class="row">
+    {% for p in pickups %}
+    <div class="col-md-4 mb-3">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h6>{{ p.bearer_name }}</h6>
+          <small>{{ p.students.count }} student(s)</small>
+          <p class="mt-2">
+            Expires: {{ p.expires_at|date:"M d H:i" }}
+          </p>
+          {% if p.qrcode_image %}
+            <img src="{{ p.qrcode_image.url }}" class="img-fluid">
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    <div class="alert alert-info">No pickup codes generated yet.</div>
+  {% endif %}
+</div>
+{% endblock %}

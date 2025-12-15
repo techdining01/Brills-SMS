@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Parent Dashboard{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <div class="row mb-4">
+    <div class="col-md-8">
+      <h4 class="fw-bold">Welcome, {{ request.user.first_name }}</h4>
+      <p class="text-muted">Parent / Guardian Dashboard</p>
+    </div>
+    <div class="col-md-4 text-md-end">
+      <a href="{% url 'brillspay:product_list' %}" target="_blank" class="btn btn-primary btn-lg">
+        🛒 Go to BrillsPay
+      </a>
+    </div>
+  </div>
+
+  <!-- CHILDREN -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header fw-semibold">My Children</div>
+    <div class="card-body">
+      {% for child in children %}
+        <div class="d-flex justify-content-between border-bottom py-2">
+          <span>{{ child.get_full_name }}</span>
+          <span class="badge bg-info">{{ child.student_class }}</span>
+        </div>
+      {% empty %}
+        <p class="text-muted">No linked students.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- PTA -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header fw-semibold">PTA Requests</div>
+    <div class="card-body">
+      {% for pta in pta_requests %}
+        <div class="mb-2">
+          <strong>{{ pta.title }}</strong><br>
+          <small class="text-muted">{{ pta.get_status_display }}</small>
+        </div>
+      {% empty %}
+        <p class="text-muted">No PTA requests yet.</p>
+      {% endfor %}
+      <a href="#" class="btn btn-sm btn-outline-primary mt-2">New PTA Request</a>
+    </div>
+  </div>
+
+  <!-- NOTIFICATIONS -->
+  <div class="card shadow-sm">
+    <div class="card-header fw-semibold">Notifications</div>
+    <div class="card-body">
+      {% for n in notifications %}
+        <div class="alert alert-info py-2">
+          {{ n.message }}
+        </div>
+      {% empty %}
+        <p class="text-muted">No new notifications.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

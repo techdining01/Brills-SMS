@@ -6,7 +6,6 @@ from PIL import Image
 from django.utils import timezone 
 # from exams.models import SchoolClass
 from django.utils.crypto import get_random_string
-from django.contrib.auth import get_user_model
 from django.contrib.auth.models import BaseUserManager
 
 

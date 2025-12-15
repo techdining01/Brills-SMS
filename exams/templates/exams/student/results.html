@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h5>My Exam Results</h5>
+
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Exam</th>
+        <th>Score</th>
+        <th>Total</th>
+        <th>Percentage</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in results %}
+      <tr>
+        <td>{{ r.exam.title }}</td>
+        <td>{{ r.obtained }}</td>
+        <td>{{ r.total }}</td>
+        <td>{{ r.obtained/r.total|floatformat:2 }}%</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

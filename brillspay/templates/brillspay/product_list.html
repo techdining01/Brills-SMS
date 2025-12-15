@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+  <h3 class="mb-4">BrillsPay Store</h3>
+
+  <div class="row g-3">
+    {% for product in products %}
+    <div class="col-6 col-md-4">
+      <div class="card h-100 shadow-sm">
+        {% if product.image %}
+        <img src="{{ product.image.url }}" class="card-img-top">
+        {% endif %}
+        <div class="card-body">
+          <h6>{{ product.name }}</h6>
+          <p class="fw-bold">₦{{ product.price }}</p>
+          <button class="btn btn-primary btn-sm add-cart"
+                  data-id="{{ product.id }}">
+            Add to Cart
+          </button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.add-cart').forEach(btn => {
+  btn.onclick = async () => {
+    const res = await fetch("{% url 'add_to_cart' %}", {
+      method: 'POST',
+      headers: {'X-CSRFToken': '{{ csrf_token }}'},
+      body: new URLSearchParams({product_id: btn.dataset.id})
+    })
+  }
+})
+</script>
+{% endblock %}

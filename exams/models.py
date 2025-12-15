@@ -1,5 +1,4 @@
 from django.db import models
-from accounts.models import User
 from django.conf import settings
 from django.utils import timezone
 from django.db.models import Q
@@ -71,7 +70,7 @@ class Subject(models.Model):
 class Exam(models.Model):
     title = models.CharField(max_length=200)
     school_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE)
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     duration = models.PositiveIntegerField(help_text='Minutes')
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
@@ -99,40 +98,62 @@ class Choice(models.Model):
 
 
 class ExamAttempt(models.Model):
+    ATTEMPT_STATUS = (
+        ('in_progress', 'In Progress'),
+        ('submitted', 'Submitted'),
+        ('expired', 'Expired'),
+        ('interrupted', 'Interrupted'),
+    )
+
     exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
-    student = models.ForeignKey(User, on_delete=models.CASCADE)
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     started_at = models.DateTimeField(auto_now_add=True)
+    last_activity_at = models.DateTimeField(auto_now=True)
+
+    remaining_seconds = models.PositiveIntegerField()
     completed_at = models.DateTimeField(null=True, blank=True)
+
+    status = models.CharField(
+        max_length=20,
+        choices=ATTEMPT_STATUS,
+        default='in_progress'
+    )
+
     is_submitted = models.BooleanField(default=False)
     retake_allowed = models.BooleanField(default=False)
-    question_order = models.TextField(blank=True, null=True)  # comma-separated question IDs in order
+    question_order = models.JSONField(default=list)
+    remaining_seconds = models.IntegerField(default=0)  # store remaining time
+    class Meta:
+        unique_together = ('exam', 'student', 'status')
 
+    def save_progress(self, seconds_left):
+        self.remaining_seconds = seconds_left
+        self.save(update_fields=['remaining_seconds'])
 
     def can_resume(self):
-        """Allow resume if attempt still within time and not submitted."""
-        return not self.is_submitted and (self.completed_at is None or timezone.now() < self.end_time)
+        now = timezone.now()
+        within_time = (self.completed_at is None) and (now < self.exam.end_time)
+        return not self.is_submitted and within_time
 
     def can_retake(self):
-        """Allow retake if admin has granted it, or quiz allows retakes globally."""
-        return self.retake_allowed 
-
-    def __str__(self):
-        return f"{self.student} - {self.exam} "
-
-
-
+        return self.retake_allowed or self.exam.allow_retake
 
 class StudentAnswer(models.Model):
     attempt = models.ForeignKey(ExamAttempt, on_delete=models.CASCADE)
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
+
     answer_text = models.TextField(blank=True)
-    selected_choice = models.ForeignKey(Choice, null=True, blank=True, on_delete=models.SET_NULL)
+    selected_choice = models.ForeignKey(
+        Choice, null=True, blank=True, on_delete=models.SET_NULL
+    )
+    class Meta:
+        unique_together = ('attempt', 'question')
 
 
 class SubjectiveMark(models.Model):
     answer = models.OneToOneField(StudentAnswer, on_delete=models.CASCADE)
     score = models.PositiveIntegerField()
-    marked_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    marked_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
 
 
 
@@ -190,11 +211,35 @@ class RetakeRequest(models.Model):
         default="pending"
     )
     created_at = models.DateTimeField(auto_now_add=True)
-    reviewed_at = models.DateTimeField(blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True)
     reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="retake_reviews")
 
     def __str__(self):
         return f"{self.student.username} → {self.exam.title} ({self.status})"
 
 
+class Notification(models.Model):
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sent_notifications')
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notifications')
+    title = models.CharField(max_length=150)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    related_exam = models.IntegerField(null=True, blank=True)
+    class Meta:
+        ordering = ['-created_at']
 
+    def mark_read(self):
+        self.is_read = True
+        self.save()
+
+
+class Broadcast(models.Model):
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    target_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, blank=True, null=True)
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Broadcast by {self.sender.username} to {self.target_class.name if self.target_class else 'All'}"

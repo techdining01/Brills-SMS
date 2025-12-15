@@ -1,23 +1,30 @@
 import qrcode
-import base64
 from io import BytesIO
+from django.core.files.base import ContentFile
+import requests
+from django.conf import settings
 
-def generate_qrcode(data):
-    """Generates a QR code for the given data and returns it as a base64 string."""
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(data)
-    qr.make(fit=True)
-
-    img = qr.make_image(fill_color="black", back_color="white")
-    
-    # Save image to an in-memory buffer
+def generate_pickup_qr(pickup):
+    qr = qrcode.make(f"PICKUP:{pickup.reference}")
     buffer = BytesIO()
-    img.save(buffer, format="PNG")
-    
-    # Encode the image data to base64
-    return base64.b64encode(buffer.getvalue()).decode()
+    qr.save(buffer, format="PNG")
+
+    filename = f"pickup_{pickup.reference}.png"
+    pickup.qrcode_image.save(
+        filename,
+        ContentFile(buffer.getvalue()),
+        save=False
+    )
+
+
+def send_sms(phone_number, message):
+    url = "https://termii.com/api/sms/send"
+    data = {
+        "to": phone_number,
+        "from": settings.TERMII_SENDER_ID,
+        "sms": message,
+        "type": "plain",
+        "api_key": settings.TERMII_API_KEY
+    }
+    response = requests.post(url, json=data)
+    return response.json()

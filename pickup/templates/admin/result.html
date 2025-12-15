@@ -1,0 +1,38 @@
+<h2>Pickup Verification: {{ status }}</h2>
+
+{% if status == "SUCCESS" %}
+  <h3>Bearer: {{ pickup.bearer_name }}</h3>
+  <p>Relationship: {{ pickup.relationship }}</p>
+  <p>Parent: {{ pickup.parent.get_full_name }}</p>
+
+  <h4>Students ({{ pickup.students.count }})</h4>
+  <ul>
+    {% for ps in pickup.students.all %}
+      <li>
+        <img src="{{ ps.student.profile.photo.url }}" width="50">
+        {{ ps.student.get_full_name }}
+        — {{ ps.student.school_class }}
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>This pickup is {{ status|lower }}</p>
+{% endif %}
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<div id="qr-reader" style="width:300px"></div>
+
+<script>
+const qr = new Html5Qrcode("qr-reader");
+
+qr.start(
+  { facingMode: "environment" },
+  { fps: 10, qrbox: 250 },
+  (decodedText) => {
+    if (decodedText.startsWith("PICKUP:")) {
+      const ref = decodedText.replace("PICKUP:", "");
+      window.location.href = `/pickups/admin/verify/${ref}/`;
+    }
+  }
+);
+</script>

@@ -1,0 +1,13 @@
+import logging
+
+# For exams events
+exam_logger = logging.getLogger("exams")
+exam_logger.info("Exam started for student XYZ")
+
+# For ecommerce/BrillsPay
+payment_logger = logging.getLogger("brillspay")
+payment_logger.info("Payment verified for user 123")
+
+# For pickups
+pickup_logger = logging.getLogger("pickups")
+pickup_logger.info("Pickup verified for bearer ABC")

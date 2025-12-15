@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h4 class="fw-bold">{{ exam.title }} — Questions</h4>
+
+  <a href="{% url 'add_question' exam.id %}" class="btn btn-primary btn-sm mb-3">
+    + Add Question
+  </a>
+
+  <ul class="list-group">
+    {% for q in questions %}
+      <li class="list-group-item">
+        <strong>{{ forloop.counter }}.</strong> {{ q.text|truncatechars:80 }}
+        <span class="badge bg-secondary float-end">
+          {{ q.get_type_display }}
+        </span>
+      </li>
+    {% empty %}
+      <li class="list-group-item text-muted">
+        No questions yet.
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+<a href="{% url 'upload_questions_excel' exam.id %}"
+   class="btn btn-outline-secondary btn-sm mb-2">
+   Upload via Excel
+</a>
+<a href="{% url 'upload_questions_word' exam.id %}"
+   class="btn btn-outline-primary btn-sm mb-2">
+   Upload via Word
+</a>
+
+{% endblock %}

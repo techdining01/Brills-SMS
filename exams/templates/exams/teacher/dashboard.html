@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Teacher Dashboard{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <!-- HEADER -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="fw-bold mb-0">Teacher Dashboard</h4>
+      <small class="text-muted">Manage exams, grading & performance</small>
+    </div>
+    <a href="{% url 'create_exam' %}" class="btn btn-primary">
+      ➕ Create Exam
+    </a>
+  </div>
+
+  <!-- STATS -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card shadow-sm text-center">
+        <div class="card-body">
+          <h5>{{ exams.count }}</h5>
+          <small class="text-muted">Exams Created</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm text-center">
+        <div class="card-body">
+          <h5 class="text-danger">{{ pending_marking }}</h5>
+          <small class="text-muted">Pending Theory Marking</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm text-center">
+        <div class="card-body">
+          <h5>{{ notifications.count }}</h5>
+          <small class="text-muted">New Notifications</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXAMS TABLE -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header fw-semibold">My Exams</div>
+    <div class="card-body table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Class</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for exam in exams %}
+          <tr>
+            <td>{{ exam.title }}</td>
+            <td>{{ exam.school_class }}</td>
+            <td>
+              {% if exam.is_published %}
+                <span class="badge bg-success">Published</span>
+              {% else %}
+                <span class="badge bg-warning">Draft</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{% url 'teacher_exam_questions' exam.id %}" class="btn btn-sm btn-outline-primary">Questions</a>
+              <a href="{% url 'bulk_upload_questions' exam.id %}" class="btn btn-sm btn-outline-secondary">Bulk Upload</a>
+              <a href="{% url 'teacher_grading_dashboard' %}" class="btn btn-sm btn-outline-success">Mark</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" class="text-center text-muted">No exams yet.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- NOTIFICATIONS -->
+  <div class="card shadow-sm">
+    <div class="card-header fw-semibold">Notifications</div>
+    <div class="card-body">
+      {% for n in notifications %}
+        <div class="alert alert-info py-2">{{ n.message }}</div>
+      {% empty %}
+        <p class="text-muted">No new notifications</p>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

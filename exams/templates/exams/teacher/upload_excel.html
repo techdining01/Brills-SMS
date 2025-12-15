@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h5 class="fw-bold">Upload Questions (Excel)</h5>
+
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <input type="file" class="form-control mt-3" name="file" required>
+
+    <button class="btn btn-success mt-3">
+      Upload
+    </button>
+  </form>
+
+  <p class="text-muted mt-3">
+    Excel must follow the official template format.
+  </p>
+</div>
+{% endblock %}

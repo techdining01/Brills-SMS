@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h5>Send Broadcast to Students</h5>
+
+  <form method="post">
+    {% csrf_token %}
+    <textarea class="form-control" name="message" placeholder="Enter message" required></textarea>
+    <button class="btn btn-primary mt-2">Send Broadcast</button>
+  </form>
+</div>
+{% endblock %}

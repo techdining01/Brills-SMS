@@ -1,0 +1,21 @@
+<img src="{{ pickup.qrcode_image.url }}"
+     class="img-fluid rounded shadow"
+     alt="Pickup QR Code">
+
+<h3>Pickup Authorization</h3>
+
+<p><strong>Bearer:</strong> {{ pickup.bearer_name }}</p>
+<p><strong>Relationship:</strong> {{ pickup.relationship }}</p>
+<p><strong>Expires:</strong> {{ pickup.expires_at }}</p>
+
+<h4>Students Covered ({{ pickup.students.count }})</h4>
+<ul>
+  {% for ps in pickup.students.all %}
+    <li>
+      <img src="{{ ps.student.profile.photo.url }}" width="40">
+      {{ ps.student.get_full_name }} — {{ ps.student.school_class }}
+    </li>
+  {% endfor %}
+</ul>
+
+<img src="{% url 'pickup_qr' pickup.reference %}">

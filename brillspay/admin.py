@@ -11,37 +11,34 @@ class CategoryAdmin(admin.ModelAdmin):
 # --- 2. Product Admin (Including Stock) ---
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ['name', 'category', 'price', 'stock_quantity', 'image', 'available', 'created_at']
-    list_filter = ['available', 'created_at', 'category']
-    list_editable = ['price', 'stock_quantity', 'image', 'available']
-    prepopulated_fields = {'slug': ('name',)}
+    list_display = ['name', 'category', 'price', 'stock_quantity', 'image', 'created_at']
+    list_filter =['created_at', 'category']
+    list_editable = ['price', 'stock_quantity', 'image']
     search_fields = ['name', 'description']
     
     fieldsets = (
         (None, {'fields': ('name', 'slug', 'category', 'description')}),
-        ('Pricing & Stock', {'fields': ('price', 'stock', 'available')}),
+        ('Pricing & Stock', {'fields': ('price', 'stock')}),
     )
 
 # --- 3. Order Item Inline for Order Admin ---
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
-    raw_id_fields = ['product']
-    readonly_fields = ['price', 'quantity', 'get_cost']
+    raw_id_fields = ['order']
+    readonly_fields = ['price', 'quantity']
     extra = 0
     
-    def get_cost(self, obj):
-        return obj.get_cost()
-    get_cost.short_description = 'Item Cost'
+   
 
 # --- 4. Order Admin (Tracking Payments) ---
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ['id', 'user', 'full_name', 'email', 'paid', 'paystack_ref', 'created_at']
-    list_filter = ['paid', 'created_at']
-    search_fields = ['id', 'user__username', 'paystack_ref']
+    list_display = ['id', 'user', 'payment_verified', 'reference', 'created_at']
+    list_filter = ['payment_verified', 'created_at']
+    search_fields = ['id', 'user__username', 'reference']
     inlines = [OrderItemInline]
-    readonly_fields = ['user', 'paystack_ref', 'get_total_cost']
+    readonly_fields = ['user', 'reference', 'total_amount']
     
-    def get_total_cost(self, obj):
-        return obj.get_total_cost()
-    get_total_cost.short_description = 'Total Order Cost'
+    def total_amount(self, obj):
+        return obj.total_amount()
+    total_amount.short_description = 'Total Order Cost'

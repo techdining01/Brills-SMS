@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Verify Pickups{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h4 class="mb-3">Pending Pickup Verifications</h4>
+
+  {% if pickups %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Parent</th>
+          <th>Bearer</th>
+          <th>Students</th>
+          <th>Expires</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pickup in pickups %}
+        <tr>
+          <td>{{ pickup.parent.get_full_name }}</td>
+          <td>{{ pickup.bearer_name }}</td>
+          <td>{{ pickup.students.count }}</td>
+          <td>{{ pickup.expires_at|date:"M d, Y H:i" }}</td>
+          <td>
+            <a href="{% url 'pickups:verify_pickup_detail' pickup.code %}"
+               class="btn btn-sm btn-primary">
+              Verify
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <div class="alert alert-info">No pending pickup requests.</div>
+  {% endif %}
+</div>
+{% endblock %}

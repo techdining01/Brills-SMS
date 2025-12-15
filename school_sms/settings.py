@@ -46,16 +46,14 @@ INSTALLED_APPS = [
     'rest_framework',
     'channels',
     'tailwind',             
-    'storages',             #3# For AWS S3 integration
+    # 'storages',             #3# For AWS S3 integration
     
 
     # Local Apps (The four pillars of this project)
     'exams',                         
     'accounts.apps.AccountsConfig',
-    # 'sms.apps.SmsConfig',
     'brillspay.apps.BrillspayConfig',
     'pickup.apps.PickupConfig',
-    'management.apps.ManagementConfig'
 ]
 
 
@@ -65,9 +63,9 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'accounts.middleware.IdleTimeoutMiddleware',  
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'accounts.middleware.IdleTimeoutMiddleware',  # Custom middleware for session timeout
 ]
 
 ROOT_URLCONF = 'school_sms.urls'
@@ -120,6 +118,70 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+
+import os
+import logging
+from logging.handlers import RotatingFileHandler
+
+
+LOG_DIR = os.path.join(BASE_DIR, "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{asctime} | {levelname} | {name} | {module} | {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} | {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(LOG_DIR, 'project.log'),
+            'maxBytes': 5*1024*1024,  # 5 MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'loggers': {
+        # Central logger for all apps
+        'project': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        # Specific apps (optional)
+        'brillspay': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'exams': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'pickups': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
+
+
+
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
@@ -145,9 +207,11 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 
 # Login URLs
-LOGIN_URL = '/auth/login/'
-LOGIN_REDIRECT_URL = ''
-LOGOUT_REDIRECT_URL = '/auth/login/'
+LOGIN_URL = 'login'
+LOGOUT_REDIRECT_URL = 'landing_page'
+LOGIN_REDIRECT_URL = 'post_login_router'
+
+
 
 # settings.py
 SESSION_COOKIE_AGE = 1200 # 20 minutes
@@ -172,7 +236,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# School config (dynamic)
+## School config (dynamic)
 # SCHOOL_NAME = os.getenv("SCHOOL_NAME", "The Brills School")
 # SCHOOL_ADDRESS = os.getenv("SCHOOL_ADDRESS", "No 1, Adaba Awotan-Akufo Road. Ibadan. Oyo State")
 # SCHOOL_SLOGAN = os.getenv("SCHOOL_SLOGAN", "Knowledge is Light")
@@ -181,16 +245,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # SITE_NAME = os.getenv("PORTAL_DOMAIN", "https://www.thebrillsschool.edu.ng")
 # CURRENCY = os.getenv('NGN')
 # CURRENCY_SYMBOL = os.getenv('₦')
-
-
-# ASGI & Channels Configuration
-ASGI_APPLICATION = 'school_sms.asgi.application'
-
-CHANNEL_LAYERS = {
-    "default": {
-            "BACKEND": "channels.layers.InMemoryChannelLayer", # Simple in-memory layer        "CONFIG": {
-        },
-    },
 
 
 # Custom User Model (Best Practice)
@@ -216,9 +270,26 @@ PAYSTACK_BASE_URL = config('PAYSTACK_BASE_URL')
 # AWS_DEFAULT_ACL = config('AWS_DEFAULT_ACL', default='public-read')
 # AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
 
+# Backend to use S3 for storing static and media files
+# STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+# DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+# STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
+# MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
+# -----------------------------------------
 
-# NPM_BIN_PATH = '\Users\USER\AppData\Roaming\npm' 
-NPM_SCRIPT_PATH = "/Program Files/nodejs/npm"
+# Celery Configuration Options
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_BEAT_SCHEDULE = {
+    'cleanup_pickups_every_hour': {
+        'task': 'pickups.tasks.cleanup_expired_pickups',
+        'schedule': 3600.0,
+    },
+    'backup_project_daily': {
+        'task': 'core.tasks.backup_project_data',
+        'schedule': 24*3600.0,  # daily
+    },
+}
 
-BACKUP_ROOT = os.path.join(BASE_DIR, 'db_backups')
-os.makedirs(BACKUP_ROOT, exist_ok=True)
+
+

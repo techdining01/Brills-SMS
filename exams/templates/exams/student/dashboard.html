@@ -1,0 +1,29 @@
+<h2>Welcome {{ user.get_full_name }}</h2>
+
+<h3>Available Exams</h3>
+<ul>
+{% for exam in available_exams %}
+  <li>
+    <a href="{% url 'exam_take' exam.id %}">{{ exam.title }}</a> 
+    | Starts: {{ exam.start_time }} | Ends: {{ exam.end_time }}
+  </li>
+{% empty %}
+  <li>No exams available now</li>
+{% endfor %}
+</ul>
+
+<h3>Completed Results</h3>
+<ul>
+{% for r in results %}
+  <li>{{ r.exam.title }}: {{ r.score }} points | Completed at {{ r.completed_at }}</li>
+{% empty %}
+  <li>No completed exams yet</li>
+{% endfor %}
+</ul>
+
+<h3>Class Leaderboard</h3>
+<ol>
+{% for student in leaderboard %}
+  <li>{{ student.get_full_name }} - {{ student.total_marks|default:"0" }}</li>
+{% endfor %}
+</ol>

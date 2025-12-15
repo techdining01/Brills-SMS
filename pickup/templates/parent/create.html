@@ -1,0 +1,21 @@
+<h3>Create Pickup Authorization</h3>
+
+<form method="post">
+  {% csrf_token %}
+
+  <label>Bearer Name</label>
+  <input type="text" name="bearer_name" required>
+
+  <label>Relationship</label>
+  <input type="text" name="relationship" required>
+
+  <h4>Select Students</h4>
+  {% for student in students %}
+    <div>
+      <input type="checkbox" name="students" value="{{ student.id }}">
+      {{ student.get_full_name }} — {{ student.school_class }}
+    </div>
+  {% endfor %}
+
+  <button type="submit">Generate Pickup QR</button>
+</form>

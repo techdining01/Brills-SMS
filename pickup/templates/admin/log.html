@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Pickup Logs{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h4>Pickup Logs</h4>
+
+  <table class="table table-striped mt-3">
+    <thead>
+      <tr>
+        <th>Parent</th>
+        <th>Bearer</th>
+        <th>Students</th>
+        <th>Verified At</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in pickups %}
+      <tr>
+        <td>{{ p.parent.get_full_name }}</td>
+        <td>{{ p.bearer_name }}</td>
+        <td>{{ p.students.count }}</td>
+        <td>{{ p.verified_at }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

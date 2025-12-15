@@ -1,18 +1,24 @@
 import time
 from django.contrib.auth import logout
+from django.shortcuts import redirect
 
 
 class IdleTimeoutMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
+    def __call__(self, request):
+        if request.user.is_authenticated:
+            now = time.time()
+            last_activity = request.session.get('last_activity')
 
-def __call__(self, request):
-    if request.user.is_authenticated:
-        now = time.time()
-        last = request.session.get('last_activity', now)
+            if last_activity:
+                if now - last_activity > 1200:  # 20 minutes
+                    logout(request)
+                    request.session.flush()
+                    return redirect('login')
 
-        if now - last > 1200: # 20 minutes
-            logout(request)
             request.session['last_activity'] = now
-        return self.get_response(request)
+
+        response = self.get_response(request)
+        return response

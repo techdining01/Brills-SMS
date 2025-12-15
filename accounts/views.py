@@ -11,6 +11,20 @@ from django.contrib import messages
 from django.shortcuts import get_object_or_404
 from django.core.mail import send_mail
 from django.conf import settings
+# accounts/views.py
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.auth import login
+from .models import User
+from django.contrib.admin.views.decorators import staff_member_required
+from django.db.models import Q
+from exams.models import PTARequest, Notification
+from django.views.decorators.csrf import csrf_exempt    
+
+
+EXEMPT_URLS = ['/', '/login/', '/register/']
+
+
 
 
 
@@ -23,17 +37,48 @@ def login_view(request):
         user = form.get_user()
         if not user.is_approved:
             messages.error(request, 'Account pending admin approval')
-            return redirect('login')
+            return redirect('accounts:login')
 
         login(request, user)
-        return redirect('dashboard_redirect')
+        return redirect('accounts:dashboard_redirect')
+    else:
+        form = LoginForm()
 
-    return render(request, 'auth/login.html', {'form': form})
+    return render(request, 'login.html', {'form': form})
 
 
 def logout_view(request):
     logout(request)
-    return redirect('login')
+    return redirect('accounts:login')
+
+
+def register_view(request):
+    if request.method == 'POST':
+        role = request.POST.get('role')
+
+        user = User.objects.create_user(
+            username=request.POST['username'],
+            email=request.POST['email'],
+            password=request.POST['password'],
+        )
+
+        user.first_name = request.POST.get('first_name')
+        user.last_name = request.POST.get('last_name')
+        user.phone_number = request.POST.get('phone')
+        user.role = role
+        user.is_active = True
+        user.is_approved = False  # 🔒 Admin must approve
+        user.save()
+
+        messages.success(
+            request,
+            "Account created successfully. Please wait for admin approval."
+        )
+
+        return redirect('accounts:login')
+
+    return render(request, 'register.html')
+
 
 
 @login_required
@@ -41,22 +86,42 @@ def dashboard_redirect(request):
     role = request.user.role
 
     if role == User.Role.ADMIN:
-        return redirect('admin_dashboard')
+        return redirect('accounts:admin_dashboard')
     elif role == User.Role.STAFF:
-        return redirect('staff_dashboard')
+        return redirect('accounts:staff_dashboard')
     elif role == User.Role.STUDENT:
-        return redirect('student_dashboard')
+        return redirect('accounts:student_dashboard')
     elif role == User.Role.PARENT:
-        return redirect('parent_dashboard')
+        return redirect('accounts:parent_dashboard')
     
-    logout(request)
-    return redirect('login')
+    return redirect('accounts:landing_page')
+
+@login_required
+def post_login_router(request):
+    user = request.user
+
+    if not user.is_approved:
+        return redirect('accounts:pending_approval')
+
+    if user.role == 'ADMIN':
+        return redirect('accounts:admin_dashboard')
+
+    if user.role == 'STAFF':
+        return redirect('accounts:teacher_dashboard')
+
+    if user.role == 'STUDENT':
+        return redirect('accounts:student_dashboard')
+
+    if user.role == 'PARENT':
+        return redirect('accounts:parent_dashboard')
+
+    return redirect('accounts:landing_page')
 
 
 @login_required
 def create_student(request):
     if request.user.role != User.Role.ADMIN:
-     return redirect('login')
+     return redirect('accounts:login')
 
 
     form = StudentCreateForm(request.POST or None)
@@ -67,15 +132,16 @@ def create_student(request):
         messages.success(request, 'Student created successfully')
         if not student.is_approved:
             messages.warning(request, 'Account created. Awaiting admin approval.')
-            return redirect('login')
+            return redirect('accounts:login')
 
-        return redirect('create_student')
+        return redirect('accounts:create_student')
 
-    return render(request, 'auth/create_student.html', {'form': form})
+    return render(request, 'create_student.html', {'form': form})
 
 
-from django.contrib.admin.views.decorators import staff_member_required
-from django.db.models import Q
+@login_required
+def pending_approval(request):
+    return render(request, 'pending_approval.html')
 
 
 @staff_member_required
@@ -111,7 +177,7 @@ def approve_users(request):
             [u.email],
             fail_silently=True
             )
-            return redirect('approve_users')
+            return redirect('accounts:approve_users')
 
     return render(request, 'admin/approve_users.html', {
         'users': users,
@@ -122,7 +188,7 @@ def approve_users(request):
 @login_required
 def admin_reset_password(request, user_id):
     if request.user.role != User.Role.ADMIN:
-        return redirect('login')
+        return redirect('accounts:login')
 
     user = get_object_or_404(User, id=user_id)
 
@@ -140,15 +206,7 @@ def admin_reset_password(request, user_id):
         )
 
         messages.success(request, f'Password reset for {user.username}')
-        return redirect('approve_users')
+        return redirect('accounts:approve_users')
 
     return render(request, 'admin/reset_password.html', {'u': user})
-
-
-@login_required
-def parent_dashboard(request):
-    if request.user.role != User.Role.PARENT:
-        return redirect('login')
-    return render(request, 'parent/dashboard.html')
-
 
