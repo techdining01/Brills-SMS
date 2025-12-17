@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+  <h4>Order {{ order.id }}</h4>
+
+  <ul class="list-group mb-3">
+    <li class="list-group-item">User: {{ order.user }}</li>
+    <li class="list-group-item">Ward: {{ order.ward }}</li>
+    <li class="list-group-item">Amount: ₦{{ order.total_amount }}</li>
+    <li class="list-group-item">Status: {{ order.status }}</li>
+  </ul>
+
+  {% if order.status != "PAID" %}
+  <form method="post">
+    {% csrf_token %}
+    <button name="override" class="btn btn-warning">
+      Admin Override (Mercy)
+    </button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

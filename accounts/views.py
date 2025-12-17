@@ -39,7 +39,7 @@ def login_view(request):
     else:
         form = LoginForm()
 
-    return render(request, 'login.html', {'form': form})
+    return render(request, 'accounts/login.html', {'form': form})
 
 
 def logout_view(request):
@@ -72,7 +72,7 @@ def register_view(request):
 
         return redirect('accounts:login')
 
-    return render(request, 'register.html')
+    return render(request, 'accounts/register.html')
 
 
 @login_required
@@ -90,26 +90,26 @@ def dashboard_redirect(request):
     
     return redirect('landing_page')
 
-@login_required
-def post_login_router(request):
-    user = request.user
+# @login_required
+# def post_login_router(request):
+#     user = request.user
 
-    if not user.is_approved:
-        return redirect('accounts:pending_approval')
+#     if not user.is_approved:
+#         return redirect('accounts:pending_approval')
 
-    if user.role == 'ADMIN':
-        return redirect('exams:admin_dashboard')
+#     if user.role == 'ADMIN':
+#         return redirect('exams:admin_dashboard')
 
-    if user.role == 'STAFF':
-        return redirect('exams:teacher_dashboard')
+#     if user.role == 'STAFF':
+#         return redirect('exams:teacher_dashboard')
 
-    if user.role == 'STUDENT':
-        return redirect('exams:student_dashboard')
+#     if user.role == 'STUDENT':
+#         return redirect('exams:student_dashboard')
 
-    if user.role == 'PARENT':
-        return redirect('exams:parent_dashboard')
+#     if user.role == 'PARENT':
+#         return redirect('exams:parent_dashboard')
 
-    return redirect('landing_page')
+#     return redirect('landing_page')
 
 
 @login_required
@@ -173,7 +173,7 @@ def approve_users(request):
             )
             return redirect('accounts:approve_users')
 
-    return render(request, 'admin/approve_users.html', {
+    return render(request, 'accounts/admin/approve_users.html', {
         'users': users,
         'roles': User.Role.choices
     })
@@ -202,7 +202,7 @@ def admin_reset_password(request, user_id):
         messages.success(request, f'Password reset for {user.username}')
         return redirect('accounts:approve_users')
 
-    return render(request, 'admin/reset_password.html', {'u': user})
+    return render(request, 'accounts/admin/reset_password.html', {'u': user})
 
 
 @staff_member_required
@@ -225,7 +225,7 @@ def admin_users(request):
         "role": role,
         "status": status,
     }
-    return render(request, "admin/users/list.html", context)
+    return render(request, "accounts/admin/users/list.html", context)
 
 
 
@@ -242,3 +242,5 @@ def bulk_approve_users(request):
         })
 
     return JsonResponse({"success": False}, status=400)
+
+

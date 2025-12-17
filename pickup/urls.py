@@ -8,7 +8,7 @@ urlpatterns = [
     # =========================
     # Parent Side
     # =========================
-    path("parent/",views.parent_dashboard, name="parent_dashboard"),
+    path("parent/", views.parent_dashboard, name="parent_dashboard"),
 
     path("parent/generate/", views.create_pickup, name="generate_pickup"),
 

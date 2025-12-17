@@ -81,28 +81,46 @@ class Exam(models.Model):
     requires_payment = models.BooleanField(default=False)
     price = models.PositiveIntegerField(default=0) 
 
-class ExamAccessOverride(models.Model):
-    student = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        limit_choices_to={"role": "STUDENT"}
-    )
+
+class ExamAccess(models.Model):
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
     granted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
         null=True,
-        related_name="granted_exam_access"
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="exam_mercy_grants"
     )
-    reason = models.CharField(max_length=255, blank=True)
-    is_active = models.BooleanField(default=True)
+    via_payment = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = ("student", "exam")
 
-    def __str__(self):
-        return f"{self.student} → {self.exam} (Override)"
+
+# class ExamAccessOverride(models.Model):
+#     student = models.ForeignKey(
+#         settings.AUTH_USER_MODEL,
+#         on_delete=models.CASCADE,
+#         limit_choices_to={"role": "STUDENT"}
+#     )
+#     exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
+#     granted_by = models.ForeignKey(
+#         settings.AUTH_USER_MODEL,
+#         on_delete=models.SET_NULL,
+#         null=True,
+#         related_name="granted_exam_access"
+#     )
+#     reason = models.CharField(max_length=255, blank=True)
+#     is_active = models.BooleanField(default=True)
+#     created_at = models.DateTimeField(auto_now_add=True)
+
+#     class Meta:
+#         unique_together = ("student", "exam")
+
+#     def __str__(self):
+#         return f"{self.student} → {self.exam} (Override)"
 
 
 
@@ -222,6 +240,9 @@ class PTARequest(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def recipient_name(self):
+        return self.recipient.get_full_name() if self.recipient else "N/A"
 
     def __str__(self):
         return f"{self.parent.username} - {self.get_request_type_display()} to {self.recipient.username}"

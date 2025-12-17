@@ -1,202 +1,200 @@
-from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.shortcuts import render
+from .models import Product
+from decimal import Decimal
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect
-from .models import Cart, Order, PaymentTransaction, Product, Cart, CartItem
-from .decorators import parent_required, admin_required
-import hmac, hashlib, json
-from django.http import HttpResponse, JsonResponse
+from django.shortcuts import render, redirect
+from django.conf import settings
+from django.http import JsonResponse
+from decimal import Decimal
+from .models import Order, Transaction
+from .services.paystack import init_payment
+import uuid
+import json
+import hmac
+import hashlib
+import logging
+from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
-import requests
-from exams.models import Exam
-from django.contrib.admin.views.decorators import staff_member_required
-from django.contrib import messages
+from .models import Transaction
+from exams.models import ExamAccess
 
 
-import logging
-logger = logging.getLogger("system")
+payment_logger = logging.getLogger("system")
 
 
-@login_required
-@parent_required
-def product_list(request):
-    products = Product.objects.filter(is_active=True)
-    return render(request, 'brillspay/product_list.html', {'products': products})
+def _get_cart(request):
+    return request.session.setdefault("cart", {"items": {}})
 
-
-@login_required
-@parent_required
-def product_detail(request, pk):
-    product = get_object_or_404(Product, pk=pk, is_active=True)
-    return render(request, 'brillspay/product_detail.html', {'product': product})
-
-
-@login_required
-@parent_required
 def add_to_cart(request):
-    product_id = request.POST.get('product_id')
-    product = get_object_or_404(Product, id=product_id)
+    product_id = str(request.POST.get("product_id"))
+    product = Product.objects.get(id=product_id)
 
-    cart, _ = Cart.objects.get_or_create(user=request.user)
-    item, created = CartItem.objects.get_or_create(cart=cart, product=product)
+    cart = _get_cart(request)
 
-    if not created:
-        item.quantity += 1
-    item.save()
+    cart["items"][product_id] = {
+        "name": product.name,
+        "price": str(product.price),
+        "qty": 1,
+        "class_level": product.class_level
+    }
+
+    request.session.modified = True
 
     return JsonResponse({
-        'success': True,
-        'cart_total': cart.total(),
-        'items': cart.items.count()
+        "count": len(cart["items"]),
+        "message": "Added to cart"
     })
 
 
+def remove_from_cart(request):
+    product_id = str(request.POST.get("product_id"))
+    cart = _get_cart(request)
+
+    cart["items"].pop(product_id, None)
+    request.session.modified = True
+
+    return JsonResponse({"count": len(cart["items"])})
+
+
+def cart_view(request):
+    cart = _get_cart(request)
+    total = sum(
+        Decimal(item["price"]) * item["qty"]
+        for item in cart["items"].values()
+    )
+    return render(request, "brillspay/cart.html", {
+        "cart": cart,
+        "total": total
+    })
+
+
+
+
+
 @login_required
-@parent_required
-def view_cart(request):
-    cart, _ = Cart.objects.get_or_create(user=request.user)
-    return render(request, 'brillspay/cart.html', {'cart': cart})
+def checkout_view(request):
+    cart = request.session.get("cart", {})
+    if not cart.get("items"):
+        return redirect("brillspay:store")
 
+    wards = request.user.children.all() if hasattr(request.user, "children") else []
 
-
-@login_required
-@parent_required
-def checkout(request):
-    cart = Cart.objects.get(user=request.user)
-
-    if cart.items.count() == 0:
-        return redirect('product_list')
-
-    # Create order
-    order = Order.objects.create(
-        user=request.user,
-        total_amount=cart.total()
+    total = sum(
+        Decimal(item["price"]) * item["qty"]
+        for item in cart["items"].values()
     )
 
-    # Paystack init
-    payload = {
-        "email": request.user.email,
-        "amount": int(order.total_amount * 100),
-        "reference": str(order.reference),
-        "callback_url": request.build_absolute_uri('/store/payment/callback/')
-    }
+    if request.method == "POST":
+        ward_id = request.POST.get("ward")
+        if not ward_id:
+            return JsonResponse({"error": "Ward selection required"}, status=400)
+
+        order = Order.objects.create(
+            user=request.user,
+            ward_id=ward_id,
+            total_amount=total
+        )
+
+        tx = Transaction.objects.create(
+            order=order,
+            reference=str(uuid.uuid4()),
+            amount=total
+        )
+
+        payment_url = init_payment(
+            email=request.user.email,
+            amount=total,
+            reference=tx.reference
+        )
+
+        return JsonResponse({"payment_url": payment_url})
+
+    return render(request, "brillspay/checkout.html", {
+        "total": total,
+        "wards": wards
+    })
+
+
+import requests
+
+@login_required
+def payment_callback(request):
+    reference = request.GET.get("reference")
+
+    tx = Transaction.objects.get(reference=reference)
 
     headers = {
-        "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
-        "Content-Type": "application/json"
+        "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"
     }
 
-    response = requests.post(
-        f"{settings.PAYSTACK_BASE_URL}/transaction/initialize",
-        json=payload,
+    res = requests.get(
+        f"https://api.paystack.co/transaction/verify/{reference}",
         headers=headers
     )
 
-    res = response.json()
+    data = res.json()["data"]
+    tx.raw_response = data
+    tx.verified = data["status"] == "success"
+    tx.save()
 
-    if res.get("status"):
-        return redirect(res["data"]["authorization_url"])
-    
-    return redirect('view_cart')
+    if tx.verified:
+        tx.order.status = "PAID"
+        tx.order.save()
 
+        request.session.pop("cart", None)
 
-@login_required
-def exam_checkout(request, exam_id):
-    exam = get_object_or_404(Exam, id=exam_id)
-
-    order, created = Order.objects.get_or_create(
-        user=request.user,
-        exam=exam,
-        defaults={"total": exam.price}
-    )
-
-    return render(request, "brillspay/exam_checkout.html", {
-        "exam": exam,
-        "order": order,
-        "paystack_key": settings.PAYSTACK_PUBLIC_KEY
-    })
+    return redirect("brillspay:payment_success")
 
 
 @csrf_exempt
 def paystack_webhook(request):
-    """
-    Paystack webhook callback for verifying payment
-    """
-    if request.method != "POST":
-        return HttpResponse(status=405)
+    signature = request.headers.get("X-Paystack-Signature")
+    body = request.body
 
-    try:
-        event = json.loads(request.body)
-        reference = event.get("data", {}).get("reference")
-        amount = event.get("data", {}).get("amount") / 100  # Paystack sends kobo
+    expected = hmac.new(
+        settings.PAYSTACK_SECRET_KEY.encode(),
+        body,
+        hashlib.sha512
+    ).hexdigest()
 
-        # Verify with Paystack API
-        headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
-        r = requests.get(f"https://api.paystack.co/transaction/verify/{reference}", headers=headers)
-        result = r.json()
+    if signature != expected:
+        payment_logger.warning("INVALID WEBHOOK SIGNATURE")
+        return HttpResponse(status=400)
 
-        if result["status"] and result["data"]["status"] == "success":
-            # Update order/payment record
-            order = PaymentTransaction.objects.filter(reference=reference).first()
-            if order:
-                order.status = "PAID"
-                order.amount_paid = amount
-                order.paid_at = result["data"]["paid_at"]
-                order.save()
+    payload = json.loads(body)
+    event = payload.get("event")
+    data = payload.get("data", {})
 
-                payment_logger.info(
-                    f"PAYMENT VERIFIED | Ref={reference} | User={order.user_id} | Amount={amount}"
-                )
-            return JsonResponse({"status": "success"})
-        else:
-            payment_logger.warning(f"PAYMENT FAILED | Ref={reference}")
-            return JsonResponse({"status": "failed"}, status=400)
-    except Exception as e:
-        payment_logger.error(f"WEBHOOK ERROR | {str(e)}")
-        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+    if event == "charge.success":
+        reference = data["reference"]
 
+        tx = Transaction.objects.select_related(
+            "order", "order__ward", "order__exam"
+        ).get(reference=reference)
 
-@login_required
-@admin_required
-def transactions_dashboard(request):
-    transactions = PaymentTransaction.objects.select_related('order', 'order__user')
-    return render(request, 'admin/transactions.html', {
-        'transactions': transactions
-    })
+        if tx.verified:
+            return HttpResponse(status=200)
 
+        tx.verified = True
+        tx.raw_response = data
+        tx.save()
 
-@staff_member_required
-def admin_orders(request):
-    orders = Order.objects.select_related("user").prefetch_related("items")
+        order = tx.order
+        order.status = "PAID"
+        order.save()
 
-    return render(request, "adminpanel/orders/list.html", {
-        "orders": orders
-    })
+        # 🔓 AUTO UNLOCK EXAM AFTER PAYMENT
+        ExamAccess.objects.get_or_create(
+            student=order.ward,
+            exam=order.exam,
+            defaults={"via_payment": True}
+        )
 
+        payment_logger.info(f"Order {order.id} marked as PAID via webhook.")
+        
+    return HttpResponse(status=200)
 
-@staff_member_required
-def admin_order_detail(request, order_id):
-    order = get_object_or_404(Order, id=order_id)
-
-    return render(request, "adminpanel/orders/detail.html", {
-        "order": order
-    })
-
-
-@staff_member_required
-def admin_update_stock(request, product_id):
-    product = get_object_or_404(Product, id=product_id)
-
-    if request.method == "POST":
-        qty = int(request.POST.get("quantity", 0))
-        product.stock += qty
-        product.save(update_fields=["stock"])
-
-        messages.success(request, "Stock updated successfully")
-        return redirect("shop:admin_orders")
-
-    return render(request, "adminpanel/products/update_stock.html", {
-        "product": product
-    })
 
 

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+  <h4>Admin Analytics</h4>
+
+  <canvas id="revenueChart"></canvas>
+
+  <div class="row mt-4">
+    <div class="col">Exams: {{ exam_count }}</div>
+    <div class="col">Attempts: {{ attempt_count }}</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const data = {{ revenue|safe }};
+new Chart(document.getElementById('revenueChart'), {
+  type: 'line',
+  data: {
+    labels: data.map(d => d.day),
+    datasets: [{
+      label: 'Revenue',
+      data: data.map(d => d.total)
+    }]
+  }
+});
+</script>
+{% endblock %}

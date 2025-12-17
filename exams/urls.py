@@ -48,13 +48,13 @@ urlpatterns = [
     path('admin/exams/', views.admin_exam_list, name='admin_exam_list'),
     path('admin/exams/<int:pk>/toggle/', views.toggle_exam_publish, name='toggle_exam_publish'),
     path("admin/exams/retake/<int:exam_id>/", views.admin_toggle_retake, name="admin_toggle_retake"),
-    # path('admin/pta-requests/', views.pta_request_list, name='pta_request_list'),
+    path('admin/pta-requests/', views.pta_request_list, name='pta_request_list'),
     path("analytics/", views.admin_analytics_dashboard, name="analytics"),
 
     
     # Admin Dashboard
     path("", views.cbt_exam, name="exams"),
-    path("admimpanel", views.admin_dashboard, name="admin_dashboard"),
+    path("admin/dashboard/", views.admin_dashboard, name="admin_dashboard"),
     path("system-logs/", views.system_logs, name="system_logs"),
     path("grant-exam-access/", views.grant_exam_access, name="grant_exam_access"),
 

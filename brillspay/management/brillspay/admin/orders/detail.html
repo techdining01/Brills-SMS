@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Order #{{ order.id }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <!-- HEADER -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="fw-bold mb-1">Order #{{ order.id }}</h4>
+      <small class="text-muted">
+        Created {{ order.created_at|naturaltime }}
+      </small>
+    </div>
+
+    <span class="badge fs-6 
+      {% if order.status == 'paid' %}bg-success
+      {% elif order.status == 'pending' %}bg-warning
+      {% else %}bg-danger{% endif %}">
+      {{ order.get_status_display }}
+    </span>
+  </div>
+
+  <div class="row g-4">
+
+    <!-- CUSTOMER -->
+    <div class="col-md-4">
+      <div class="card shadow-sm">
+        <div class="card-header fw-semibold">Customer</div>
+        <div class="card-body">
+          <p class="mb-1"><strong>Name:</strong> {{ order.user.get_full_name }}</p>
+          <p class="mb-1"><strong>Email:</strong> {{ order.user.email }}</p>
+          <p class="mb-0"><strong>Role:</strong> {{ order.user.get_role_display }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAYMENT -->
+    <div class="col-md-4">
+      <div class="card shadow-sm">
+        <div class="card-header fw-semibold">Payment</div>
+        <div class="card-body">
+          {% if transaction %}
+            <p><strong>Reference:</strong> {{ transaction.reference }}</p>
+            <p><strong>Amount:</strong> ₦{{ transaction.amount|intcomma }}</p>
+            <p><strong>Status:</strong>
+              <span class="badge bg-success">{{ transaction.status }}</span>
+            </p>
+          {% else %}
+            <p class="text-muted">No transaction recorded</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- TOTAL -->
+    <div class="col-md-4">
+      <div class="card shadow-sm border-primary">
+        <div class="card-header fw-semibold">Order Summary</div>
+        <div class="card-body">
+          <h3 class="text-primary">
+            ₦{{ order.total_amount|intcomma }}
+          </h3>
+          <small class="text-muted">Total Amount</small>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ITEMS -->
+  <div class="card mt-4 shadow-sm">
+    <div class="card-header fw-semibold">Order Items</div>
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Product</th>
+            <th>Price</th>
+            <th>Qty</th>
+            <th class="text-end">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in order.items.all %}
+          <tr>
+            <td>{{ item.product.name }}</td>
+            <td>₦{{ item.price|intcomma }}</td>
+            <td>{{ item.quantity }}</td>
+            <td class="text-end">
+              ₦{{ item.subtotal|intcomma }}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" class="text-center text-muted">
+              No items found
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="mt-4 d-flex gap-2">
+    <a href="{% url 'brillspay:admin_orders' %}" class="btn btn-outline-secondary">
+      ← Back to Orders
+    </a>
+
+    {% if order.status == "pending" %}
+    <a href="{% url 'brillspay:mark_order_paid' order.id %}"
+       class="btn btn-success">
+      Mark as Paid
+    </a>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

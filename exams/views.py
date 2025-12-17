@@ -30,7 +30,28 @@ from brillspay.models import Order
 from exams.models import Exam, ExamAttempt
 from django.utils.timezone import now
 from datetime import timedelta
+from django.shortcuts import redirect
+from django.contrib import messages
+from .utils import has_paid_for_exam
+from exams.models import Exam, ExamAccessOverride, Broadcast, PTARequest
+from django.contrib.admin.views.decorators import staff_member_required
+from django.core.paginator import Paginator
+from django.shortcuts import render
+from .models import SystemLog
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from .models import PTARequest
+from django.core.paginator import Paginator
 
+from django.db.models import Count, Sum
+from django.utils import timezone
+from django.http import JsonResponse
+from datetime import timedelta
+
+from brillspay.models import PaymentTransaction, Order
+from exams.models import Exam, ExamAttempt
+from accounts.models import User
+from exams.models import ExamAccess
 
 
 import logging
@@ -56,7 +77,7 @@ def create_exam(request):
             created_by=request.user,
             is_published=False  # 🔒 FORCE DRAFT
         )
-        return redirect('teacher_exam_list')
+        return redirect('exams:teacher_exam_list')
 
     return render(request, 'exams/teacher/create_exam.html')
 
@@ -98,7 +119,7 @@ def add_question(request, exam_id):
                 )
 
         messages.success(request, "Question added successfully.")
-        return redirect('question_list', exam_id=exam.id)
+        return redirect('exams:question_list', exam_id=exam.id)
 
     return render(request, 'exams/teacher/add_question.html', {'exam': exam})
 
@@ -119,7 +140,7 @@ def admin_required(user):
 @user_passes_test(admin_required)
 def admin_exam_list(request):
     exams = Exam.objects.select_related('school_class', 'created_by')
-    return render(request, 'exams/admin/exam_list.html', {'exams': exams})
+    return render(request, 'exams/admin/exams/list.html', {'exams': exams})
 
 
 @login_required
@@ -128,7 +149,7 @@ def toggle_exam_publish(request, pk):
     exam = Exam.objects.get(pk=pk)
     exam.is_published = not exam.is_published
     exam.save(update_fields=['is_published'])
-    return redirect('admin_exam_list')
+    return redirect('exams:admin_exam_list')
 
 
 
@@ -153,7 +174,7 @@ def upload_questions_excel(request, exam_id):
 
         if not file or not file.name.endswith('.xlsx'):
             messages.error(request, "Upload a valid Excel (.xlsx) file.")
-            return redirect('question_list', exam.id)
+            return redirect('exams:question_list', exam.id)
 
         wb = openpyxl.load_workbook(file)
         sheet = wb.active
@@ -200,7 +221,7 @@ def upload_questions_excel(request, exam_id):
                 raise Exception("Validation failed")
 
         messages.success(request, f"{created} questions uploaded successfully.")
-        return redirect('question_list', exam.id)
+        return redirect('exams:question_list', exam.id)
 
     return render(request, 'exams/teacher/upload_excel.html', {'exam': exam})
 
@@ -214,7 +235,7 @@ def upload_questions_word(request, exam_id):
         file = request.FILES.get('file')
         if not file or not file.name.endswith('.docx'):
             messages.error(request, "Please upload a valid .docx file.")
-            return redirect('question_list', exam.id)
+            return redirect('exams:question_list', exam.id)
 
         doc = Document(file)
         questions_text = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
@@ -286,7 +307,7 @@ def upload_questions_word(request, exam_id):
         else:
             messages.success(request, f"{created} questions uploaded successfully.")
 
-        return redirect('question_list', exam.id)
+        return redirect('exams:question_list', exam.id)
 
     return render(request, 'exams/teacher/upload_word.html', {'exam': exam})
 
@@ -312,10 +333,19 @@ def exam_list(request):
 def start_exam(request, exam_id):
     exam = get_object_or_404(Exam, id=exam_id, is_published=True)
     user = request.user
-    if exam.requires_payment:
-        if not has_paid_for_exam(request.user, exam):
-            messages.warning(request, "Payment required to access this exam")
-            return redirect("brillspay:exam_checkout", exam.id)
+
+    if timezone.now() < exam.start_time or timezone.now() > exam.end_time:
+        messages.error(request, "Exam not active")
+        return redirect("exams:student_dashboard")
+
+    allowed = ExamAccess.objects.filter(
+        student=request.user,
+        exam=exam
+    ).exists()
+
+    if not allowed:
+        messages.error(request, "Payment required to access this exam")
+        return redirect("brillspay:store")
 
     # Check if already started
     attempt = ExamAttempt.objects.filter(exam=exam, student=user, is_submitted=False).first()
@@ -336,7 +366,7 @@ def start_exam(request, exam_id):
     attempt.question_order = ','.join(str(q) for q in question_ids)
     attempt.save()
 
-    return redirect('resume_exam', attempt_id=attempt.id)
+    return redirect('exams:resume_exam', attempt_id=attempt.id)
 
 
 @login_required
@@ -354,7 +384,7 @@ def resume_exam(request, attempt_id):
         attempt.completed_at = timezone.now()
         attempt.save()
         messages.info(request, "Time is up!")
-        return redirect('exam_list')
+        return redirect('exams:exam_list')
 
     question_ids = [int(qid) for qid in attempt.question_order.split(',')]
     questions = Question.objects.filter(id__in=question_ids)
@@ -377,7 +407,7 @@ def resume_exam(request, attempt_id):
             attempt.save()
             auto_grade_objective(attempt)
             messages.success(request, "Exam submitted successfully!")
-            return redirect('exam_list')
+            return redirect('exams:exam_list')
 
         messages.info(request, "Progress saved. Continue the exam.")
 
@@ -420,7 +450,7 @@ def subjective_marking(request, exam_id):
                         defaults={'score': score, 'marked_by': request.user}
                     )
         messages.success(request, "Marks saved successfully!")
-        return redirect('subjective_marking', exam_id=exam.id)
+        return redirect('exams:subjective_marking', exam_id=exam.id)
 
     # Gather all unmarked subjective answers
     answers = StudentAnswer.objects.filter(
@@ -512,7 +542,7 @@ def request_retake(request, exam_id):
         else:
             messages.info(request, "You already requested a retake.")
         messages.success(request, "Retake request submitted.")
-        return redirect('exam_list')
+        return redirect('exams:exam_list')
 
     return render(request, 'exams/student/request_retake.html', {'exam': exam})
 
@@ -533,7 +563,7 @@ def manage_retake(request):
                 r.reviewed_at = timezone.now()
                 r.save()
         messages.success(request, "Retake requests updated.")
-        return redirect('manage_retake')
+        return redirect('exams:manage_retake')
 
     return render(request, 'exams/admin/manage_retake.html', {'requests': requests})
 
@@ -561,7 +591,7 @@ def send_broadcast(request):
             Notification.objects.create(sender=request.user, recipient=s,
                                         title="Teacher Broadcast", message=message)
         messages.success(request, "Broadcast sent.")
-        return redirect('send_broadcast')
+        return redirect('exams:send_broadcast')
 
     return render(request, 'exams/notifications/broadcast.html')
 
@@ -575,7 +605,7 @@ def take_exam(request, exam_id):
     if exam.requires_payment:
         if not has_paid_for_exam(request.user, exam):
             messages.warning(request, "Payment required to access this exam")
-            return redirect("brillspay:exam_checkout", exam.id)
+            return redirect("exams:brillspay:exam_checkout", exam.id)
 
 
 
@@ -583,7 +613,7 @@ def take_exam(request, exam_id):
     now = timezone.now()
     if now < exam.start_time or now > exam.end_time:
         messages.warning(request, "Exam is not active.")
-        return redirect('student_dashboard')
+        return redirect('exams:student_dashboard')
 
     # Get existing attempt or create new
     attempt, created = ExamAttempt.objects.get_or_create(
@@ -618,7 +648,7 @@ def submit_exam(request, attempt_id):
 
     if attempt.is_submitted:
         messages.warning(request, "This exam has already been submitted.")
-        return redirect('student_dashboard')
+        return redirect('exams:student_dashboard')
 
     if request.method == 'POST':
         # Iterate over all questions
@@ -652,10 +682,10 @@ def submit_exam(request, attempt_id):
         attempt.save()
 
         messages.success(request, "Exam submitted successfully!")
-        return redirect('student_dashboard')
+        return redirect('exams:student_dashboard')
 
     # Fallback: redirect if not POST
-    return redirect('take_exam', exam_id=exam.id)
+    return redirect('exams:take_exam', exam_id=exam.id)
 
 
 
@@ -711,7 +741,7 @@ def approve_retake(request, retake_id):
     )
 
     messages.success(request, f"Retake approved for {retake.student.username}")
-    return redirect('retake_requests_list')
+    return redirect('exams:retake_requests_list')
 
 
 @login_required
@@ -719,7 +749,7 @@ def teacher_grading_dashboard(request):
     user = request.user
     if user.role != 'STAFF':
         messages.error(request, "Access denied.")
-        return redirect('home')
+        return redirect('exams:home')
 
     # Fetch all subjective answers for exams created by this teacher
     answers = StudentAnswer.objects.filter(
@@ -835,6 +865,148 @@ def mark_message_read(request, message_id):
     return JsonResponse({'status':'ok'})
 
 
+@staff_member_required
+def admin_analytics_dashboard(request):
+    # Revenue (last 30 days)
+    last_30 = now() - timedelta(days=30)
+
+    revenue_qs = (
+        Order.objects.filter(is_paid=True, created_at__gte=last_30)
+        .values("created_at__date")
+        .annotate(total=Sum("total"))
+        .order_by("created_at__date")
+    )
+
+    revenue_labels = [str(r["created_at__date"]) for r in revenue_qs]
+    revenue_data = [float(r["total"]) for r in revenue_qs]
+
+    # Exams stats
+    total_exams = Exam.objects.count()
+    published_exams = Exam.objects.filter(is_published=True).count()
+    attempts = ExamAttempt.objects.count()
+    completed = ExamAttempt.objects.filter(is_submitted=True).count()
+
+    context = {
+        "revenue_labels": revenue_labels,
+        "revenue_data": revenue_data,
+        "total_exams": total_exams,
+        "published_exams": published_exams,
+        "attempts": attempts,
+        "completed": completed,
+    }
+    return render(request, "exams/admin/analytics/dashboard.html", context)
+
+
+@staff_member_required
+def grant_exam_access(request):
+    if request.method == "POST":
+        ExamAccessOverride.objects.create(
+            student_id=request.POST["student"],
+            exam_id=request.POST["exam"],
+            reason=request.POST.get("reason", ""),
+            granted_by=request.user
+        )
+        messages.success(request, "Exam access granted")
+        return redirect("exams:grant_exam_access")
+
+    context = {
+        "students": User.objects.filter(role="STUDENT"),
+        "exams": Exam.objects.all()
+    }
+    return render(request, "exams/admin/exams/grant_access.html", context)
+
+
+@login_required
+def teacher_exam_analytics(request):
+    exams = Exam.objects.filter(created_by=request.user)
+
+    analytics = []
+    for exam in exams:
+        attempts = ExamAttempt.objects.filter(exam=exam)
+        completed = attempts.filter(is_submitted=True)
+
+        analytics.append({
+            "exam": exam,
+            "total_attempts": attempts.count(),
+            "completed": completed.count(),
+            "avg_score": completed.aggregate(
+                avg=Avg("studentanswer__subjectivemark__score")
+            )["avg"] or 0,
+            "pending_marking": StudentAnswer.objects.filter(
+                question__exam=exam,
+                question__type="subjective",
+                subjectivemark__isnull=True
+            ).count()
+        })
+
+    return render(
+        request,
+        "exams/teachers/analytics/dashboard.html",
+        {"analytics": analytics}
+    )
+
+
+@staff_member_required
+def communication_analytics(request):
+    pta_stats = (
+        PTARequest.objects
+        .values("status")
+        .annotate(count=Count("id"))
+    )
+
+    broadcasts = Broadcast.objects.aggregate(
+        total=Count("id"),
+        read=Count("read_by")
+    )
+
+    return render(request, "exams/admin/analytics/communication.html", {
+        "pta_stats": pta_stats,
+        "broadcasts": broadcasts
+    })
+
+
+
+@staff_member_required
+def system_logs(request):
+    logs = SystemLog.objects.all()
+
+    level = request.GET.get("level")
+    if level:
+        logs = logs.filter(level=level)
+
+    paginator = Paginator(logs, 50)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    return render(
+        request,
+        "exams/admin/system_logs/logs.html",
+        {
+            "logs": page_obj,
+            "level": level,
+        }
+    )
+
+
+@login_required
+def pta_request_list(request):
+    # Admin and teacher view all requests, parents view only theirs
+    if request.user.role in ['ADMIN', 'STAFF']:
+        requests = PTARequest.objects.all().order_by('-created_at')
+    else:
+        requests = PTARequest.objects.filter(parent=request.user).order_by('-created_at')
+
+    # Pagination (10 per page)
+    paginator = Paginator(requests, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'requests': page_obj
+    }
+    return render(request, 'exams/pta/pta_request_list.html', context)
+
+
 
 @login_required
 def parent_dashboard(request):
@@ -851,7 +1023,7 @@ def parent_dashboard(request):
         recipient=user, is_read=False
     )[:5]
 
-    return render(request, 'parent/dashboard.html', {
+    return render(request, 'exams/parent/dashboard.html', {
         'children': children,
         'pta_requests': pta_requests,
         'notifications': notifications,
@@ -865,7 +1037,7 @@ def teacher_dashboard(request):
     user = request.user
 
     if user.role != 'STAFF':
-        return redirect('login')
+        return redirect('accounts:login')
 
     exams = Exam.objects.filter(created_by=user).order_by('-created_at')
 
@@ -880,7 +1052,7 @@ def teacher_dashboard(request):
         recipient=user, is_read=False
     )[:5]
 
-    return render(request, 'teachers/dashboard.html', {
+    return render(request, 'exams/teachers/dashboard.html', {
         'exams': exams,
         'pending_marking': pending_marking,
         'notifications': notifications,
@@ -896,7 +1068,7 @@ def is_admin(user):
 @login_required
 def student_dashboard(request):
     if request.user.role != "STUDENT":
-        return redirect("login")
+        return redirect("accounts:login")
 
     # Available exams (active + published)
     available_exams = Exam.objects.filter(
@@ -929,7 +1101,7 @@ def student_dashboard(request):
         .order_by('-total_marks')[:10]
     )
 
-    return render(request, "student/dashboard.html", {
+    return render(request, "exams/student/dashboard.html", {
         "available_exams": available_exams,
         "attempts": attempts,
         "results": results,
@@ -937,196 +1109,151 @@ def student_dashboard(request):
     })
 
 
-@login_required
+# @login_required
+# def admin_dashboard(request):
+#     context = {
+#         # USERS
+#         "pending_users": User.objects.filter(is_approved=False).count(),
+#         "students": User.objects.filter(role="STUDENT").count(),
+#         "parents": User.objects.filter(role="PARENT").count(),
+#         "staff": User.objects.filter(role="STAFF").count(),
+
+#         # EXAMS
+#         "active_exams": Exam.objects.filter(is_active=True).count(),
+#         "unpublished_exams": Exam.objects.filter(is_published=False).count(),
+#         "retake_requests": RetakeRequest.objects.filter(status="pending").count(),
+
+#         # PAYMENTS
+#         "total_transactions": PaymentTransaction.objects.count(),
+#         "successful_payments": PaymentTransaction.objects.filter(status="success").count(),
+
+#         # PICKUPS
+#         "active_pickups": PickupAuthorization.objects.filter(
+#             expires_at__gt=timezone.now(),
+#             is_used=False
+#         ).count(),
+        
+#         # PTA
+#         "pending_pta": PTARequest.objects.filter(status="PENDING").count(),
+
+#         # SYSTEM LOGS
+#         "system_errors": SystemLog.objects.filter(level="ERROR").count(),
+       
+#     }
+
+#     return render(request, "exams/admin/dashboard.html", context)
+
+
+# from django.contrib.auth.decorators import login_required, user_passes_test
+# from django.shortcuts import render
+# from django.db.models import Sum
+# from django.utils import timezone
+
+# from accounts.models import User
+# from exams.models import Exam, ExamAttempt
+# from pta.models import PTARequest
+# from pickups.models import Pickup
+# from brillspay.models import Order, Transaction
+
+
+def is_admin(user):
+    return user.is_authenticated and user.role == User.Role.ADMIN
+
+
+@login_required(login_url='accounts:login')
 @user_passes_test(is_admin)
 def admin_dashboard(request):
+    # ==========================
+    # USERS
+    # ==========================
+    total_users = User.objects.count()
+    pending_users = User.objects.filter(is_approved=False).count()
+    students = User.objects.filter(role=User.Role.STUDENT).count()
+    parents = User.objects.filter(role=User.Role.PARENT).count()
+    staff = User.objects.filter(role=User.Role.STAFF).count()
+
+    # ==========================
+    # EXAMS
+    # ==========================
+    total_exams = Exam.objects.count()
+    active_exams = Exam.objects.filter(
+        is_active=True,
+        start_time__lte=timezone.now(),
+        end_time__gte=timezone.now()
+    ).count()
+    attempts_today = ExamAttempt.objects.filter(
+        started_at__date=timezone.now().date()
+    ).count()
+
+    # ==========================
+    # PAYMENTS
+    # ==========================
+    total_revenue = PaymentTransaction.objects.filter(
+        status="success"
+    ).aggregate(total=Sum("amount"))["total"] or 0
+
+    pending_orders = Order.objects.filter(status="pending").count()
+
+    # ==========================
+    # PTA
+    # ==========================
+    pending_pta = PTARequest.objects.filter(status="PENDING").count()
+
+    # ==========================
+    # PICKUPS
+    # ==========================
+    active_pickups = PickupAuthorization.objects.filter(
+        is_used=False,
+        expires_at__gt=timezone.now()
+    ).count()
+
     context = {
-        # USERS
-        "pending_users": User.objects.filter(is_approved=False).count(),
-        "students": User.objects.filter(role="STUDENT").count(),
-        "parents": User.objects.filter(role="PARENT").count(),
-        "staff": User.objects.filter(role="STAFF").count(),
-
-        # EXAMS
-        "active_exams": Exam.objects.filter(is_active=True).count(),
-        "unpublished_exams": Exam.objects.filter(is_published=False).count(),
-        "retake_requests": RetakeRequest.objects.filter(status="pending").count(),
-
-        # PAYMENTS
-        "total_transactions": PaymentTransaction.objects.count(),
-        "successful_payments": PaymentTransaction.objects.filter(status="success").count(),
-
-        # PICKUPS
-        "active_pickups": PickupAuthorization.objects.filter(
-            expires_at__gt=timezone.now(),
-            is_used=False
-        ).count(),
-        
-        # PTA
-        "pending_pta": PTARequest.objects.filter(status="PENDING").count(),
-
-        # SYSTEM LOGS
-        "system_errors": SystemLog.objects.filter(level="ERROR").count(),
-       
+        "stats": {
+            "total_users": total_users,
+            "pending_users": pending_users,
+            "students": students,
+            "parents": parents,
+            "staff": staff,
+            "total_exams": total_exams,
+            "active_exams": active_exams,
+            "attempts_today": attempts_today,
+            "total_revenue": total_revenue,
+            "pending_orders": pending_orders,
+            "pending_pta": pending_pta,
+            "active_pickups": active_pickups,
+        }
     }
 
     return render(request, "exams/admin/dashboard.html", context)
 
 
-@staff_member_required
-def admin_analytics_dashboard(request):
-    # Revenue (last 30 days)
-    last_30 = now() - timedelta(days=30)
+@login_required(login_url="accounts:login")
+@user_passes_test(is_admin)
+def admin_analytics_chart(request):
+    today = timezone.now().date()
+    last_30 = today - timedelta(days=30)
 
-    revenue_qs = (
-        Order.objects.filter(is_paid=True, created_at__gte=last_30)
-        .values("created_at__date")
-        .annotate(total=Sum("total"))
-        .order_by("created_at__date")
+    revenue = (
+        PaymentTransaction.objects
+        .filter(status="success", created_at__date__gte=last_30)
+        .extra(select={'day': "date(created_at)"})
+        .values('day')
+        .annotate(total=Sum('amount'))
+        .order_by('day')
     )
 
-    revenue_labels = [str(r["created_at__date"]) for r in revenue_qs]
-    revenue_data = [float(r["total"]) for r in revenue_qs]
+    orders = Order.objects.values('status').annotate(count=Count('id'))
 
-    # Exams stats
-    total_exams = Exam.objects.count()
-    published_exams = Exam.objects.filter(is_published=True).count()
-    attempts = ExamAttempt.objects.count()
-    completed = ExamAttempt.objects.filter(is_submitted=True).count()
+    exam_stats = Exam.objects.annotate(
+        attempts=Count('examattempt')
+    ).values('title', 'attempts')
 
-    context = {
-        "revenue_labels": revenue_labels,
-        "revenue_data": revenue_data,
-        "total_exams": total_exams,
-        "published_exams": published_exams,
-        "attempts": attempts,
-        "completed": completed,
-    }
-    return render(request, "admin/analytics/dashboard.html", context)
+    user_roles = User.objects.values('role').annotate(count=Count('id'))
 
-
-
-from django.shortcuts import redirect
-from django.contrib import messages
-from .utils import has_paid_for_exam
-from exams.models import Exam, ExamAccessOverride, Broadcast, PTARequest
-
-
-
-@staff_member_required
-def grant_exam_access(request):
-    if request.method == "POST":
-        ExamAccessOverride.objects.create(
-            student_id=request.POST["student"],
-            exam_id=request.POST["exam"],
-            reason=request.POST.get("reason", ""),
-            granted_by=request.user
-        )
-        messages.success(request, "Exam access granted")
-        return redirect("admin:grant_exam_access")
-
-    context = {
-        "students": User.objects.filter(role="STUDENT"),
-        "exams": Exam.objects.all()
-    }
-    return render(request, "admin/exams/grant_access.html", context)
-
-
-@login_required
-def teacher_exam_analytics(request):
-    exams = Exam.objects.filter(created_by=request.user)
-
-    analytics = []
-    for exam in exams:
-        attempts = ExamAttempt.objects.filter(exam=exam)
-        completed = attempts.filter(is_submitted=True)
-
-        analytics.append({
-            "exam": exam,
-            "total_attempts": attempts.count(),
-            "completed": completed.count(),
-            "avg_score": completed.aggregate(
-                avg=Avg("studentanswer__subjectivemark__score")
-            )["avg"] or 0,
-            "pending_marking": StudentAnswer.objects.filter(
-                question__exam=exam,
-                question__type="subjective",
-                subjectivemark__isnull=True
-            ).count()
-        })
-
-    return render(
-        request,
-        "teachers/analytics/dashboard.html",
-        {"analytics": analytics}
-    )
-
-
-@staff_member_required
-def communication_analytics(request):
-    pta_stats = (
-        PTARequest.objects
-        .values("status")
-        .annotate(count=Count("id"))
-    )
-
-    broadcasts = Broadcast.objects.aggregate(
-        total=Count("id"),
-        read=Count("read_by")
-    )
-
-    return render(request, "admin/analytics/communication.html", {
-        "pta_stats": pta_stats,
-        "broadcasts": broadcasts
+    return JsonResponse({
+        "revenue": list(revenue),
+        "orders": list(orders),
+        "exams": list(exam_stats),
+        "users": list(user_roles),
     })
 
-from django.contrib.admin.views.decorators import staff_member_required
-from django.core.paginator import Paginator
-from django.shortcuts import render
-from .models import SystemLog
-
-
-@staff_member_required
-def system_logs(request):
-    logs = SystemLog.objects.all()
-
-    level = request.GET.get("level")
-    if level:
-        logs = logs.filter(level=level)
-
-    paginator = Paginator(logs, 50)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
-
-    return render(
-        request,
-        "admin/system_logs/logs.html",
-        {
-            "logs": page_obj,
-            "level": level,
-        }
-    )
-
-
-from django.shortcuts import render
-from django.contrib.auth.decorators import login_required
-from .models import PTARequest
-from django.core.paginator import Paginator
-
-@login_required
-def pta_request_list(request):
-    # Admin and teacher view all requests, parents view only theirs
-    if request.user.role in ['ADMIN', 'STAFF']:
-        requests = PTARequest.objects.all().order_by('-created_at')
-    else:
-        requests = PTARequest.objects.filter(parent=request.user).order_by('-created_at')
-
-    # Pagination (10 per page)
-    paginator = Paginator(requests, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-
-    context = {
-        'requests': page_obj
-    }
-    return render(request, 'pta/pta_request_list.html', context)

@@ -8,7 +8,7 @@ urlpatterns = [
 path('login/', views.login_view, name='login'),
 path('logout/', views.logout_view, name='logout'),
 path('redirect/', views.dashboard_redirect, name='dashboard_redirect'),
-path('post-login/', views.post_login_router, name='post_login_router'),
+# path('post-login/', views.post_login_router, name='post_login_router'),
 path('register/', views.register_view, name='register'),
 # Users
 path("users/", views.admin_users, name="users"),

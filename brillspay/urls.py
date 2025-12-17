@@ -1,29 +1,24 @@
+
+]
 from django.urls import path
-from django.shortcuts import render
 from . import views
+from .admin_views import admin_orders, admin_order_detail
 
-
-app_name = 'brillspay'
+app_name = "brillspay"
 
 urlpatterns = [
-    # The webhook endpoint. This URL should be configured in your Paystack dashboard.
-    # path('webhook/paystack/', views.paystack_webhook, name='paystack_webhook'),
-]
+    path("", views.store, name="store"),
+    path("cart/", views.cart_view, name="cart"),
+    path("cart/add/", views.add_to_cart, name="add_to_cart"),
+    path("cart/remove/", views.remove_from_cart, name="remove_from_cart"),
+    path("checkout/", views.checkout_view, name="checkout"),
+    path("checkout/", views.checkout_view, name="checkout"),
+    path("payment/callback/", views.payment_callback, name="payment_callback"),
+    path("webhook/paystack/", views.paystack_webhook, name="paystack_webhook"),
 
 
-urlpatterns += [
-    path('', views.product_list, name='product_list'),
-    path('product/<int:pk>/', views.product_detail, name='product_detail'),
-    path('cart/', views.view_cart, name='view_cart'),
-    path('cart/add/', views.add_to_cart, name='add_to_cart'),
-    path('payment/webhook/', views.paystack_webhook, name='paystack_webhook'),
-    # path('payment/callback/', views.payment_callback, name='payment_callback'),
-    path('checkout/', views.checkout, name='checkout'),
+    path("admin/orders/", admin_orders, name="admin_orders"),
+    path("admin/orders/<uuid:pk>/", admin_order_detail, name="admin_order_detail"),
 
-
-    # Order management for admins
-    path("admin/orders/", views.admin_orders, name="admin_orders"),
-    path("admin/orders/<int:order_id>/", views.admin_order_detail, name="admin_order_detail"),
-    path("admin/products/stock/<int:product_id>/", views.admin_update_stock, name="admin_update_stock"),
 
 ]

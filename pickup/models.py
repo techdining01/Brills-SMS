@@ -13,6 +13,18 @@ import uuid
 User = settings.AUTH_USER_MODEL
 
 
+
+import uuid
+import qrcode
+from io import BytesIO
+from django.core.files.base import ContentFile
+from django.utils import timezone
+from django.db import models
+from django.conf import settings
+
+User = settings.AUTH_USER_MODEL
+
+
 class PickupAuthorization(models.Model):
     parent = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="pickup_authorizations"
@@ -33,20 +45,39 @@ class PickupAuthorization(models.Model):
 
     expires_at = models.DateTimeField()
     is_used = models.BooleanField(default=False)
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
+
         if not self.reference:
             self.reference = uuid.uuid4().hex[:12].upper()
+
         super().save(*args, **kwargs)
+
+        # generate QR only once
+        if is_new and not self.qrcode_image:
+            self.generate_qr()
+
+    def generate_qr(self):
+        qr_data = f"PICKUP:{self.reference}"
+
+        qr = qrcode.make(qr_data)
+        buffer = BytesIO()
+        qr.save(buffer, format="PNG")
+
+        filename = f"{self.reference}.png"
+        self.qrcode_image.save(
+            filename,
+            ContentFile(buffer.getvalue()),
+            save=True
+        )
 
     def is_expired(self):
         return timezone.now() > self.expires_at
 
     def __str__(self):
         return self.reference
-
 
 class PickupStudent(models.Model):
     pickup = models.ForeignKey(

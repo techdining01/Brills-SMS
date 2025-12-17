@@ -43,7 +43,7 @@ def parent_dashboard(request):
 @login_required
 def create_pickup(request):
     if request.user.role != "PARENT":
-        return redirect("dashboard")
+        return redirect("pickups:qr_scan")
 
     if request.method == "POST":
         bearer_name = request.POST["bearer_name"]
@@ -65,7 +65,7 @@ def create_pickup(request):
         generate_pickup_qr(pickup)
         pickup.save()
 
-        return redirect("pickup_detail", pickup.id)
+        return redirect("pickups:pickup_detail", pickup.id)
 
     students = request.user.children.all()
 
@@ -74,39 +74,38 @@ def create_pickup(request):
     })
 
 
-@login_required
-@user_passes_test(is_parent)
-def generate_pickup_code(request):
-    if request.method == "POST":
-        student_ids = request.POST.getlist("students")
-        bearer_name = request.POST.get("bearer_name")
-        relationship = request.POST.get("relationship")
+# @login_required
+# @user_passes_test(is_parent)
+# def generate_pickup_code(request):
+#     if request.method == "POST":
+#         student_ids = request.POST.getlist("students")
+#         bearer_name = request.POST.get("bearer_name")
+#         relationship = request.POST.get("relationship")
 
-        expires_at = timezone.now() + timedelta(hours=11)
+#         expires_at = timezone.now() + timedelta(hours=11)
 
-        pickup = PickupAuthorization.objects.create(
-            parent=request.user,
-            bearer_name=bearer_name,
-            relationship=relationship,
-            expires_at=expires_at
-        )
+#         pickup = PickupAuthorization.objects.create(
+#             parent=request.user,
+#             bearer_name=bearer_name,
+#             relationship=relationship,
+#             expires_at=expires_at
+#         )
 
-        PickupAuthorization.students.set(student_ids)
-        pickup.generate_qr()   # method on model
-        pickup.save()
+#         PickupAuthorization.students.set(student_ids)
+#         pickup.generate_qr()   # method on model
+#         pickup.save()
 
-        messages.success(request, "Pickup code generated successfully")
-        return redirect("pickups:parent_dashboard")
+#         messages.success(request, "Pickup code generated successfully")
+#         return redirect("pickups:parent_dashboard")
 
-    students = User.objects.filter(
-        parents=request.user,
-        role="STUDENT"
-    )
+#     students = User.objects.filter(
+#         parents=request.user,
+#         role="STUDENT"
+#     )
 
-    return render(request, "pickups/parent/generate.html", {
-        "students": students
-    })
-
+#     return render(request, "pickups/parent/generate.html", {
+#         "students": students
+#     })
 
 @login_required
 def verify_pickup(request, reference):
@@ -121,7 +120,7 @@ def verify_pickup(request, reference):
             verified_by=request.user,
             status="SUCCESS"
         )
-        return redirect("admin_pickup_logs")
+        return redirect("pickups:admin_pickup_logs")
     return render(request, "pickups/admin/verify.html", {"pickup": pickup})
 
 
@@ -131,29 +130,48 @@ def pickup_history(request):
     return render(request, "pickups/parent/history.html", {"pickups": pickups})
 
 
+
 @login_required
-@user_passes_test(is_admin_or_staff)
 def verify_pickup_detail(request, code):
-    pickup = get_object_or_404(PickupAuthorization, code=code)
+    try:
+        pickup = PickupAuthorization.objects.select_related("parent").get(
+            reference=code
+        )
+    except PickupAuthorization.DoesNotExist:
+        PickupVerificationLog.objects.create(
+            pickup=None,
+            verified_by=request.user,
+            status="INVALID"
+        )
+        return render(request, "pickups/admin/error.html")
 
-    if pickup.is_expired():
-        messages.error(request, "Pickup code has expired")
-        return redirect("pickups:verify_pickup")
-
-    if request.method == "POST":
-        pickup.is_verified = True
-        pickup.verified_by = request.user
-        pickup.verified_at = timezone.now()
+    if pickup.is_used:
+        status = "USED"
+    elif pickup.is_expired():
+        status = "EXPIRED"
+    else:
+        status = "SUCCESS"
+        pickup.is_used = True
         pickup.save()
 
-        # TODO: SMS notification hook here
+    PickupVerificationLog.objects.create(
+        pickup=pickup,
+        verified_by=request.user,
+        status=status
+    )
 
-        messages.success(request, "Pickup verified successfully")
-        return redirect("pickups:verify_pickup")
+    if status != "SUCCESS":
+        return render(
+            request,
+            "pickups/admin/error.html",
+            {"pickup": pickup, "status": status}
+        )
 
-    return render(request, "pickups/admin/verify_detail.html", {
-        "pickup": pickup
-    })
+    return render(
+        request,
+        "pickups/admin/verify_detail.html",
+        {"pickup": pickup}
+    )
 
 
 @login_required
@@ -170,34 +188,37 @@ def qr_scan_page(request):
     return render(request, "pickups/admin/scan.html")
 
 
+
 @login_required
-@user_passes_test(is_admin_or_staff)
 def qr_lookup_api(request):
-    code = request.GET.get("code")
+    ref = request.GET.get("ref")
+
+    if not ref:
+        return JsonResponse({"error": "No reference"}, status=400)
 
     try:
-        pickup = PickupAuthorization.objects.get(code=code)
+        pickup = PickupAuthorization.objects.get(reference=ref)
     except PickupAuthorization.DoesNotExist:
-        return JsonResponse({"error": "Invalid code"}, status=404)
+        return JsonResponse({"status": "INVALID"})
+
+    if pickup.is_used:
+        return JsonResponse({"status": "USED"})
 
     if pickup.is_expired():
-        return JsonResponse({"error": "Code expired"}, status=400)
+        return JsonResponse({"status": "EXPIRED"})
 
     return JsonResponse({
-        "parent": pickup.parent.get_full_name(),
+        "status": "VALID",
         "bearer": pickup.bearer_name,
         "relationship": pickup.relationship,
         "students": [
             {
-                "name": s.get_full_name(),
-                "class": str(s.student_class),
-                "photo": s.profile_picture.url if s.profile_picture else ""
+                "name": s.student.get_full_name(),
+                "class": getattr(s.student.student_class, "name", ""),
             }
-            for s in pickup.students.all()
-        ],
-        "verified": pickup.is_verified
+            for s in pickup.students.select_related("student")
+        ]
     })
-
 
 @login_required
 @user_passes_test(is_admin_or_staff)

@@ -7,7 +7,8 @@ from django.utils import timezone
 # from exams.models import SchoolClass
 from django.utils.crypto import get_random_string
 from django.contrib.auth.models import BaseUserManager
-
+from django.utils import timezone
+import uuid
 
 class User(AbstractUser):
     class Role(models.TextChoices):
@@ -54,6 +55,7 @@ class User(AbstractUser):
         upload_to='user_profiles/',     # Saves files to /media/user_profiles/ in S3
         null=True, 
         blank=True,
+        default='user_profiles/default_profile.png',
         help_text="User profile image"
     )
 
@@ -111,6 +113,10 @@ class CustomRoleManager(BaseUserManager):
         if not email:
             raise ValueError('The Email field must be set')
         email = self.normalize_email(email)
+
+        # ✅ Ensure username is unique
+        if not username:
+            username = f"user_{uuid.uuid4().hex[:10]}"
         user = self.model(username=username, email=email, **extra_fields)
         user.set_password(password)
         # The role filter is applied by the subclass's manager

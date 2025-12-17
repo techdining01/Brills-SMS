@@ -41,6 +41,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.humanize',
+
 
     # Third-party apps
     'rest_framework',
@@ -207,9 +209,10 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 
 # Login URLs
-LOGIN_URL = 'login'
-LOGOUT_REDIRECT_URL = 'landing_page'
-LOGIN_REDIRECT_URL = 'post_login_router'
+LOGIN_URL = 'accounts:login'
+LOGIN_REDIRECT_URL = 'accounts:dashboard_redirect'
+LOGOUT_REDIRECT_URL = 'accounts:login'
+
 
 
 

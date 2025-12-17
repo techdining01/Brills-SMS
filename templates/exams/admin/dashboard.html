@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <h4 class="fw-bold mb-4">
+        <i class="bi bi-speedometer2"></i> Admin Mega Dashboard
+    </h4>
+
+    <!-- ===================== STATS ROW ===================== -->
+    <div class="row g-3">
+
+        <!-- USERS -->
+        <div class="col-md-3 col-sm-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <small class="text-muted">Total Users</small>
+                    <h3 class="fw-bold">{{ stats.total_users }}</h3>
+                    <span class="badge bg-warning">
+                        {{ stats.pending_users }} pending approval
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- STUDENTS -->
+        <div class="col-md-3 col-sm-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <small class="text-muted">Students</small>
+                    <h3 class="fw-bold">{{ stats.students }}</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- EXAMS -->
+        <div class="col-md-3 col-sm-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <small class="text-muted">Active Exams</small>
+                    <h3 class="fw-bold">{{ stats.active_exams }}</h3>
+                    <small class="text-muted">
+                        {{ stats.attempts_today }} attempts today
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- REVENUE -->
+        <div class="col-md-3 col-sm-6">
+            <div class="card shadow-sm border-0 bg-success text-white">
+                <div class="card-body">
+                    <small>Total Revenue</small>
+                    <h3 class="fw-bold">
+                        ₦{{ stats.total_revenue|floatformat:2 }}
+                    </h3>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ===================== QUICK ACTIONS ===================== -->
+    <div class="row mt-4 g-3">
+
+        <div class="col-md-4">
+            <div class="list-group shadow-sm">
+                <a href="{% url 'accounts:approve_users' %}" class="list-group-item list-group-item-action">
+                    👤 Approve Users
+                    {% if stats.pending_users %}
+                        <span class="badge bg-danger float-end">
+                            {{ stats.pending_users }}
+                        </span>
+                    {% endif %}
+                </a>
+                <a href="{% url 'exams:admin_exam_list' %}" class="list-group-item list-group-item-action">
+                    📝 Manage Exams
+                </a>
+                <a href="{% url 'exams:pta_request_list' %}" class="list-group-item list-group-item-action">
+                    🧑‍🤝‍🧑 PTA Requests
+                    {% if stats.pending_pta %}
+                        <span class="badge bg-warning float-end">
+                            {{ stats.pending_pta }}
+                        </span>
+                    {% endif %}
+                </a>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="list-group shadow-sm">
+                <a href="{% url 'brillspay:admin_orders' %}" class="list-group-item list-group-item-action">
+                    🛒 Orders
+                    {% if stats.pending_orders %}
+                        <span class="badge bg-info float-end">
+                            {{ stats.pending_orders }}
+                        </span>
+                    {% endif %}
+                </a>
+                <a href="{% url 'brillspay:admin_orders' %}" class="list-group-item list-group-item-action">
+                    💳 Transactions
+                </a>
+                <a href="{% url 'pickups:qr_scan' %}" class="list-group-item list-group-item-action">
+                    🎒 Pickup Verification
+                    {% if stats.active_pickups %}
+                        <span class="badge bg-danger float-end">
+                            {{ stats.active_pickups }}
+                        </span>
+                    {% endif %}
+                </a>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="list-group shadow-sm">
+                <a href="{% url 'exams:system_logs' %}" class="list-group-item list-group-item-action">
+                    📜 System Logs
+                </a>
+                <a href="#" class="list-group-item list-group-item-action">
+                    📊 Analytics (Charts)
+                </a>
+                <a href="#" class="list-group-item list-group-item-action">
+                    ⚙️ Settings & Backups
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
