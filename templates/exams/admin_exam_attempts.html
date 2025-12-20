@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+{% include "partials/admin_nav.html" %}
+
+<div class="container py-4">
+  <h3>Exam Attempts - {{ exam.title }}</h3>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Student</th>
+        <th>Objective Score</th>
+        <th>Subjective Score</th>
+        <th>Total Score</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for attempt in attempts %}
+      <tr>
+        <td>{{ attempt.student.get_full_name }}</td>
+        <td>{{ attempt.score }}</td>
+        <td>{{ attempt.subjective_score }}</td>
+        <td>{{ attempt.total_score }}</td>
+        <td>
+          <a href="{% url 'exams:admin_reset_attempt' attempt.id %}" class="btn btn-warning btn-sm">Reset for Retake</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

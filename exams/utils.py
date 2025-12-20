@@ -1,4 +1,4 @@
-from exams.models import ExamAccessOverride
+# from exams.models import ExamAccessOverride
 from brillspay.models import Order
 
 def has_paid_for_exam(user, exam):

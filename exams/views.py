@@ -1,4 +1,5 @@
 import re
+from django.urls import reverse
 import openpyxl
 from docx import Document
 from .models import Exam, Question, Choice
@@ -33,7 +34,7 @@ from datetime import timedelta
 from django.shortcuts import redirect
 from django.contrib import messages
 from .utils import has_paid_for_exam
-from exams.models import Exam, ExamAccessOverride, Broadcast, PTARequest
+from exams.models import Exam, Broadcast, PTARequest
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.paginator import Paginator
 from django.shortcuts import render
@@ -47,18 +48,51 @@ from django.db.models import Count, Sum
 from django.utils import timezone
 from django.http import JsonResponse
 from datetime import timedelta
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from .models import Exam, ExamAttempt, StudentAnswer, SubjectiveMark, ExamAccess
+from django.db.models import Sum
+import json
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
+from django.utils import timezone
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib import messages
+from django.shortcuts import render, get_object_or_404, redirect
+from .models import Exam, ExamAttempt, ExamAccess
+from django.db.models import Sum
+from django.http import HttpResponseForbidden
+
+
+
 
 from brillspay.models import PaymentTransaction, Order
 from exams.models import Exam, ExamAttempt
 from accounts.models import User
 from exams.models import ExamAccess
+import random
+from django.shortcuts import get_object_or_404, redirect
+from django.http import JsonResponse
+from django.utils import timezone
+from django.contrib.auth.decorators import login_required
+from .models import Exam, ExamAttempt, Question, StudentAnswer, Choice, ExamAccess, SubjectiveMark
+from django.views.decorators.http import require_POST
+from reportlab.lib.colors import lightgrey
+from reportlab.lib.units import inch
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from django.http import HttpResponse
+import os
+from reportlab.graphics.barcode import qr
+from reportlab.graphics.shapes import Drawing
+
 
 
 import logging
 logger = logging.getLogger("system")
 
 def teacher_required(user):
-    return user.is_authenticated and user.role == 'STAFF'
+    return user.is_authenticated and user.role == 'TEACHER'
 
 
 def cbt_exam(request):
@@ -67,6 +101,7 @@ def cbt_exam(request):
 @login_required
 @user_passes_test(teacher_required)
 def create_exam(request):
+    classes = SchoolClass.objects.all()
     if request.method == 'POST':
         Exam.objects.create(
             title=request.POST['title'],
@@ -79,7 +114,7 @@ def create_exam(request):
         )
         return redirect('exams:teacher_exam_list')
 
-    return render(request, 'exams/teacher/create_exam.html')
+    return render(request, 'exams/teacher/create_exam.html', { 'classes': classes})
 
 @login_required
 @user_passes_test(teacher_required)
@@ -327,46 +362,763 @@ def exam_list(request):
     # Optionally, filter out already submitted exams unless allow_retake
     return render(request, 'exams/student/exam_list.html', {'exams': exams})
 
+#### ======= Student Exam Views ======= ####
+
+
+# @login_required
+# def student_dashboard(request):
+#     student = request.user
+
+#     attempts = ExamAttempt.objects.filter(student=student)
+
+#     attempted_exam_ids = attempts.filter(
+#         status__in=["submitted", "archived"]
+#     ).values_list("exam_id", flat=True)
+
+#     available_exams = Exam.objects.filter(
+#         school_class=student.student_class,
+#         is_published=True,
+#         is_active=True
+#     ).exclude(id__in=attempted_exam_ids)
+
+#     leaderboard = (
+#         ExamAttempt.objects
+#         .filter(status="submitted", exam__school_class=student.student_class)
+#         .select_related("student")
+#         .order_by("-score")[:10]
+#     )
+
+#     return render(request, "exams/student_dashboard.html", {
+#         "available_exams": available_exams,
+#         "attempts": attempts,
+#         "leaderboard": leaderboard,
+#     })
+
+@login_required
+def student_dashboard(request):
+    student = request.user
+
+    # AVAILABLE EXAMS
+    accessible_exam_ids = ExamAccess.objects.filter(
+        student=student
+    ).values_list('exam_id', flat=True)
+
+    active_attempts = ExamAttempt.objects.filter(
+        student=student,
+        status='in_progress'
+    )
+
+    attempted_exam_ids = ExamAttempt.objects.filter(
+        student=student,
+        status='submitted'
+    ).values_list('exam_id', flat=True)
+
+    available_exams = Exam.objects.filter(
+        id__in=accessible_exam_ids,
+        is_published=True
+    ).exclude(id__in=attempted_exam_ids)
+
+    past_attempts = ExamAttempt.objects.filter(
+        student=student,
+        status='submitted'
+    ).select_related('exam')
+
+    # PERFORMANCE CHART
+    chart_data = {
+        "labels": [a.exam.title for a in past_attempts],
+        "scores": [a.total_score for a in past_attempts]
+    }
+
+    # LEADERBOARD (NO subjective_mark join!)
+    leaderboard = (
+        ExamAttempt.objects
+        .filter(
+            exam__school_class=student.student_class,
+            status='submitted'
+        )
+        .values(
+            'student__first_name',
+            'student__last_name'
+        )
+        .annotate(total=Sum('score'))
+        .order_by('-total')[:10]
+    )
+
+    return render(request, "exams/student_dashboard.html", {
+        "available_exams": available_exams,
+        "active_attempts": active_attempts,
+        "past_attempts": past_attempts,
+        "chart": chart_data,
+        "leaderboard": leaderboard
+    })
+
+
+@login_required
+def parent_dashboard(request):
+    parent = request.user
+    wards = parent.children.all()
+
+    attempts = ExamAttempt.objects.filter(
+        student__in=wards,
+        status='submitted'
+    )
+
+    return render(request, "exams/parent/dashboard.html", {
+        "wards": wards,
+        "attempts": attempts
+    })
+
+
+@staff_member_required
+def admin_exam_analytics(request):
+    stats = ExamAttempt.objects.filter(
+        status='submitted'
+    ).values('exam__title').annotate(
+        avg=Avg('score'),
+        count=Count('id')
+    )
+
+    return render(request, "exams/admin/analytics.html", {"stats": stats})
+
 
 
 @login_required
 def start_exam(request, exam_id):
-    exam = get_object_or_404(Exam, id=exam_id, is_published=True)
-    user = request.user
-
-    if timezone.now() < exam.start_time or timezone.now() > exam.end_time:
-        messages.error(request, "Exam not active")
-        return redirect("exams:student_dashboard")
-
-    allowed = ExamAccess.objects.filter(
-        student=request.user,
-        exam=exam
-    ).exists()
-
-    if not allowed:
-        messages.error(request, "Payment required to access this exam")
-        return redirect("brillspay:store")
-
-    # Check if already started
-    attempt = ExamAttempt.objects.filter(exam=exam, student=user, is_submitted=False).first()
-    if attempt:
-        return redirect('exams:resume_exam', attempt_id=attempt.id)
-
-    # Start new attempt
-    attempt = ExamAttempt.objects.create(
-        exam=exam,
-        student=user,
-        retake_allowed=exam.allow_retake
+    exam = get_object_or_404(Exam, id=exam_id)
+    questions = Question.objects.filter(exam=exam).prefetch_related('choices')
+    question_ids = list(
+        Question.objects
+        .filter(exam=exam)
+        .values_list("id", flat=True)
     )
 
-    # Record question order
-    question_ids = list(exam.question_set.values_list('id', flat=True))
-    import random
     random.shuffle(question_ids)
-    attempt.question_order = ','.join(str(q) for q in question_ids)
+
+    attempt = ExamAttempt.objects.create(
+        student=request.user,
+        exam=exam,
+        question_order=question_ids,   # ✅ LIST, NOT STRING
+        remaining_seconds=exam.duration * 60,
+        status="in_progress"
+    )
+
+    # map answers by question_id
+    answers = {
+        ans.question_id: ans
+        for ans in StudentAnswer.objects.filter(attempt=attempt)
+    }
+
+    # 🔥 attach answer info directly to question
+    # for q in questions:
+    #     ans = answers.get(q.id)
+
+    #     q.selected_choice_id = ans.selected_choice_id if ans else None
+    #     q.text_answer = ans.answer_text if ans else ""
+    #     q.selected_choices = (
+    #         list(ans.selected_choices.values_list("id", flat=True))
+    #         if ans and hasattr(ans, "selected_choices")
+    #         else []
+    #     )
+
+    return render(request, "exams/start_exam.html", {
+        "exam": exam,
+        "attempt": attempt,
+        "questions": questions,
+    })
+
+
+
+@login_required
+def submit_exam(request, attempt_id):
+    attempt = get_object_or_404(
+        ExamAttempt,
+        id=attempt_id,
+        student=request.user
+    )
+
+    score = 0
+    for answer in attempt.answers.select_related("question", "selected_choice"):
+        if answer.question.type == "objective":
+            if answer.selected_choice and answer.selected_choice.is_correct:
+                score += answer.question.marks
+
+    attempt.score = score
+    attempt.status = "submitted"
+    attempt.is_submitted = True
+    attempt.completed_at = timezone.now()
     attempt.save()
 
-    return redirect('exams:resume_exam', attempt_id=attempt.id)
+    return redirect("exams:review_exam", attempt_id=attempt.id)
+
+
+@login_required
+def review_exam(request, attempt_id):
+    attempt = get_object_or_404(
+        ExamAttempt,
+        id=attempt_id,
+        student=request.user
+    )
+
+    return render(request, "exams/student/review.html", {
+        "attempt": attempt,
+        "answers": attempt.answers.select_related(
+            "question", "selected_choice", "subjective_mark"
+        )
+    })
+
+@login_required
+def toggle_exam_access(request, student_id, exam_id):
+    access, created = ExamAccess.objects.get_or_create(
+        student_id=student_id,
+        exam_id=exam_id
+    )
+    access.delete() if not created else None
+    return redirect("admin_exam_access")
+
+
+@login_required
+def exam_chart(request, attempt_id):
+    attempt = get_object_or_404(
+        ExamAttempt,
+        id=attempt_id,
+        student=request.user
+    )
+
+    return render(request, "exams/student/chart.html", {
+        "objective": attempt.score,
+        "subjective": attempt.subjective_score,
+    })
+
+
+from reportlab.lib.colors import red, green
+
+def draw_status_stamp(canvas, status):
+    canvas.saveState()
+    canvas.setFont("Helvetica-Bold", 36)
+
+    if status == "APPROVED":
+        canvas.setStrokeColor(green)
+        canvas.setFillColor(green)
+    else:
+        canvas.setStrokeColor(red)
+        canvas.setFillColor(red)
+
+    canvas.translate(350, 200)
+    canvas.rotate(20)
+    canvas.drawCentredString(0, 0, status)
+    canvas.restoreState()
+
+
+def draw_watermark(canvas, text):
+    canvas.saveState()
+    canvas.setFont("Helvetica-Bold", 60)
+    canvas.setFillColor(lightgrey)
+    canvas.translate(300, 400)
+    canvas.rotate(45)
+    canvas.drawCentredString(0, 0, text)
+    canvas.restoreState()
+
+
+def draw_qr(canvas, url, x=50, y=120):
+    qr_code = qr.QrCodeWidget(url)
+    bounds = qr_code.getBounds()
+    width = bounds[2] - bounds[0]
+    height = bounds[3] - bounds[1]
+
+    d = Drawing(100, 100, transform=[100./width,0,0,100./height,0,0])
+    d.add(qr_code)
+    d.drawOn(canvas, x, y)
+
+
+@login_required
+def export_result_pdf(request, attempt_id):
+    attempt = get_object_or_404(
+        ExamAttempt,
+        id=attempt_id,
+        student=request.user
+    )
+    
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = (
+        f'attachment; filename="exam_result_{attempt.id}.pdf"'
+    )
+
+    p = canvas.Canvas(response, pagesize=A4)
+    width, height = A4
+
+    # 🔷 HEADER
+    if os.path.exists(settings.SCHOOL_LOGO):
+        p.drawImage(
+            settings.SCHOOL_LOGO,
+            40, height - 120,
+            width=80, height=80,
+            preserveAspectRatio=True
+        )
+
+    p.setFont("Helvetica-Bold", 16)
+    p.drawCentredString(width / 2, height - 60, settings.SCHOOL_NAME)
+
+    p.setFont("Helvetica", 10)
+    p.drawCentredString(width / 2, height - 80, settings.SCHOOL_ADDRESS)
+
+    # Student photo
+    if attempt.student.profile_picture:
+        p.drawImage(
+            attempt.student.profile_picture.path,
+            width - 120, height - 120,
+            width=80, height=80,
+            preserveAspectRatio=True
+        )
+
+    status = "APPROVED" if attempt.is_fully_graded else "PENDING"
+    draw_status_stamp(p, status)
+
+    draw_watermark(p, settings.SCHOOL_NAME)
+
+    y = height - 150
+    p.setFont("Helvetica", 12)
+
+    p.drawString(50, y, f"Student: {attempt.student.get_full_name()}")
+    y -= 20
+    p.drawString(50, y, f"Exam: {attempt.exam.title}")
+    y -= 20
+    p.drawString(50, y, f"Total Score: {attempt.total_score}")
+
+    # Question review
+    y -= 30
+    for answer in attempt.answers.select_related(
+        "question", "selected_choice"
+    ).prefetch_related("question__choices"):
+
+        if y < 100:
+            p.showPage()
+            draw_watermark(p, settings.SCHOOL_NAME)
+            y = height - 100
+
+        q = answer.question
+        p.drawString(50, y, f"Q: {q.text}")
+        y -= 15
+
+        if q.type == "objective":
+            correct = q.choices.filter(is_correct=True).first()
+            p.drawString(
+                70, y,
+                f"Your Answer: {answer.selected_choice.text if answer.selected_choice else 'None'}"
+            )
+            y -= 15
+            p.drawString(70, y, f"Correct: {correct.text if correct else 'N/A'}")
+            y -= 20
+        else:
+            p.drawString(70, y, f"Answer: {answer.answer_text}")
+            y -= 15
+            p.drawString(
+                70, y,
+                f"Score: {answer.subjective_mark.score if hasattr(answer,'subjective_mark') else 'Pending'}"
+            )
+            y -= 20
+            
+    verify_url = request.build_absolute_uri(
+        reverse("verify_result", args=[
+        attempt.id,
+        attempt.verification_token
+        ])
+    )
+    
+    draw_qr(p, verify_url)
+    p.save()
+    return response
+
+
+
+@staff_member_required
+def admin_bulk_exam_results_pdf(request, exam_id):
+    exam = get_object_or_404(Exam, id=exam_id)
+
+    attempts = (
+        ExamAttempt.objects
+        .filter(exam=exam, status="submitted")
+        .select_related("student")
+        .order_by("-score")
+    )
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = (
+        f'attachment; filename="{exam.title}_results.pdf"'
+    )
+
+    p = canvas.Canvas(response, pagesize=A4)
+    width, height = A4
+    y = height - 100
+
+    status = "APPROVED" if attempt.is_fully_graded else "PENDING"
+    draw_status_stamp(p, status)
+
+    draw_watermark(p, settings.SCHOOL_NAME)
+
+    p.setFont("Helvetica-Bold", 16)
+    p.drawCentredString(width / 2, height - 60, f"{exam.title} Results")
+
+    y -= 40
+    p.setFont("Helvetica-Bold", 11)
+    p.drawString(50, y, "Student")
+    p.drawString(300, y, "Total Score")
+    y -= 20
+
+    p.setFont("Helvetica", 11)
+
+    for attempt in attempts:
+        if y < 80:
+            p.showPage()
+            draw_watermark(p, settings.SCHOOL_NAME)
+            draw_status_stamp(p, status)  # for all students
+            y = height - 80
+
+        p.drawString(50, y, attempt.student.get_full_name())
+        p.drawString(300, y, str(attempt.total_score))
+        y -= 18
+
+    verify_url = request.build_absolute_uri(
+        reverse("verify_result", args=[
+        attempt.id,
+        attempt.verification_token
+        ])
+    )
+    draw_qr(p, verify_url)
+    p.save()
+    return response
+
+
+
+@login_required
+def teacher_grading_summary_pdf(request, exam_id):
+    exam = get_object_or_404(Exam, id=exam_id)
+
+    if request.user != exam.created_by and not request.user.is_superuser:
+        return HttpResponse("Unauthorized", status=403)
+
+    answers = (
+        StudentAnswer.objects
+        .filter(
+            question__exam=exam,
+            question__type="subjective"
+        )
+        .select_related("attempt__student", "subjective_mark")
+    )
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = (
+        f'attachment; filename="{exam.title}_grading_summary.pdf"'
+    )
+
+    p = canvas.Canvas(response, pagesize=A4)
+    width, height = A4
+    y = height - 80
+
+    status = "APPROVED" if StudentAnswer.attempt.is_fully_graded else "PENDING"
+    draw_status_stamp(p, status)
+    draw_watermark(p, settings.SCHOOL_NAME)
+
+    p.setFont("Helvetica-Bold", 16)
+    p.drawCentredString(width / 2, height - 50, "Subjective Grading Summary")
+
+    y -= 40
+    p.setFont("Helvetica", 11)
+
+    for ans in answers:
+        if y < 100:
+            p.showPage()
+            draw_watermark(p, settings.SCHOOL_NAME)
+            draw_status_stamp(p, status)  # for all students
+            y = height - 80
+
+        p.drawString(50, y, f"Student: {ans.attempt.student.get_full_name()}")
+        y -= 15
+        p.drawString(50, y, f"Question: {ans.question.text}")
+        y -= 15
+        p.drawString(50, y, f"Answer: {ans.answer_text}")
+        y -= 15
+        p.drawString(
+            50, y,
+            f"Score: {ans.subjective_mark.score if hasattr(ans,'subjective_mark') else 'Pending'}"
+        )
+        y -= 30
+
+    verify_url = request.build_absolute_uri(
+        reverse("verify_result", args=[
+        StudentAnswer.attempt.id,
+        StudentAnswer.attempt.verification_token
+        ])
+    )
+    draw_qr(p, verify_url)
+    p.save()
+    return response
+
+
+
+# @login_required
+# def student_dashboard(request):
+#     user = request.user
+
+#     if user.role != "STUDENT":
+#         return render(request, "403.html")
+
+#     # Available exams
+#     granted_exams = ExamAccess.objects.filter(student=user).values_list('exam_id', flat=True)
+#     in_progress_attempts = ExamAttempt.objects.filter(student=user, status='in_progress')
+#     past_attempts = ExamAttempt.objects.filter(student=user, status='submitted')
+    
+
+#     available_exams = Exam.objects.filter(
+#         id__in=granted_exams,
+#         is_published=True,
+#         is_active=True
+#     ).exclude(
+#         attempts__student=user,
+#         attempts__status='submitted'
+#     )
+
+#     from django.db.models import Sum, F
+#     from django.db.models.functions import Coalesce
+
+#     leaderboard = (
+#         ExamAttempt.objects
+#         .filter(
+#             exam__school_class=user.student_class,
+#             status="submitted"
+#         )
+#         .values(
+#             "student__id",
+#             "student__first_name",
+#             "student__last_name",
+#         )
+#         .annotate(
+#             objective_score=Coalesce(Sum("score"), 0),
+#             subjective_score=Coalesce(
+#                 Sum("answers__subjective_mark__score"), 0
+#             ),
+#         )
+#         .annotate(
+#             total_score=F("objective_score") + F("subjective_score")
+#         )
+#         .order_by("-total_score")[:10]
+#     )
+
+
+#     context = {
+#         "available_exams": available_exams,
+#         "in_progress_attempts": in_progress_attempts,
+#         "past_attempts": past_attempts,
+#         "leaderboard": leaderboard,
+#         'attempt': past_attempts.first() if past_attempts.exists() else None,
+
+#     }
+#     return render(request, "exams/student_dashboard.html", context)
+
+
+@login_required
+@require_POST
+def autosave_answer(request):
+    attempt_id = request.POST.get("attempt_id")
+    question_id = request.POST.get("question_id")
+    choice_id = request.POST.get("choice_id")
+    text = request.POST.get("text")
+    remaining_seconds = request.POST.get("remaining_seconds")
+
+    attempt = get_object_or_404(
+        ExamAttempt,
+        id=attempt_id,
+        student=request.user,
+        status="in_progress"
+    )
+
+    question = get_object_or_404(Question, id=question_id)
+
+    answer, _ = StudentAnswer.objects.get_or_create(
+        attempt=attempt,
+        question=question
+    )
+
+    if question.type == "objective":
+        answer.selected_choice_id = choice_id
+    else:
+        answer.answer_text = text
+
+    answer.save()
+
+    attempt.remaining_seconds = remaining_seconds
+    attempt.save(update_fields=["remaining_seconds", "last_activity_at"])
+
+    return JsonResponse({"saved": True})
+
+
+@login_required
+def grade_subjective(request, exam_id):
+    exam = get_object_or_404(Exam, id=exam_id)
+
+    if request.user != exam.created_by and not request.user.is_superuser:
+        return HttpResponseForbidden()
+
+    answers = StudentAnswer.objects.filter(
+        question__exam=exam,
+        question__type="subjective"
+    ).select_related("attempt", "question")
+
+    return render(request, "exams/teacher/grade_subjective.html", {
+        "answers": answers,
+        "exam": exam
+    })
+
+
+
+# ----------------------------
+# Admin: Grant/Revoke Exam Access
+# ----------------------------
+@staff_member_required
+def admin_exam_access(request):
+    exams = Exam.objects.all().order_by("-created_at")
+    students = User.objects.filter(role="STUDENT").order_by("first_name")
+    
+    if request.method == "POST":
+        exam_id = request.POST.get("exam_id")
+        student_id = request.POST.get("student_id")
+        action = request.POST.get("action")  # grant or revoke
+        exam = get_object_or_404(Exam, id=exam_id)
+        student = get_object_or_404(User, id=student_id, role="STUDENT")
+
+        if action == "grant":
+            ExamAccess.objects.get_or_create(student=student, exam=exam)
+            messages.success(request, f"Access granted to {student.get_full_name()} for {exam.title}")
+        elif action == "revoke":
+            ExamAccess.objects.filter(student=student, exam=exam).delete()
+            messages.success(request, f"Access revoked from {student.get_full_name()} for {exam.title}")
+        return redirect("exams:admin_exam_access")
+
+    # Build dict of student -> exams granted
+    access_dict = {}
+    for student in students:
+        granted_exams = ExamAccess.objects.filter(student=student).values_list('exam_id', flat=True)
+        access_dict[student.id] = list(granted_exams)
+
+    context = {
+        "exams": exams,
+        "students": students,
+        "access_dict": access_dict,
+    }
+    return render(request, "exams/admin_exam_access.html", context)
+
+# ----------------------------
+# Admin: View Student Attempts for an Exam
+# ----------------------------
+@staff_member_required
+def admin_exam_attempts(request, exam_id):
+    exam = get_object_or_404(Exam, id=exam_id)
+    attempts = ExamAttempt.objects.filter(exam=exam, status='submitted') \
+        .select_related('student') \
+        .annotate(total_score=Sum('score') + Sum('subjectivemark__score'))
+    
+    context = {
+        "exam": exam,
+        "attempts": attempts,
+    }
+    return render(request, "exams/admin_exam_attempts.html", context)
+
+# ----------------------------
+# Admin: Reset Attempt (for Retake)
+# ----------------------------
+@staff_member_required
+def admin_reset_attempt(request, attempt_id):
+    attempt = get_object_or_404(ExamAttempt, id=attempt_id)
+    # Archive current attempt
+    attempt.status = "archived"
+    attempt.save()
+
+    # Create new ExamAttempt with same exam/student, new random question order
+    import random
+    questions = list(attempt.exam.question_set.values_list('id', flat=True))
+    random.shuffle(questions)
+
+    ExamAttempt.objects.create(
+        student=attempt.student,
+        exam=attempt.exam,
+        question_order=questions,
+        status='in_progress',
+        remaining_seconds=attempt.exam.duration * 60,
+        retake_allowed=True,
+    )
+
+    messages.success(request, f"Attempt for {attempt.student.get_full_name()} has been reset.")
+    return redirect("exams:admin_exam_attempts", exam_id=attempt.exam.id)
+
+
+@login_required
+def student_leaderboard(request, exam_id):
+    exam = get_object_or_404(Exam, id=exam_id)
+    attempts = ExamAttempt.objects.filter(
+        exam=exam, status="submitted"
+    ).select_related('student')
+
+    # Sort by total score
+    attempts = sorted(attempts, key=lambda x: x.total_score, reverse=True)
+
+    context = {
+        "exam": exam,
+        "attempts": attempts,
+    }
+    return render(request, "exams/student_leaderboard.html", context)
+
+
+def verify_result(request, attempt_id, token):
+    attempt = get_object_or_404(
+        ExamAttempt,
+        id=attempt_id,
+        verification_token=token
+    )
+
+    return render(request, "exams/verify_result.html", {
+        "attempt": attempt
+    })
+
+
+###======================END STUDENT EXAM VIEWS======================###
+
+# @login_required
+# def start_exam(request, exam_id):
+#     exam = get_object_or_404(Exam, id=exam_id, is_published=True)
+#     user = request.user
+
+#     if timezone.now() < exam.start_time or timezone.now() > exam.end_time:
+#         messages.error(request, "Exam not active")
+#         return redirect("exams:student_dashboard")
+
+#     allowed = ExamAccess.objects.filter(
+#         student=request.user,
+#         exam=exam
+#     ).exists()
+
+#     if not allowed:
+#         messages.error(request, "Payment required to access this exam")
+#         return redirect("brillspay:store")
+
+#     # Check if already started
+#     attempt = ExamAttempt.objects.filter(exam=exam, student=user, is_submitted=False).first()
+#     if attempt:
+#         return redirect('exams:resume_exam', attempt_id=attempt.id)
+
+#     # Start new attempt
+#     attempt = ExamAttempt.objects.create(
+#         exam=exam,
+#         student=user,
+#         retake_allowed=exam.allow_retake
+#     )
+
+#     # Record question order
+#     question_ids = list(exam.question_set.values_list('id', flat=True))
+#     import random
+#     random.shuffle(question_ids)
+#     attempt.question_order = ','.join(str(q) for q in question_ids)
+#     attempt.save()
+
+#     return redirect('exams:resume_exam', attempt_id=attempt.id)
 
 
 @login_required
@@ -432,36 +1184,36 @@ def auto_grade_objective(attempt):
 
 
 
-@login_required
-@user_passes_test(teacher_required)
-def subjective_marking(request, exam_id):
-    exam = get_object_or_404(Exam, id=exam_id)
-    attempts = ExamAttempt.objects.filter(exam=exam, is_submitted=True)
+# @login_required
+# @user_passes_test(teacher_required)
+# def subjective_marking(request, exam_id):
+#     exam = get_object_or_404(Exam, id=exam_id)
+#     attempts = ExamAttempt.objects.filter(exam=exam, is_submitted=True)
 
-    if request.method == 'POST':
-        with transaction.atomic():
-            for key, value in request.POST.items():
-                if key.startswith('mark_'):
-                    ans_id = int(key.split('_')[1])
-                    ans = StudentAnswer.objects.get(id=ans_id)
-                    score = int(value)
-                    SubjectiveMark.objects.update_or_create(
-                        answer=ans,
-                        defaults={'score': score, 'marked_by': request.user}
-                    )
-        messages.success(request, "Marks saved successfully!")
-        return redirect('exams:subjective_marking', exam_id=exam.id)
+#     if request.method == 'POST':
+#         with transaction.atomic():
+#             for key, value in request.POST.items():
+#                 if key.startswith('mark_'):
+#                     ans_id = int(key.split('_')[1])
+#                     ans = StudentAnswer.objects.get(id=ans_id)
+#                     score = int(value)
+#                     SubjectiveMark.objects.update_or_create(
+#                         answer=ans,
+#                         defaults={'score': score, 'marked_by': request.user}
+#                     )
+#         messages.success(request, "Marks saved successfully!")
+#         return redirect('exams:subjective_marking', exam_id=exam.id)
 
-    # Gather all unmarked subjective answers
-    answers = StudentAnswer.objects.filter(
-        attempt__exam=exam,
-        question__type='subjective'
-    ).select_related('attempt', 'question').order_by('attempt__student__username')
+#     # Gather all unmarked subjective answers
+#     answers = StudentAnswer.objects.filter(
+#         attempt__exam=exam,
+#         question__type='subjective'
+#     ).select_related('attempt', 'question').order_by('attempt__student__username')
 
-    return render(request, 'exams/teacher/subjective_marking.html', {
-        'exam': exam,
-        'answers': answers
-    })
+#     return render(request, 'exams/teacher/subjective_marking.html', {
+#         'exam': exam,
+#         'answers': answers
+#     })
 
 
 @login_required
@@ -596,42 +1348,44 @@ def send_broadcast(request):
     return render(request, 'exams/notifications/broadcast.html')
 
 
-@login_required
-def take_exam(request, exam_id):
-    exam = get_object_or_404(Exam, id=exam_id)
-    user = request.user
-    exam = get_object_or_404(Exam, id=exam_id, is_published=True)
+##############################################################################
 
-    if exam.requires_payment:
-        if not has_paid_for_exam(request.user, exam):
-            messages.warning(request, "Payment required to access this exam")
-            return redirect("exams:brillspay:exam_checkout", exam.id)
+# @login_required
+# def take_exam(request, exam_id):
+#     exam = get_object_or_404(Exam, id=exam_id)
+#     user = request.user
+#     exam = get_object_or_404(Exam, id=exam_id, is_published=True)
+
+#     if exam.requires_payment:
+#         if not has_paid_for_exam(request.user, exam):
+#             messages.warning(request, "Payment required to access this exam")
+#             return redirect("exams:brillspay:exam_checkout", exam.id)
 
 
 
-    # Check active window
-    now = timezone.now()
-    if now < exam.start_time or now > exam.end_time:
-        messages.warning(request, "Exam is not active.")
-        return redirect('exams:student_dashboard')
+#     # Check active window
+#     now = timezone.now()
+#     if now < exam.start_time or now > exam.end_time:
+#         messages.warning(request, "Exam is not active.")
+#         return redirect('exams:student_dashboard')
 
-    # Get existing attempt or create new
-    attempt, created = ExamAttempt.objects.get_or_create(
-        exam=exam, student=user,
-        defaults={'remaining_seconds': exam.duration * 60}
-    )
+#     # Get existing attempt or create new
+#     attempt, created = ExamAttempt.objects.get_or_create(
+#         exam=exam, student=user,
+#         defaults={'remaining_seconds': exam.duration * 60}
+#     )
 
-    # Resume remaining time
-    if request.method == 'POST':
-        # Save answers asynchronously via JS (fetch)
-        pass  # we'll handle AJAX later
+#     # Resume remaining time
+#     if request.method == 'POST':
+#         # Save answers asynchronously via JS (fetch)
+#         pass  # we'll handle AJAX later
 
-    questions = list(exam.question_set.all())
-    return render(request, 'exams/student/take_exam.html', {
-        'exam': exam,
-        'attempt': attempt,
-        'questions': questions
-    })
+#     questions = list(exam.question_set.all())
+#     return render(request, 'exams/student/take_exam.html', {
+#         'exam': exam,
+#         'attempt': attempt,
+#         'questions': questions
+#     })
 
 
 
@@ -900,7 +1654,7 @@ def admin_analytics_dashboard(request):
 @staff_member_required
 def grant_exam_access(request):
     if request.method == "POST":
-        ExamAccessOverride.objects.create(
+        ExamAccess.objects.create(
             student_id=request.POST["student"],
             exam_id=request.POST["exam"],
             reason=request.POST.get("reason", ""),
@@ -1052,7 +1806,7 @@ def teacher_dashboard(request):
         recipient=user, is_read=False
     )[:5]
 
-    return render(request, 'exams/teachers/dashboard.html', {
+    return render(request, 'exams/teacher/dashboard.html', {
         'exams': exams,
         'pending_marking': pending_marking,
         'notifications': notifications,
@@ -1065,49 +1819,86 @@ def is_admin(user):
     return user.is_authenticated and user.role == "ADMIN"
 
 
-@login_required
-def student_dashboard(request):
-    if request.user.role != "STUDENT":
-        return redirect("accounts:login")
+# @login_required
+# def student_dashboard(request):
+#     student = request.user
+#     now = timezone.now()
 
-    # Available exams (active + published)
-    available_exams = Exam.objects.filter(
-        school_class=request.user.student_class,
-        is_active=True,
-        is_published=True,
-        start_time__lte=timezone.now(),
-        end_time__gte=timezone.now()
-    )
+#     # Available exams for new attempt
+#     available_exams = Exam.objects.filter(
+#         school_class=student.student_class,
+#         is_active=True,
+#         start_time__lte=now,
+#         end_time__gte=now
+#     ).exclude(
+#         examattempt__student=student,
+#         examattempt__status='submitted'
+#     )
 
-    # Student attempts
-    attempts = ExamAttempt.objects.filter(student=request.user)
+#     # All attempts by student
+#     attempts = ExamAttempt.objects.filter(student=student).select_related('exam')
 
-    # Completed exams and marks
-    results = []
-    for attempt in attempts.filter(is_submitted=True):
-        total_score = StudentAnswer.objects.filter(
-            attempt=attempt
-        ).aggregate(Sum('score'))['score__sum'] or 0
-        results.append({
-            "exam": attempt.exam,
-            "score": total_score,
-            "completed_at": attempt.completed_at
-        })
+#     # Check for in-progress or interrupted exams
+#     resumable_exams = []
+#     for attempt in attempts.filter(status__in=['in_progress', 'interrupted']):
+#         if attempt.can_resume():
+#             resumable_exams.append(attempt)
 
-    # Leaderboard for class
-    leaderboard = (
-        User.objects.filter(student_class=request.user.student_class, role="STUDENT")
-        .annotate(total_marks=Sum('studentattempt__score'))
-        .order_by('-total_marks')[:10]
-    )
+#     # Leaderboard per submitted exam
+#     leaderboard_data = {}
+#     for attempt in attempts.filter(status='submitted'):
+#         exam = attempt.exam
+#         all_attempts = ExamAttempt.objects.filter(exam=exam, status='submitted').select_related('student')
+#         leaderboard = []
 
-    return render(request, "exams/student/dashboard.html", {
-        "available_exams": available_exams,
-        "attempts": attempts,
-        "results": results,
-        "leaderboard": leaderboard
-    })
+#         for a in all_attempts:
+#             total_score = 0
+#             answers = StudentAnswer.objects.filter(attempt=a)
 
+#             for ans in answers:
+#                 if ans.selected_choice:
+#                     if ans.selected_choice.is_correct:
+#                         total_score += ans.question.marks
+#                 else:
+#                     mark = SubjectiveMark.objects.filter(answer=ans).first()
+#                     if mark:
+#                         total_score += mark.score
+
+#             leaderboard.append({"student": a.student, "score": total_score})
+
+#         leaderboard.sort(key=lambda x: x['score'], reverse=True)
+#         for idx, row in enumerate(leaderboard, start=1):
+#             row['rank'] = idx
+
+#         leaderboard_data[exam.id] = leaderboard
+
+#     # Chart: Scores across exams
+#     chart_labels = []
+#     chart_scores = []
+#     for attempt in attempts.filter(status='submitted'):
+#         exam = attempt.exam
+#         total_score = 0
+#         answers = StudentAnswer.objects.filter(attempt=attempt)
+#         for ans in answers:
+#             if ans.selected_choice:
+#                 if ans.selected_choice.is_correct:
+#                     total_score += ans.question.marks
+#             else:
+#                 mark = SubjectiveMark.objects.filter(answer=ans).first()
+#                 if mark:
+#                     total_score += mark.score
+#         chart_labels.append(exam.title)
+#         chart_scores.append(total_score)
+
+#     print(available_exams, resumable_exams)
+#     return render(request, "exams/student/dashboard.html", {
+#         "available_exams": available_exams,
+#         "resumable_exams": resumable_exams,
+#         "attempts": attempts,
+#         "leaderboard_data": leaderboard_data,
+#         "chart_labels": chart_labels,
+#         "chart_scores": chart_scores,
+#     })
 
 # @login_required
 # def admin_dashboard(request):
@@ -1170,7 +1961,7 @@ def admin_dashboard(request):
     pending_users = User.objects.filter(is_approved=False).count()
     students = User.objects.filter(role=User.Role.STUDENT).count()
     parents = User.objects.filter(role=User.Role.PARENT).count()
-    staff = User.objects.filter(role=User.Role.STAFF).count()
+    staff = User.objects.filter(role=User.Role.TEACHER).count()
 
     # ==========================
     # EXAMS
@@ -1189,7 +1980,7 @@ def admin_dashboard(request):
     # PAYMENTS
     # ==========================
     total_revenue = PaymentTransaction.objects.filter(
-        status="success"
+        verified=True,
     ).aggregate(total=Sum("amount"))["total"] or 0
 
     pending_orders = Order.objects.filter(status="pending").count()

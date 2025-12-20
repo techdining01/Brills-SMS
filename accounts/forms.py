@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm
-from .models import User, Student, Staff, Parent
+from .models import User, Student, Teacher, Parent
 
 
 class LoginForm(AuthenticationForm):
@@ -39,9 +39,9 @@ class StudentCreateForm(BaseUserCreateForm):
         fields = BaseUserCreateForm.Meta.fields + ('student_class',)
 
 
-class StaffCreateForm(BaseUserCreateForm):
+class TeacherCreateForm(BaseUserCreateForm):
     class Meta(BaseUserCreateForm.Meta):
-        model = Staff
+        model = Teacher
         fields = BaseUserCreateForm.Meta.fields
 
 

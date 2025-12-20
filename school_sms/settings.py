@@ -65,10 +65,15 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'accounts.middleware.IdleTimeoutMiddleware',  
+    # 'accounts.middleware.IdleTimeoutMiddleware',  
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+MIDDLEWARE += [
+    'accounts.middleware.ProfileCompletionMiddleware',
+]
+
 
 ROOT_URLCONF = 'school_sms.urls'
 
@@ -86,6 +91,11 @@ TEMPLATES = [
         },
     },
 ]
+
+# AUTHENTICATION_BACKENDS = [
+#     "accounts.backends.ApprovedUserBackend",
+# ]
+
 
 WSGI_APPLICATION = 'school_sms.wsgi.application'
 
@@ -209,16 +219,20 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 
 # Login URLs
-LOGIN_URL = 'accounts:login'
-LOGIN_REDIRECT_URL = 'accounts:dashboard_redirect'
-LOGOUT_REDIRECT_URL = 'accounts:login'
+LOGIN_URL = "accounts:login"
+LOGIN_REDIRECT_URL = "acccounts:dashboard_redirect"
+LOGOUT_REDIRECT_URL = "accounts:login"
+
+
+# SESSION_COOKIE_SECURE = False   # dev only
+# CSRF_COOKIE_SECURE = False      # dev only
 
 
 
 
-# settings.py
-SESSION_COOKIE_AGE = 1200 # 20 minutes
-SESSION_SAVE_EVERY_REQUEST = True
+# # settings.py
+# SESSION_COOKIE_AGE = 1200 # 20 minutes
+# SESSION_SAVE_EVERY_REQUEST = True
 
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

@@ -1,5 +1,5 @@
 
-]
+
 from django.urls import path
 from . import views
 from .admin_views import admin_orders, admin_order_detail

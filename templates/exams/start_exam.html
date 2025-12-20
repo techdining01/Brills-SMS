@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<!-- TOP NAVIGATION -->
+<div class="d-flex justify-content-between align-items-center mb-3 p-2 border rounded bg-light">
+    <div>
+        <a href="{% url 'exams:student_dashboard' %}" class="btn btn-outline-secondary btn-sm">
+            ← Back to Dashboard
+        </a>
+        <button onclick="history.back()" class="btn btn-outline-secondary btn-sm">
+            ← Previous Page
+        </button>
+    </div>
+
+    <div class="fw-bold text-danger">
+        Time Left: <span id="timer">{{ attempt.remaining_seconds }}</span>s
+    </div>
+</div>
+
+<form method="post" action="{% url 'exams:submit_exam' attempt.id %}" id="examForm">
+    {% csrf_token %}
+
+    <!-- QUESTIONS -->
+    {% for question in questions %}
+    <div class="card mb-3">
+        <div class="card-body">
+            <h6>
+                Q{{ forloop.counter }}.
+                {{ question.text }}
+            </h6>
+
+            {% if question.type == "objective" %}
+                {% for choice in question.choices.all %}
+                  <div class="form-check">
+                      <input
+                          class="form-check-input"
+                          type="radio"
+                          name="question_{{ question.id }}"
+                          value="{{ choice.id }}"
+                          {% if question.selected_choice_id == choice.id %}checked{% endif %}
+                      >
+                      <label class="form-check-label">
+                          {{ choice.text }}
+                      </label>
+                  </div>
+                  {% endfor %}
+
+            {% elif question.type == "multiple_choice" %}
+                {% for choice in question.choices.all %}
+                  <div class="form-check">
+                      <input
+                          class="form-check-input"
+                          type="checkbox"
+                          name="question_{{ question.id }}"
+                          value="{{ choice.id }}"
+                          {% if choice.id in question.selected_choices %}checked{% endif %}
+                      >
+                      <label class="form-check-label">
+                          {{ choice.text }}
+                      </label>
+                  </div>
+                  {% endfor %}
+
+            {% elif question.type == "subjective" %}
+               <textarea
+                  name="question_{{ question.id }}"
+                  class="form-control"
+                  rows="4"
+              >{{ question.text_answer }}</textarea>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- SUBMIT -->
+    <div class="text-center my-4">
+        <button class="btn btn-danger btn-lg">
+            Submit Exam
+        </button>
+    </div>
+</form>
+
+{% endblock %}
+
+<script>
+let remaining = {{ attempt.remaining_seconds }};
+
+setInterval(() => {
+    remaining--;
+    document.getElementById("timer").innerText = remaining;
+
+    fetch("{% url 'exams:save_exam_progress' attempt.id %}", {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: new URLSearchParams({
+            remaining_seconds: remaining
+        })
+    });
+
+    if (remaining <= 0) {
+        document.getElementById("examForm").submit();
+    }
+}, 1000);
+
+
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+        fetch("{% url 'exams:log_violation' attempt.id %}");
+        alert("Warning: Tab switching detected!");
+    }
+});
+
+  document.addEventListener("copy", e => e.preventDefault());
+  document.addEventListener("paste", e => e.preventDefault());
+
+
+
+</script>
+
+
+<script>
+    let timeLeft = {{ attempt.remaining_seconds }};
+
+    const timerElement = document.getElementById('timer');
+
+    const countdown = setInterval(() => {
+        if (timeLeft <= 0) {
+            clearInterval(countdown);
+            alert("Time's up! The exam will be submitted automatically.");
+            document.getElementById('examForm').submit();
+        } else {
+            timeLeft--;
+            timerElement.textContent = timeLeft;
+        }
+    }, 1000);

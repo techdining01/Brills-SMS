@@ -3,7 +3,7 @@
 <div class="container mt-4">
   <h4 class="fw-bold">{{ exam.title }} — Questions</h4>
 
-  <a href="{% url 'add_question' exam.id %}" class="btn btn-primary btn-sm mb-3">
+  <a href="{% url 'exams:add_question' exam.id %}" class="btn btn-primary btn-sm mb-3">
     + Add Question
   </a>
 
@@ -22,11 +22,11 @@
     {% endfor %}
   </ul>
 </div>
-<a href="{% url 'upload_questions_excel' exam.id %}"
+<a href="{% url 'exams:upload_questions_excel' exam.id %}"
    class="btn btn-outline-secondary btn-sm mb-2">
    Upload via Excel
 </a>
-<a href="{% url 'upload_questions_word' exam.id %}"
+<a href="{% url 'exams:upload_questions_word' exam.id %}"
    class="btn btn-outline-primary btn-sm mb-2">
    Upload via Word
 </a>

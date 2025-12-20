@@ -18,7 +18,7 @@ urlpatterns = [
     path('teacher/exams/<int:exam_id>/questions/upload-excel/',views.upload_questions_excel, name='upload_questions_excel'),
     path('teacher/exams/<int:exam_id>/questions/upload-word/', views.upload_questions_word, name='upload_questions_word'),
     # Teacher subjective marking
-    path('teacher/exams/<int:exam_id>/mark/', views.subjective_marking, name='subjective_marking'),
+    # path('teacher/exams/<int:exam_id>/mark/', views.subjective_marking, name='subjective_marking'),
 
     # Student dashboard (view their own results)
     path('student/results/', views.student_results, name='student_results'),
@@ -58,5 +58,23 @@ urlpatterns = [
     path("system-logs/", views.system_logs, name="system_logs"),
     path("grant-exam-access/", views.grant_exam_access, name="grant_exam_access"),
 
+
+    path("admin/exam-access/", views.admin_exam_access, name="admin_exam_access"),
+    path("admin/attempts/<int:exam_id>/", views.admin_exam_attempts, name="admin_exam_attempts"),
+    path("admin/attempts/reset/<int:attempt_id>/", views.admin_reset_attempt, name="admin_reset_attempt"),
+    path("exam/autosave/", views.autosave_answer, name="autosave_answer"),
+    path("student/exam/<int:attempt_id>/", views.save_exam_progress, name="save_exam_progress"),
+    path("student/exam/<int:attempt_id>/submit/", views.submit_exam, name="submit_exam"),
+    path("student/leaderboard/<int:exam_id>/", views.student_leaderboard, name="student_leaderboard"),
+
+
+    path("result/<int:attempt_id>/pdf/", views.export_result_pdf, name="export_result_pdf"),
+    path("verify/<int:attempt_id>/<uuid:token>/", views.verify_result, name="verify_result"),
+    path("admin/exam/<int:exam_id>/results/pdf/", views.admin_bulk_exam_results_pdf, name="admin_bulk_exam_results_pdf"),
+    path("teacher/exam/<int:exam_id>/grading/pdf/", views.teacher_grading_summary_pdf, name="teacher_grading_summary_pdf"),
+
+
 ]
+
+
 

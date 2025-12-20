@@ -19,6 +19,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from .models import Transaction
 from exams.models import ExamAccess
+from django.shortcuts import render
+from .models import Product, Cart
+from django.contrib.auth.decorators import login_required
 
 
 payment_logger = logging.getLogger("system")
@@ -26,6 +29,44 @@ payment_logger = logging.getLogger("system")
 
 def _get_cart(request):
     return request.session.setdefault("cart", {"items": {}})
+
+
+
+@login_required
+def store(request):
+    user = request.user
+
+    wards = None
+    products = Product.objects.none()
+
+    # Parent: show products based on wards' classes
+    if user.role == "PARENT":
+        wards = user.children.select_related('student_class')
+
+        ward_classes = [
+            ward.student_class.id
+            for ward in wards
+            if ward.student_class
+        ]
+
+        products = Product.objects.filter(
+            category__in=ward_classes,
+            is_active=True
+        )
+
+    # Staff/Admin: see all products
+    elif user.role in ["STAFF", "ADMIN"]:
+        products = Product.objects.filter(is_active=True)
+
+    # Cart count (total cart items, not carts)
+    cart_count = Cart.objects.filter(user=user).count()
+
+    return render(request, "brillspay/store.html", {
+        "products": products,
+        "cart_count": cart_count,
+        "wards": wards,  # ✅ NOW POPULATED
+    })
+
 
 def add_to_cart(request):
     product_id = str(request.POST.get("product_id"))
@@ -193,7 +234,7 @@ def paystack_webhook(request):
         )
 
         payment_logger.info(f"Order {order.id} marked as PAID via webhook.")
-        
+
     return HttpResponse(status=200)
 
 

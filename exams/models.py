@@ -1,8 +1,8 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
-from django.db.models import Q
-
+from django.db.models import Q, Sum
+import uuid
 
 class SchoolClass(models.Model):
     LEVEL_CHOICES = [
@@ -49,7 +49,7 @@ class Subject(models.Model):
         ('vocational', 'Vocational'),
     ]
     
-   
+
     code = models.CharField(max_length=20, blank=True)
     name = models.CharField(max_length=100)
     classes = models.ManyToManyField(SchoolClass, related_name='subjects', blank=True)    
@@ -141,63 +141,171 @@ class Choice(models.Model):
     is_correct = models.BooleanField(default=False)
 
 
+
 class ExamAttempt(models.Model):
+
     ATTEMPT_STATUS = (
         ('in_progress', 'In Progress'),
         ('submitted', 'Submitted'),
+        ('archived', 'Archived'),     # old attempt after retake
         ('expired', 'Expired'),
         ('interrupted', 'Interrupted'),
     )
 
-    exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
-    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    started_at = models.DateTimeField(auto_now_add=True)
-    last_activity_at = models.DateTimeField(auto_now=True)
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="exam_attempts"
+    )
 
-    remaining_seconds = models.PositiveIntegerField()
-    completed_at = models.DateTimeField(null=True, blank=True)
+    exam = models.ForeignKey(
+        Exam,
+        on_delete=models.CASCADE,
+        related_name="attempts"
+    )
 
+    # ---------------- SCORES ----------------
+    score = models.PositiveIntegerField(
+        default=0,
+        help_text="Objective score only"
+    )
+
+    # ---------------- STATUS ----------------
     status = models.CharField(
         max_length=20,
         choices=ATTEMPT_STATUS,
         default='in_progress'
     )
 
+    verification_token = models.UUIDField(
+        default=uuid.uuid4,
+        editable=False,
+        unique=True
+    )
+
     is_submitted = models.BooleanField(default=False)
     retake_allowed = models.BooleanField(default=False)
-    question_order = models.JSONField(default=list)
-    remaining_seconds = models.IntegerField(default=0)  # store remaining time
-    class Meta:
-        unique_together = ('exam', 'student', 'status')
 
-    def save_progress(self, seconds_left):
-        self.remaining_seconds = seconds_left
-        self.save(update_fields=['remaining_seconds'])
+    # ---------------- TIMER / STATE ----------------
+    question_order = models.JSONField(default=list)
+    remaining_seconds = models.PositiveIntegerField(help_text="Remaining time in seconds")
+
+    interruption_reason = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Browser closed, power outage, network lost, etc."
+    )
+
+    # ---------------- TIMESTAMPS ----------------
+    started_at = models.DateTimeField(auto_now_add=True)
+    last_activity_at = models.DateTimeField(auto_now=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            # ✅ only ONE active attempt per student per exam
+            models.UniqueConstraint(
+                fields=['student', 'exam'],
+                condition=models.Q(status__in=['in_progress', 'interrupted']),
+                name='unique_active_attempt_per_exam'
+            )
+        ]
+
+    # ---------------- CALCULATED SCORES ----------------
+    @property
+    def subjective_score(self):
+        return (
+            self.answers
+            .filter(subjective_mark__isnull=False)
+            .aggregate(total=Sum("subjective_mark__score"))
+            .get("total")
+            or 0
+        )
+
+    @property
+    def total_score(self):
+        return self.score + self.subjective_score
+    
+    @property
+    def is_fully_graded(self):
+        total_subjective = self.answers.filter(
+            question__type="subjective"
+        ).count()
+
+        graded = self.answers.filter(
+            question__type="subjective",
+            subjective_mark__isnull=False
+        ).count()
+
+        return total_subjective == graded
+
+    
+    # ---------------- STATE HELPERS ----------------
+    def save_progress(self, seconds_left, reason=None):
+        self.remaining_seconds = max(seconds_left, 0)
+        if reason:
+            self.interruption_reason = reason
+            self.status = 'interrupted'
+        self.save(update_fields=[
+            'remaining_seconds',
+            'interruption_reason',
+            'status',
+            'last_activity_at'
+        ])
 
     def can_resume(self):
         now = timezone.now()
-        within_time = (self.completed_at is None) and (now < self.exam.end_time)
-        return not self.is_submitted and within_time
+        return (
+            self.status in ['in_progress', 'interrupted']
+            and not self.is_submitted
+            and now <= self.exam.end_time
+            and self.remaining_seconds > 0
+        )
 
     def can_retake(self):
         return self.retake_allowed or self.exam.allow_retake
 
-class StudentAnswer(models.Model):
-    attempt = models.ForeignKey(ExamAttempt, on_delete=models.CASCADE)
-    question = models.ForeignKey(Question, on_delete=models.CASCADE)
+    def archive_for_retake(self):
+        self.status = 'archived'
+        self.save(update_fields=['status'])
 
+
+class StudentAnswer(models.Model):
+    attempt = models.ForeignKey(
+        ExamAttempt,
+        on_delete=models.CASCADE,
+        related_name="answers"
+    )
+
+    question = models.ForeignKey(
+        Question,
+        on_delete=models.CASCADE
+    )
+    
     answer_text = models.TextField(blank=True)
     selected_choice = models.ForeignKey(
-        Choice, null=True, blank=True, on_delete=models.SET_NULL
+        Choice,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL
     )
+
     class Meta:
         unique_together = ('attempt', 'question')
 
-
 class SubjectiveMark(models.Model):
-    answer = models.OneToOneField(StudentAnswer, on_delete=models.CASCADE)
+    answer = models.OneToOneField(
+        StudentAnswer,
+        on_delete=models.CASCADE,
+        related_name="subjective_mark"
+    )
+
     score = models.PositiveIntegerField()
-    marked_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    marked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True
+    )
 
 
 

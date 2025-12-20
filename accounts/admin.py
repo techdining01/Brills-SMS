@@ -9,8 +9,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.html import format_html
 
-from .models import User, Student, Parent, Staff
-
+from .models import User, Student, Parent, Teacher
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
@@ -105,10 +104,10 @@ class ParentAdmin(admin.ModelAdmin):
     search_fields = ("username", "email")
 
 
-@admin.register(Staff)
-class StaffAdmin(admin.ModelAdmin):
-    list_display = ("username", "email", "is_approved")
-    search_fields = ("username", "email")
+@admin.register(Teacher)
+class TeacherAdmin(admin.ModelAdmin):
+    list_display = ("username", "email","admission_number", "is_approved")
+    search_fields = ("username", "email","admission_number")
 
 
 # Define fieldsets for non-Student roles (Admin/Staff/Parent)

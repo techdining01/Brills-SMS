@@ -13,7 +13,7 @@ import uuid
 class User(AbstractUser):
     class Role(models.TextChoices):
         ADMIN = "ADMIN", "Admin"
-        STAFF = "STAFF", "Staff"
+        TEACHER = "TEACHER", "Teacher"
         PARENT = "PARENT", "Parent"
         STUDENT = "STUDENT", "Student"
 
@@ -25,6 +25,15 @@ class User(AbstractUser):
         default=Role.STUDENT,
         help_text="Role of the user in the school management system."
         )
+    
+    
+    admission_number = models.CharField(
+        max_length=20,
+        unique=True,
+        verbose_name='Admission Number',
+        blank=True, 
+        null=True
+    )
 
     student_class = models.ForeignKey(
         'exams.SchoolClass', 
@@ -63,26 +72,51 @@ class User(AbstractUser):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def generate_unique_reg_no(self):
+        year = timezone.now().year
+        random_part = get_random_string(length=5).upper()
+
+        if self.role in [User.Role.ADMIN, User.Role.TEACHER]:
+            return f"TBS/STF/{year}/{random_part}"
+
+        if self.role == User.Role.STUDENT:
+            return f"TBS/{year}/{random_part}"
+
+        return None  # parent gets nothing
+
+
+    def create_unique_reg_no(self):
+        reg_no = self.generate_unique_reg_no()
+        if not reg_no:
+            return None
+
+        while User.objects.filter(admission_number=reg_no).exists():
+            reg_no = self.generate_unique_reg_no()
+        return reg_no
 
     def save(self, *args, **kwargs):
         if not self.pk:
             self.role = self.base_role
 
-        if not self.username:
-            # Ensure email is lowercase
+        if self.email:
             self.email = self.email.lower()
 
-        #Resize profile picture
+        # ✅ Generate admission number ONLY for non-parent users
+        if (
+            self.role in [User.Role.STUDENT, User.Role.TEACHER, User.Role.ADMIN]
+            and not self.admission_number
+        ):
+            self.admission_number = self.create_unique_reg_no()
+
+        # Resize profile picture
         if self.profile_picture and hasattr(self.profile_picture, 'path'):
             try:
                 img = Image.open(self.profile_picture.path)
                 if img.height > 300 or img.width > 300:
-                    output_size = (300, 300)
-                    img.thumbnail(output_size)
+                    img.thumbnail((300, 300))
                     img.save(self.profile_picture.path, optimize=True, quality=85)
             except (FileNotFoundError, ValueError):
                 pass
-    
 
         super().save(*args, **kwargs)
 
@@ -139,12 +173,11 @@ class ParentManager(CustomRoleManager):
         # CRITICAL: Filters the User queryset to only include PARENT roles
         return super().get_queryset().filter(role=User.Role.PARENT)
 
-class StaffManager(CustomRoleManager):
-    """Custom manager for the Staff proxy model."""
+class TeacherManager(CustomRoleManager):
+    """Custom manager for the Teacher proxy model."""
     def get_queryset(self):
-        # CRITICAL: Filters the User queryset to only include STAFF roles
-        return super().get_queryset().filter(role=User.Role.STAFF)
-
+        # CRITICAL: Filters the User queryset to only include TEACHER roles
+        return super().get_queryset().filter(role=User.Role.TEACHER)
 
 # ==============================================================================
 # 3. Proxy Models
@@ -152,14 +185,6 @@ class StaffManager(CustomRoleManager):
 
 class Student(User):
     base_role = User.Role.STUDENT
-
-    admission_number = models.CharField(
-        max_length=20,
-        unique=True,
-        verbose_name='Admission Number',
-        blank=True, 
-        null=True
-    )
   
     objects = StudentManager()
 
@@ -170,35 +195,7 @@ class Student(User):
     def get_full_name(self):
         return f"{self.first_name} {self.last_name}"
      
-    @staticmethod
-    def generate_unique_reg_no():
-        """
-        Generates a unique registration number in format:
-        TBS/2025/AB93K  (crypto-safe, collision-free)
-        """
-        year = timezone.now().year
-        random_part = get_random_string(length=5).upper()
-        return f"TBS/{year}/{random_part}"
     
-    @classmethod
-    def create_unique_reg_no(cls):
-        """Ensures the generated number is always unique."""
-        reg_no = cls.generate_unique_reg_no()
-        # FIX: Check against 'admission_number', not 'registration_number'
-        while cls.objects.filter(admission_number=reg_no).exists(): 
-            reg_no = cls.generate_unique_reg_no()
-        return reg_no
-
-    def save(self, *args, **kwargs):
-        # Generate unique admission number for students only
-        # FIX: Check against 'admission_number', and use cls/self for the method call
-        if self.role == self.base_role and not self.admission_number: 
-            self.admission_number = self.create_unique_reg_no()
-        
-        # Call the parent User's save method to handle profile picture resizing and base logic
-        super().save(*args, **kwargs)
-
-
 class Parent(User):
     """
     Proxy model for Parent/Guardian users.
@@ -220,16 +217,16 @@ class Parent(User):
         return f"{self.first_name} {self.last_name}"
 
 
-class Staff(User):
+class Teacher(User):
     """
     Proxy model for Staff users (Teachers, Non-Teaching Staff).
-    Filters the base User model to only include users with the STAFF role.
+    Filters the base User model to only include users with the TEACHER role.
     """
-    base_role = User.Role.STAFF
+    base_role = User.Role.TEACHER
     
     # CRITICAL: Assign the custom manager to ensure proper filtering.
-    # Assumes StaffManager class is defined above/imported correctly.
-    objects = StaffManager()
+    # Assumes TeacherManager class is defined above/imported correctly.
+    objects = TeacherManager()
 
     class Meta:
         proxy = True
@@ -239,30 +236,4 @@ class Staff(User):
     def get_full_name(self):
         return f"{self.first_name} {self.last_name}"
 
-    @staticmethod
-    def generate_unique_reg_no():
-        """
-        Generates a unique registration number in format:
-        TBS/STF/2025/AB93K  (crypto-safe, collision-free)
-        """
-        year = timezone.now().year
-        random_part = get_random_string(length=5).upper()
-        return f"TBS/STF/{year}/{random_part}"
-    
-    @classmethod
-    def create_unique_reg_no(cls):
-        """Ensures the generated number is always unique."""
-        reg_no = cls.generate_unique_reg_no()
-        # FIX: Check against 'admission_number', not 'registration_number'
-        while cls.objects.filter(admission_number=reg_no).exists(): 
-            reg_no = cls.generate_unique_reg_no()
-        return reg_no
-
-    def save(self, *args, **kwargs):
-        # Generate unique admission number for students only
-        # FIX: Check against 'admission_number', and use cls/self for the method call
-        if self.role == self.base_role and not self.admission_number: 
-            self.admission_number = self.create_unique_reg_no()
-        
-        # Call the parent User's save method to handle profile picture resizing and base logic
-        super().save(*args, **kwargs)
+   

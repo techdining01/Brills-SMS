@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h4 class="fw-bold">Exam Publish Control</h4>
+
+  <table class="table table-striped mt-3">
+    <thead>
+      <tr>
+        <th>Exam</th>
+        <th>Teacher</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for exam in exams %}
+      <tr>
+        <td>{{ exam.title }}</td>
+        <td>{{ exam.created_by.get_full_name }}</td>
+        <td>
+          {% if exam.is_published %}
+            <span class="badge bg-success">Live</span>
+          {% else %}
+            <span class="badge bg-secondary">Draft</span>
+          {% endif %}
+        </td>
+        <td>
+          <a href="{% url 'exams:toggle_exam_publish' exam.id %}"
+             class="btn btn-sm btn-outline-primary">
+             Toggle
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

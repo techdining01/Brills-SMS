@@ -1,70 +1,42 @@
 {% extends "base.html" %}
-{% load static %}
+{% block title %}Register{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-  <div class="row justify-content-center">
-    <div class="col-md-6 col-lg-5">
-      <div class="card shadow-sm border-0">
-        <div class="card-body p-4">
+<h5 class="text-center mb-3">Create Account</h5>
 
-          <h4 class="fw-bold text-center mb-4">
-            Create Account
-          </h4>
+<form method="post">
+    {% csrf_token %}
 
-          <form method="post">
-            {% csrf_token %}
-
-            <div class="row g-2">
-              <div class="col">
-                <input class="form-control" name="first_name" placeholder="First name" required>
-              </div>
-              <div class="col">
-                <input class="form-control" name="last_name" placeholder="Last name" required>
-              </div>
-            </div>
-
-            <input class="form-control mt-3" name="username" placeholder="Username" required>
-            <input type="email" class="form-control mt-3" name="email" placeholder="Email" required>
-            <input class="form-control mt-3" name="phone" placeholder="Phone number">
-
-            <select class="form-select mt-3" name="role" required>
-              <option value="">Select Role</option>
-              <option value="STUDENT">Student</option>
-              <option value="PARENT">Parent</option>
-              <option value="STAFF">Staff</option>
-            </select>
-
-            <div class="position-relative mt-3">
-              <input type="password" id="password" name="password"
-                     class="form-control" placeholder="Password" required>
-              <span onclick="togglePassword()"
-                    class="position-absolute top-50 end-0 translate-middle-y me-3"
-                    style="cursor:pointer;">
-                👁
-              </span>
-            </div>
-
-            <button class="btn btn-primary w-100 mt-4">
-              Register
-            </button>
-          </form>
-
-          <p class="text-center text-muted mt-3">
-            Already have an account?
-            <a href="{% url 'accounts:login' %}">Login</a>
-          </p>
-
-        </div>
-      </div>
+    <div class="mb-2">
+        <input type="text" name="username" class="form-control" placeholder="Username" required>
     </div>
-  </div>
-</div>
 
-<script>
-function togglePassword() {
-  const pwd = document.getElementById("password");
-  pwd.type = pwd.type === "password" ? "text" : "password";
-}
-</script>
+    <div class="mb-2">
+        <input type="email" name="email" class="form-control" placeholder="Email" required>
+    </div>
+
+    <div class="mb-2">
+        <select name="role" class="form-select" required>
+            <option value="">Select Role</option>
+            <option value="STUDENT">Student</option>
+            <option value="PARENT">Parent</option>
+            <option value="TEACHER">Teacher</option>
+            <option value="ADMIN">Admin</option>
+        </select>
+    </div>
+
+    <div class="mb-2">
+        <input type="password" name="password1" class="form-control" placeholder="Password" required>
+    </div>
+
+    <div class="mb-3">
+        <input type="password" name="password2" class="form-control" placeholder="Confirm Password" required>
+    </div>
+
+    <button class="btn btn-primary w-100">Register</button>
+</form>
+
+<div class="text-center mt-3">
+    <small>Already have an account? <a href="{% url 'accounts:login' %}">Login</a></small>
+</div>
 {% endblock %}

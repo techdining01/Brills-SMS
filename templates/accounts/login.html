@@ -1,35 +1,24 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+
 {% block content %}
-<div class="container d-flex align-items-center justify-content-center min-vh-100">
-    <div class="card shadow-lg p-4 w-100" style="max-width:420px">
-        <h4 class="text-center mb-3 fw-bold">School Portal Login</h4>
+<h5 class="text-center mb-3">Login</h5>
 
+<form method="post">
+    {% csrf_token %}
 
-        <form method="post">{% csrf_token %}
-            <div class="mb-3">{{ form.username }}</div>
-            <div class="mb-3 position-relative">
-                {{ form.password }}
-                <span class="position-absolute top-50 end-0 translate-middle-y me-3" onclick="togglePassword()">
-                    👁️
-                </span>
-            </div>
-            <button class="btn btn-primary w-100">Login</button>
-        </form>
-
-
-        <p class="text-muted small text-center mt-3">
-            Forgot password? Contact school admin
-        </p>
-
-        <a class="btn sm btn-outline-secondary" href="{% url 'accounts:register' %}">Register here</a>
+    <div class="mb-2">
+        <input type="text" name="username" class="form-control" placeholder="Username" required>
     </div>
+
+    <div class="mb-3">
+        <input type="password" name="password" class="form-control" placeholder="Password" required>
+    </div>
+
+    <button class="btn btn-success w-100">Login</button>
+</form>
+
+<div class="text-center mt-3">
+    <small>No account? <a href="{% url 'accounts:register' %}">Register</a></small>
 </div>
-
-
-<script>
-    function togglePassword() {
-        const p = document.getElementById('password');
-        p.type = p.type === 'password' ? 'text' : 'password';
-    }
-</script>
 {% endblock %}
