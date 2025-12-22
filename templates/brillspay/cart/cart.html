@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+
+<h4 class="fw-bold">My Cart</h4>
+
+{% if cart.items.exists %}
+<table class="table">
+<thead>
+<tr>
+<th>Item</th>
+<th>Qty</th>
+<th>Price</th>
+<th>Total</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody id="cart-body">
+{% for item in cart.items.all %}
+<tr data-id="{{ item.id }}">
+<td>{{ item.product.name }}</td>
+<td>
+<button class="btn btn-sm btn-outline-secondary dec">-</button>
+<span class="mx-2 qty">{{ item.quantity }}</span>
+<button class="btn btn-sm btn-outline-secondary inc">+</button>
+</td>
+<td>₦{{ item.product.price }}</td>
+<td class="row-total">₦{{ item.total }}</td>
+<td>
+<button class="btn btn-sm btn-danger remove">×</button>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+<h5 class="text-end">
+Total: ₦<span id="cart-total">{{ cart.total }}</span>
+</h5>
+
+<a href="{% url 'brillspay:checkout' %}" class="btn btn-primary float-end">
+Checkout
+</a>
+
+{% else %}
+<p>Your cart is empty</p>
+{% endif %}
+
+</div>
+{% endblock %}

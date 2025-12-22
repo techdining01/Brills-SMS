@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Exam Access Control{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+<h4 class="fw-bold mb-3">Exam / Service Access</h4>
+
+<table class="table table-striped align-middle">
+<thead>
+<tr>
+  <th>Student</th>
+  <th>Exam</th>
+  <th>Granted Via</th>
+  <th>Granted By</th>
+  <th>Date</th>
+  <th></th>
+</tr>
+</thead>
+
+<tbody>
+{% for a in accesses %}
+<tr>
+  <td>{{ a.student.get_full_name }}</td>
+  <td>{{ a.exam.title }}</td>
+  <td>
+    {% if a.via_payment %}
+      <span class="badge bg-success">Payment</span>
+    {% else %}
+      <span class="badge bg-secondary">Manual</span>
+    {% endif %}
+  </td>
+  <td>{{ a.granted_by|default:"System" }}</td>
+  <td>{{ a.granted_at|date:"d-m-Y H:i" }}</td>
+  <td>
+    <a
+      href="{% url 'brillspay:admin_revoke_access' a.id %}"
+      class="btn btn-sm btn-danger"
+      onclick="return confirm('Revoke this access?')"
+    >
+      Revoke
+    </a>
+  </td>
+</tr>
+{% empty %}
+<tr>
+  <td colspan="6" class="text-center text-muted">
+    No access records found
+  </td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+</div>
+{% endblock %}

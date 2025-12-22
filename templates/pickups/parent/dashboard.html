@@ -1,14 +1,21 @@
 
 {% extends "base.html" %}
-{% block title %}Parent Pickup Dashboard{% endblock %}
+{% load static %}
+
+{% block title %}Parent Dashboard{% endblock %}
 
 {% block content %}
+
 <div class="container py-4">
   <div class="d-flex justify-content-between mb-3">
     <h4>Pickup Dashboard</h4>
+    <div>
     <a href="{% url 'pickups:generate_pickup' %}" class="btn btn-primary">
       Generate Pickup
     </a>
+    <a href="{% url 'pickups:parent_pickup_history' %}" class="btn btn-secondary">History</a>
+    <a href="{% url 'brillspay:store' %}" class="btn btn-info">Brillspay</a>
+    </div>
   </div>
 
   {% if pickups %}
@@ -17,8 +24,8 @@
     <div class="col-md-4 mb-3">
       <div class="card shadow-sm">
         <div class="card-body">
-          <h6>{{ p.bearer_name }}</h6>
-          <small>{{ p.students.count }} student(s)</small>
+          <h6>Bearer: {{ p.bearer_name }}</h6>
+          <small>No. of Students {{ p.students.count }} student(s)</small>
           <p class="mt-2">
             Expires: {{ p.expires_at|date:"M d H:i" }}
           </p>

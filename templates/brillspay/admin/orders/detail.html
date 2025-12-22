@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+
+<h4>Order #{{ order.id }}</h4>
+<p>Parent: {{ order.user }}</p>
+<p>Ward: {{ order.ward }}</p>
+
+<table class="table">
+<tr><th>Product</th><th>Qty</th><th>Subtotal</th></tr>
+{% for item in order.items.all %}
+<tr>
+<td>{{ item.product.name }}</td>
+<td>{{ item.quantity }}</td>
+<td>₦{{ item.subtotal }}</td>
+</tr>
+{% endfor %}
+</table>
+
+<h5>Total: ₦{{ order.total_amount }}</h5>
+
+</div>
+{% endblock %}

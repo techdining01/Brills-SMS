@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Verify Pickup{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="card shadow-lg">
+    <div class="card-header bg-dark text-white">
+      <h4>Pickup Verification</h4>
+    </div>
+
+    <div class="card-body">
+      <p><strong>Reference:</strong> {{ pickup.reference|slice:":8" }}</p>
+      <p><strong>Parent:</strong> {{ pickup.parent.get_full_name }}</p>
+      <p><strong>Bearer:</strong> {{ pickup.bearer_name }} ({{ pickup.relationship }})</p>
+      <p><strong>Expires:</strong> {{ pickup.expires_at }}</p>
+
+      <hr>
+
+      <h5>Students</h5>
+      <div class="row">
+        {% for student in pickup.students.all %}
+        <div class="col-md-4">
+          <div class="card mb-3 d-flex justify-content-center align-items-center"  style="width: 18rem;">
+            <img src="{{ student.student.profile_picture.url }}"
+                 class="card-img-top"
+                 style="height:160px; width: 160px; object-fit:cover/center">
+            <div class="card-body text-center">
+              <strong>{{ student.student.get_full_name }}</strong><br>
+              <small>{{ student.student.student_class }}</small>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <hr>
+
+      {% if status == "VALID" %}
+        <form method="post">
+          {% csrf_token %}
+          <button class="btn btn-success btn-lg">
+            Confirm Pickup
+          </button>
+        </form>
+      {% else %}
+        <div class="alert alert-danger">
+          Pickup is <strong>{{ status }}</strong>
+        </div>
+      {% endif %}
+    </div>
+    <a href="{% url 'pickups:admin_dashboard' %}" class="btn btn-danger">Back to dashboard</a>
+  </div>
+</div>
+{% endblock %}

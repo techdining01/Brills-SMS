@@ -1,40 +1,133 @@
 {% extends "base.html" %}
-{% block title %}Scan Pickup QR{% endblock %}
+{% load static %}
+
+{% block title %}Pickup Scan{% endblock %}
 
 {% block content %}
-<div class="container py-4 text-center">
-  <h4 class="mb-3">Scan Pickup QR Code</h4>
+<div class="container py-5">
 
-  <video id="qr-video" class="w-100 rounded shadow"></video>
+  <h3 class="mb-4 fw-bold text-center">Pickup Verification Scan</h3>
 
-  <div id="scan-result" class="mt-4"></div>
+  <div class="row justify-content-center">
+
+    <!-- CAMERA SCAN -->
+    <div class="col-md-6 mb-4">
+      <div class="card shadow-sm">
+        <div class="card-header fw-semibold">
+          Scan QR Code
+        </div>
+        <div class="card-body text-center">
+
+          <video id="preview" style="width:100%; border-radius:8px;"></video>
+
+          <small class="text-muted d-block mt-2">
+            Allow camera access to scan pickup QR
+          </small>
+
+        </div>
+      </div>
+    </div>
+
+    <div id="offline-box" style="display:none" class="alert alert-warning mt-3">
+        Camera unavailable.
+        <strong>Offline mode enabled</strong>.
+        Please enter pickup reference manually.
+    </div>
+
+
+    <!-- MANUAL INPUT -->
+    <div class="col-md-6 mb-4">
+      <div class="card shadow-sm">
+        <div class="card-header fw-semibold">
+          Manual Pickup Code
+        </div>
+        <div class="card-body">
+
+          <form method="post">
+            {% csrf_token %}
+
+            <div class="mb-3">
+              <label class="form-label">Pickup Reference</label>
+              <input
+                type="text"
+                name="reference"
+                class="form-control"
+                placeholder="e.g. A1B2C3D4"
+                required
+              >
+            </div>
+
+            <button class="btn btn-primary w-100">
+              Verify Pickup
+            </button>
+
+          </form>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
 </div>
 
-<script src="https://unpkg.com/html5-qrcode"></script>
-<script>
-const resultBox = document.getElementById("scan-result");
+<!-- QR Scanner -->
+<<script src="https://unpkg.com/html5-qrcode"></script>
 
-new Html5Qrcode("qr-video").start(
-  { facingMode: "environment" },
-  { fps: 10, qrbox: 250 },
-  (decodedText) => {
-    fetch(`/pickups/scan/lookup/?code=${decodedText}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.error) {
-          resultBox.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
-        } else {
-          resultBox.innerHTML = `
-            <div class="card p-3 shadow">
-              <h6>Bearer: ${data.bearer}</h6>
-              <p>Parent: ${data.parent}</p>
-              <p><strong>Students:</strong></p>
-              <ul>${data.students.map(s => `<li>${s.name} (${s.class})</li>`).join("")}</ul>
-            </div>
-          `;
-        }
+<script>
+  function buildVerifyUrl(code) {
+    return "{% url 'pickups:verify_pickup_detail' 'CODE' %}".replace("CODE", code);
+  }
+
+  function startScanner() {
+    Html5Qrcode.getCameras()
+      .then(devices => {
+        if (!devices.length) throw "No camera";
+
+        const scanner = new Html5Qrcode("preview");
+
+        scanner.start(
+          devices[0].id,
+          { fps: 10, qrbox: 250 },
+          qrText => {
+            // Expected QR format: PICKUP:<uuid>
+            const code = qrText.replace("PICKUP:", "").trim();
+            window.location.href = buildVerifyUrl(code);
+          }
+        );
+      })
+      .catch(() => {
+        document.getElementById("offline-box").style.display = "block";
       });
   }
-);
+
+  startScanner();
+
+let cameraStarted = false;
+
+function startScanner() {
+  Html5Qrcode.getCameras().then(devices => {
+    if (!devices.length) throw "No camera";
+
+    cameraStarted = true;
+
+    const scanner = new Html5Qrcode("preview");
+    scanner.start(
+      devices[0].id,
+      { fps: 10, qrbox: 250 },
+      text => {
+        const code = text.replace("PICKUP:", "");
+        window.location.href =
+          "{% url 'pickups:verify_pickup_detail' 'REFEREnce' %}".replace("REFEREnce", reference);
+      }
+    );
+  }).catch(() => {
+    document.getElementById("offline-box").style.display = "block";
+  });
+}
+
+startScanner();
+
+
 </script>
+
 {% endblock %}

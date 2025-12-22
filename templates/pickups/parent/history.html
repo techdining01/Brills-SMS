@@ -1,29 +1,72 @@
-<h3>Pickup History</h3>
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Reference</th>
-            <th>Students</th>
-            <th>Expiry</th>
-            <th>Status</th>
-            <th>QR</th>
-        </tr>
-    </thead>
-    <tbody>
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <h3 class="mb-3">My Pickup History</h3>
+
+    <table class="table table-bordered align-middle">
+        <thead>
+            <tr>
+                <th>Reference</th>
+                <th>Students</th>
+                <th>Bearer</th>
+                <th>Status</th>
+                <th>QR</th>
+            </tr>
+        </thead>
+        <tbody>
         {% for pickup in pickups %}
-        <tr>
-            <td>{{ pickup.reference }}</td>
-            <td>
-                {% for s in pickup.students.all %}
-                {{ s.first_name }} {{ s.last_name }} ({{ s.student_class }})<br>
-                {% endfor %}
-            </td>
-            <td>{{ pickup.expires_at }}</td>
-            <td>{{ "Used" if pickup.is_used else "Active" }}</td>
-            <td>
-                <img src="{{ pickup.qrcode_image.url }}" style="height:50px;">
-            </td>
-        </tr>
+            <tr>
+                <td>{{ pickup.reference|slice:":8"  }}</td>
+
+
+                <td>
+                    {% for student in pickup.students.all %}
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <img
+                                src="{{ student.student.profile_picture.url }}"
+                                width="35"
+                                height="35"
+                                style="border-radius:50%;"
+                            >
+                            <div>
+                                <strong>{{ student.student.get_full_name }}</strong><br>
+                                <small>{{ student.student.student_class }}</small>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </td>
+
+                <td>
+                    <b>{{ pickup.bearer_name }}</b><br>
+                    <small>{{ pickup.relationship }}</small>
+                </td>
+
+                <td>
+                    {% if pickup.is_used %}
+                        <span class="badge bg-secondary">USED</span>
+                    {% elif pickup.is_expired %}
+                        <span class="badge bg-danger">EXPIRED</span>
+                    {% else %}
+                        <span class="badge bg-success">ACTIVE</span>
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if pickup.qrcode_image %}
+                        <img src="{{ pickup.qrcode_image.url }}" width="60">
+                    {% endif %}
+                </td>
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="5" class="text-center text-muted">
+                    No pickup history found
+                </td>
+            </tr>
         {% endfor %}
-    </tbody>
-</table>
+        </tbody>
+    </table>
+</div>
+{% endblock %}

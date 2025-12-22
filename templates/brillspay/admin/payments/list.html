@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+<h4>Payments</h4>
+
+<table class="table table-striped">
+<thead>
+<tr>
+<th>Ref</th><th>Order</th><th>Amount</th><th>Status</th><th>Date</th>
+</tr>
+</thead>
+<tbody>
+{% for tx in transactions %}
+<tr>
+<td>{{ tx.reference }}</td>
+<td>#{{ tx.order.id }}</td>
+<td>₦{{ tx.amount }}</td>
+<td>{{ tx.status }}</td>
+<td>{{ tx.created_at }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% endblock %}

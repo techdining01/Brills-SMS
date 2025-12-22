@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+       
+<h3>Pickup History</h3>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Reference</th>
+            <th>Students</th>
+            <th>Expiry</th>
+            <th>Status</th>
+            <th>QR</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for pickup in pickups %}
+        <tr>
+            <td>{{ pickup.reference }}</td>
+            <td>
+                {% for s in pickup.students.all %}
+                {{ s.first_name }} {{ s.last_name }} ({{ s.student_class }})<br>
+                {% endfor %}
+            </td>
+            <td>{{ pickup.expires_at }}</td>
+                {% if pickup.is_used %}
+                <td>{{ "Used" }}</td>
+                {% else %}
+                <td>{{"Active"}}</td>
+                {% endif %}
+            <td>
+                <img src="{{ pickup.qrcode_image.url }}" style="height:50px;">
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock content %}

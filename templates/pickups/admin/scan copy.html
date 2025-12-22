@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Scan Pickup QR{% endblock %}
+
+{% block content %}
+<div class="container py-4 text-center">
+  <h4 class="mb-3">Scan Pickup QR Code</h4>
+
+  <video id="qr-video" class="w-100 rounded shadow"></video>
+
+  <div id="scan-result" class="mt-4"></div>
+</div>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+const resultBox = document.getElementById("scan-result");
+
+new Html5Qrcode("qr-video").start(
+  { facingMode: "environment" },
+  { fps: 10, qrbox: 250 },
+  (decodedText) => {
+    fetch(`/pickups/scan/lookup/?code=${decodedText}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          resultBox.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+        } else {
+          resultBox.innerHTML = `
+            <div class="card p-3 shadow">
+              <h6>Bearer: ${data.bearer}</h6>
+              <p>Parent: ${data.parent}</p>
+              <p><strong>Students:</strong></p>
+              <ul>${data.students.map(s => `<li>${s.name} (${s.class})</li>`).join("")}</ul>
+            </div>
+          `;
+        }
+      });
+  }
+);
+</script>
+{% endblock %}

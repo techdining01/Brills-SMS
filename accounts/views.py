@@ -126,104 +126,21 @@ def complete_profile(request):
     return render(request, "accounts/complete_profile.html")
 
 
-
-
-
-# def login_view(request):
-#     if request.user.is_authenticated:
-#         # Already logged in → send to router
-#         return redirect(settings.LOGIN_REDIRECT_URL)
-
-#     if request.method == "POST":
-#         username = request.POST.get("username")
-#         password = request.POST.get("password")
-
-#         if not username or not password:
-#             messages.error(request, "Username and password are required.")
-#             return render(request, "accounts/login.html")
-
-#         user = authenticate(request, username=username, password=password)
-
-#         if user is None:
-#             messages.error(request, "Invalid username or password.")
-#             return render(request, "accounts/login.html")
-
-#         if not user.is_approved:
-#             messages.error(request, "This account is not approved yet.")
-#             return render(request, "accounts/login.html")
-
-#         login(request, user)
-
-#         # 🔍 DEBUG (remove later)
-#         print(
-#             "LOGIN OK →",
-#             user.username,
-#             user.role,
-#             user.is_authenticated
-#         )
-
-#         return redirect(settings.LOGIN_REDIRECT_URL)
-  
-
-#     return render(request, "accounts/login.html")
-
-
-
-# def register_view(request):
-#     if request.method == 'POST':
-#         role = request.POST.get('role')
-
-#         password1 = request.POST.get('password1')
-#         password2 = request.POST.get('password2')
-
-#         if not password1 or not password2:
-#             messages.error(request, "Password fields are required")
-#             return redirect('accounts:register')
-
-#         if password1 != password2:
-#             messages.error(request, "Passwords do not match")
-#             return redirect('accounts:register')
-#         password = password1
-
-#         user = User.objects.create_user(
-#             username=request.POST['username'],
-#             email=request.POST['email'],
-#             password=password,
-#         )
-
-#         user.first_name = request.POST.get('first_name')
-#         user.last_name = request.POST.get('last_name')
-#         user.phone_number = request.POST.get('phone')
-#         user.role = role
-#         user.is_active = True
-#         user.is_approved = False  # 🔒 Admin must approve
-#         user.save()
-
-#         messages.success(
-#             request,
-#             "Account created successfully. Please wait for admin approval."
-#         )
-
-#         return redirect('accounts:login')
-
-#     return render(request, 'accounts/register.html')
-
-
-# def logout_view(request):
-#     logout(request)
-#     return redirect('accounts:login')
-
-
 def dashboard_redirect(request):
     user = request.user
 
+    if not user.is_approved:
+        return redirect('accounts:pending_approval')
+
     if user.role == "STUDENT":
         return redirect("exams:student_dashboard")
-    if user.role == "TEACHER":
+    elif user.role == "TEACHER":
         return redirect("exams:teacher_dashboard")
-    if user.role == "ADMIN":
+    elif user.role == "ADMIN":
         return redirect("exams:admin_dashboard")
-
+    elif user.role == 'PARENT':
+        return redirect('pickups:parent_dashboard')
+   
     return redirect("accounts:login")
 
 

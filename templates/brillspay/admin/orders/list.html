@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+<h4>Orders</h4>
+
+<table class="table table-hover">
+<tr>
+<th>ID</th><th>Parent</th><th>Ward</th><th>Total</th><th></th>
+</tr>
+{% for o in orders %}
+<tr>
+<td>{{ o.id }}</td>
+<td>{{ o.user }}</td>
+<td>{{ o.ward }}</td>
+<td>₦{{ o.total_amount }}</td>
+<td>
+<a href="{% url 'brillspay:admin_order_detail' o.id %}">View</a>
+</td>
+</tr>
+{% endfor %}
+</table>
+</div>
+{% endblock %}

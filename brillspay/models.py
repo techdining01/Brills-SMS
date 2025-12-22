@@ -50,11 +50,20 @@ class Product(models.Model):
 
 # =========================
 # Cart
-# =========================
+# ========================= 
 class Cart(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="cart")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='carts')
+    ward = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="ward_carts",
+        limit_choices_to={"role": "STUDENT"}
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("user", "ward")
 
     def total_items(self):
         return sum(item.quantity for item in self.items.all())
@@ -64,6 +73,7 @@ class Cart(models.Model):
 
     def __str__(self):
         return f"Cart - {self.user.username}"
+
 
 # =========================
 # CartItem

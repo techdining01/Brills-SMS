@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Verify Pickup{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h4 class="mb-4">Pickup Verification</h4>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+
+      <p><strong>Parent:</strong> {{ pickup.parent.get_full_name }}</p>
+      <p><strong>Bearer:</strong> {{ pickup.bearer_name }} ({{ pickup.relationship }})</p>
+      <p><strong>Expires:</strong> {{ pickup.expires_at }}</p>
+
+      <hr>
+
+      <h6>Students Covered</h6>
+      <div class="row">
+        {% for s in pickup.students.all %}
+        <div class="col-md-4 mb-3">
+          <div class="border rounded p-2 text-center">
+            {% if s.profile_picture %}
+              <img src="{{ s.profile_picture.url }}" class="rounded-circle mb-2" width="70">
+            {% endif %}
+            <div><strong>{{ s.get_full_name }}</strong></div>
+            <small>{{ s.student_class }}</small>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <form method="post">
+        {% csrf_token %}
+        <button class="btn btn-success mt-3">
+          Confirm Pickup
+        </button>
+      </form>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

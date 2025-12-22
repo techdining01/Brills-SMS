@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h4>My Purchases</h4>
+
+<table class="table">
+<tr><th>Ref</th><th>Ward</th><th>Amount</th><th>Status</th></tr>
+{% for o in orders %}
+<tr>
+  <td>{{ o.id }}</td>
+  <td>{{ o.ward.get_full_name }}</td>
+  <td>₦{{ o.amount }}</td>
+  <td>{{ o.status }}</td>
+  <td>
+  <a href="{% url 'brillspay:receipt_pdf' o.transaction.id %}"
+     class="btn btn-sm btn-outline-primary">
+     Receipt (PDF)
+  </a>
+</td>
+
+</tr>
+{% endfor %}
+</table>
+{% endblock %}

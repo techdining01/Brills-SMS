@@ -1,1 +1,30 @@
-<h1>Checkout</h1>
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-5 text-center">
+
+<h4>Checkout</h4>
+<p>Total: ₦{{ cart.total }}</p>
+
+<button id="payBtn" class="btn btn-success">
+Pay with Paystack
+</button>
+
+<script src="https://js.paystack.co/v1/inline.js"></script>
+
+<script>
+document.getElementById("payBtn").onclick = function () {
+  PaystackPop.setup({
+    key: "{{ paystack_public_key }}",
+    email: "{{ request.user.email }}",
+    amount: {{ cart.total|floatformat:2 }} * 100,
+    ref: "{{ reference }}",
+    callback: function () {
+      window.location.href =
+        "{% url 'brillspay:verify_payment' reference %}";
+    }
+  }).openIframe();
+};
+</script>
+
+</div>
+{% endblock %}

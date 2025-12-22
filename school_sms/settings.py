@@ -227,9 +227,6 @@ LOGOUT_REDIRECT_URL = "accounts:login"
 # SESSION_COOKIE_SECURE = False   # dev only
 # CSRF_COOKIE_SECURE = False      # dev only
 
-
-
-
 # # settings.py
 # SESSION_COOKIE_AGE = 1200 # 20 minutes
 # SESSION_SAVE_EVERY_REQUEST = True
@@ -254,14 +251,16 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 ## School config (dynamic)
-# SCHOOL_NAME = os.getenv("SCHOOL_NAME", "The Brills School")
-# SCHOOL_ADDRESS = os.getenv("SCHOOL_ADDRESS", "No 1, Adaba Awotan-Akufo Road. Ibadan. Oyo State")
-# SCHOOL_SLOGAN = os.getenv("SCHOOL_SLOGAN", "Knowledge is Light")
-# SCHOOL_ECOMMERCE = os.getenv("SCHOOL_ECOMMERCE", "")
-# PORTAL_DOMAIN = os.getenv("PORTAL_DOMAIN", "https://www.thebrillsschool.edu.ng")
-# SITE_NAME = os.getenv("PORTAL_DOMAIN", "https://www.thebrillsschool.edu.ng")
-# CURRENCY = os.getenv('NGN')
-# CURRENCY_SYMBOL = os.getenv('₦')
+SCHOOL_NAME = os.getenv("SCHOOL_NAME", "The Brills School")
+SCHOOL_ADDRESS = os.getenv("SCHOOL_ADDRESS", "No 1, Adaba Awotan-Akufo Road. Ibadan. Oyo State")
+SCHOOL_LOGO_PATH = BASE_DIR / "static/images/school_logo.png"
+SCHOOL_SLOGAN = os.getenv("SCHOOL_SLOGAN", "Knowledge is Light")
+SCHOOL_ECOMMERCE = os.getenv("SCHOOL_ECOMMERCE", "")
+PORTAL_DOMAIN = os.getenv("PORTAL_DOMAIN", "https://www.thebrillsschool.edu.ng")
+SITE_NAME = os.getenv("PORTAL_DOMAIN", "https://www.thebrillsschool.edu.ng")
+CURRENCY = os.getenv('NGN')
+CURRENCY_SYMBOL = os.getenv('₦')
+RECEIPT_WATERMARK = "PAID"
 
 
 # Custom User Model (Best Practice)
@@ -278,6 +277,7 @@ INTERNAL_IPS = [
 PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY')
 PAYSTACK_PUBLIC_KEY = config('PAYSTACK_PUBLIC_KEY')
 PAYSTACK_BASE_URL = config('PAYSTACK_BASE_URL')
+PAYSTACK_WEBHOOK_SECRET = PAYSTACK_SECRET_KEY
 
 # --- AWS S3 CONFIGURATION (New Section) ---
 # AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID')

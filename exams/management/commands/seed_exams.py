@@ -5,7 +5,6 @@ from exams.models import (
     SchoolClass, Subject, Exam, Question, Choice,
     ExamAccess, ExamAttempt, StudentAnswer, SubjectiveMark
 )
-from accounts.models import Student
 import random
 
 User = get_user_model()
@@ -58,7 +57,7 @@ class Command(BaseCommand):
         # ------------------------------------------------
         # 4. STUDENTS
         # ------------------------------------------------
-        students = Student.objects.all()
+        students = User.objects.filter(role='STUDENT').all()
 
         if not students.exists():
             self.stdout.write(self.style.ERROR("❌ No students found"))
@@ -79,7 +78,7 @@ class Command(BaseCommand):
                     "end_time": timezone.now() + timezone.timedelta(days=7),
                     "is_active": True,
                     "is_published": True,
-                    "allow_retake": True
+                    "allow_retake": True,
                 }
             )
             exams.append(exam)
@@ -146,7 +145,8 @@ class Command(BaseCommand):
                     is_submitted=True,
                     score=0,
                     question_order=[q.id for q in exam_questions],
-                    completed_at=timezone.now()
+                    completed_at=timezone.now(),
+                    remaining_seconds = 10000
                 )
 
                 objective_score = 0

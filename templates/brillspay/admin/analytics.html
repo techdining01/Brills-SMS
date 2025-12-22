@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+
+<h4>Revenue Analytics</h4>
+
+<canvas id="revenueChart"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+new Chart(document.getElementById("revenueChart"), {
+  type: "bar",
+  data: {
+    labels: {{ labels|safe }},
+    datasets: [{
+      label: "Daily Revenue",
+      data: {{ values|safe }}
+    }]
+  }
+});
+</script>
+
+</div>
+{% endblock %}

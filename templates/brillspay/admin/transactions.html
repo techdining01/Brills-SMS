@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+
+<h4>Transactions</h4>
+
+<table class="table">
+<tr>
+<th>Ref</th>
+<th>User</th>
+<th>Amount</th>
+<th>Status</th>
+<th>Date</th>
+</tr>
+
+{% for tx in transactions %}
+<tr>
+<td>{{ tx.reference|slice:":8" }}</td>
+<td>{{ tx.user }}</td>
+<td>₦{{ tx.amount }}</td>
+<td>{{ tx.paystack_status }}</td>
+<td>{{ tx.created_at }}</td>
+</tr>
+{% endfor %}
+</table>
+
+</div>
+{% endblock %}

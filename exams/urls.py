@@ -54,11 +54,12 @@ urlpatterns = [
     
     # Admin Dashboard
     path("", views.cbt_exam, name="exams"),
-    path("admin/dashboard/", views.admin_dashboard, name="admin_dashboard"),
     path("system-logs/", views.system_logs, name="system_logs"),
     path("grant-exam-access/", views.grant_exam_access, name="grant_exam_access"),
 
 
+    path("admin/dashboard/", views.admin_dashboard, name="admin_dashboard"),
+    path("admin/mega-dashboard/", views.admin_mega_dashboard, name="admin_mega_dashboard"),
     path("admin/exam-access/", views.admin_exam_access, name="admin_exam_access"),
     path("admin/attempts/<int:exam_id>/", views.admin_exam_attempts, name="admin_exam_attempts"),
     path("admin/attempts/reset/<int:attempt_id>/", views.admin_reset_attempt, name="admin_reset_attempt"),

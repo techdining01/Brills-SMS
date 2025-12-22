@@ -750,7 +750,9 @@ def admin_bulk_exam_results_pdf(request, exam_id):
     width, height = A4
     y = height - 100
 
-    status = "APPROVED" if attempt.is_fully_graded else "PENDING"
+    for attempt in attempts:
+        status = "APPROVED" if attempt.is_fully_graded else "PENDING"
+
     draw_status_stamp(p, status)
 
     draw_watermark(p, settings.SCHOOL_NAME)
@@ -767,6 +769,7 @@ def admin_bulk_exam_results_pdf(request, exam_id):
     p.setFont("Helvetica", 11)
 
     for attempt in attempts:
+
         if y < 80:
             p.showPage()
             draw_watermark(p, settings.SCHOOL_NAME)
@@ -778,7 +781,7 @@ def admin_bulk_exam_results_pdf(request, exam_id):
         y -= 18
 
     verify_url = request.build_absolute_uri(
-        reverse("verify_result", args=[
+        reverse("exams:verify_result", args=[
         attempt.id,
         attempt.verification_token
         ])
@@ -1004,7 +1007,7 @@ def admin_exam_access(request):
         "students": students,
         "access_dict": access_dict,
     }
-    return render(request, "exams/admin_exam_access.html", context)
+    return render(request, "exams/admin/exams/exam_access_list.html", context)
 
 # ----------------------------
 # Admin: View Student Attempts for an Exam
@@ -1625,14 +1628,14 @@ def admin_analytics_dashboard(request):
     last_30 = now() - timedelta(days=30)
 
     revenue_qs = (
-        Order.objects.filter(is_paid=True, created_at__gte=last_30)
+        Order.objects.filter(status='STATUS.PAID', created_at__gte=last_30)
         .values("created_at__date")
-        .annotate(total=Sum("total"))
+        .annotate(total=Sum("total_amount"))
         .order_by("created_at__date")
     )
 
     revenue_labels = [str(r["created_at__date"]) for r in revenue_qs]
-    revenue_data = [float(r["total"]) for r in revenue_qs]
+    revenue_data = [float(r["total_amount"]) for r in revenue_qs]
 
     # Exams stats
     total_exams = Exam.objects.count()
@@ -1819,132 +1822,24 @@ def is_admin(user):
     return user.is_authenticated and user.role == "ADMIN"
 
 
-# @login_required
-# def student_dashboard(request):
-#     student = request.user
-#     now = timezone.now()
+@login_required
+@user_passes_test(lambda u: u.role == "ADMIN")
+def admin_dashboard(request):
+    from exams.models import Exam, ExamAttempt, Notification
 
-#     # Available exams for new attempt
-#     available_exams = Exam.objects.filter(
-#         school_class=student.student_class,
-#         is_active=True,
-#         start_time__lte=now,
-#         end_time__gte=now
-#     ).exclude(
-#         examattempt__student=student,
-#         examattempt__status='submitted'
-#     )
+    context = {
+        "total_exams": Exam.objects.count(),
+        "published_exams": Exam.objects.filter(is_published=True).count(),
+        "total_attempts": ExamAttempt.objects.count(),
+        "pending_retake_requests": ExamAttempt.objects.filter(
+            retake_allowed=False, status="submitted"
+        ).count(),
+        "unread_notifications": Notification.objects.filter(
+            recipient=request.user, is_read=False
+        ).count(),
+    }
+    return render(request, "exams/admin/dashboard.html", context)
 
-#     # All attempts by student
-#     attempts = ExamAttempt.objects.filter(student=student).select_related('exam')
-
-#     # Check for in-progress or interrupted exams
-#     resumable_exams = []
-#     for attempt in attempts.filter(status__in=['in_progress', 'interrupted']):
-#         if attempt.can_resume():
-#             resumable_exams.append(attempt)
-
-#     # Leaderboard per submitted exam
-#     leaderboard_data = {}
-#     for attempt in attempts.filter(status='submitted'):
-#         exam = attempt.exam
-#         all_attempts = ExamAttempt.objects.filter(exam=exam, status='submitted').select_related('student')
-#         leaderboard = []
-
-#         for a in all_attempts:
-#             total_score = 0
-#             answers = StudentAnswer.objects.filter(attempt=a)
-
-#             for ans in answers:
-#                 if ans.selected_choice:
-#                     if ans.selected_choice.is_correct:
-#                         total_score += ans.question.marks
-#                 else:
-#                     mark = SubjectiveMark.objects.filter(answer=ans).first()
-#                     if mark:
-#                         total_score += mark.score
-
-#             leaderboard.append({"student": a.student, "score": total_score})
-
-#         leaderboard.sort(key=lambda x: x['score'], reverse=True)
-#         for idx, row in enumerate(leaderboard, start=1):
-#             row['rank'] = idx
-
-#         leaderboard_data[exam.id] = leaderboard
-
-#     # Chart: Scores across exams
-#     chart_labels = []
-#     chart_scores = []
-#     for attempt in attempts.filter(status='submitted'):
-#         exam = attempt.exam
-#         total_score = 0
-#         answers = StudentAnswer.objects.filter(attempt=attempt)
-#         for ans in answers:
-#             if ans.selected_choice:
-#                 if ans.selected_choice.is_correct:
-#                     total_score += ans.question.marks
-#             else:
-#                 mark = SubjectiveMark.objects.filter(answer=ans).first()
-#                 if mark:
-#                     total_score += mark.score
-#         chart_labels.append(exam.title)
-#         chart_scores.append(total_score)
-
-#     print(available_exams, resumable_exams)
-#     return render(request, "exams/student/dashboard.html", {
-#         "available_exams": available_exams,
-#         "resumable_exams": resumable_exams,
-#         "attempts": attempts,
-#         "leaderboard_data": leaderboard_data,
-#         "chart_labels": chart_labels,
-#         "chart_scores": chart_scores,
-#     })
-
-# @login_required
-# def admin_dashboard(request):
-#     context = {
-#         # USERS
-#         "pending_users": User.objects.filter(is_approved=False).count(),
-#         "students": User.objects.filter(role="STUDENT").count(),
-#         "parents": User.objects.filter(role="PARENT").count(),
-#         "staff": User.objects.filter(role="STAFF").count(),
-
-#         # EXAMS
-#         "active_exams": Exam.objects.filter(is_active=True).count(),
-#         "unpublished_exams": Exam.objects.filter(is_published=False).count(),
-#         "retake_requests": RetakeRequest.objects.filter(status="pending").count(),
-
-#         # PAYMENTS
-#         "total_transactions": PaymentTransaction.objects.count(),
-#         "successful_payments": PaymentTransaction.objects.filter(status="success").count(),
-
-#         # PICKUPS
-#         "active_pickups": PickupAuthorization.objects.filter(
-#             expires_at__gt=timezone.now(),
-#             is_used=False
-#         ).count(),
-        
-#         # PTA
-#         "pending_pta": PTARequest.objects.filter(status="PENDING").count(),
-
-#         # SYSTEM LOGS
-#         "system_errors": SystemLog.objects.filter(level="ERROR").count(),
-       
-#     }
-
-#     return render(request, "exams/admin/dashboard.html", context)
-
-
-# from django.contrib.auth.decorators import login_required, user_passes_test
-# from django.shortcuts import render
-# from django.db.models import Sum
-# from django.utils import timezone
-
-# from accounts.models import User
-# from exams.models import Exam, ExamAttempt
-# from pta.models import PTARequest
-# from pickups.models import Pickup
-# from brillspay.models import Order, Transaction
 
 
 def is_admin(user):
@@ -1953,7 +1848,7 @@ def is_admin(user):
 
 @login_required(login_url='accounts:login')
 @user_passes_test(is_admin)
-def admin_dashboard(request):
+def admin_mega_dashboard(request):
     # ==========================
     # USERS
     # ==========================
@@ -2015,7 +1910,7 @@ def admin_dashboard(request):
         }
     }
 
-    return render(request, "exams/admin/dashboard.html", context)
+    return render(request, "exams/admin/admin_mega_dashboard.html", context)
 
 
 @login_required(login_url="accounts:login")

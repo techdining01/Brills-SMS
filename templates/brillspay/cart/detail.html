@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}My Cart{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h4 class="mb-3">Cart for {{ cart.ward.get_full_name }}</h4>
+
+  {% if cart and cart.items.all %}
+  <table class="table align-middle">
+    <thead>
+      <tr>
+        <th>Product</th>
+        <th>Price</th>
+        <th width="160">Quantity</th>
+        <th>Total</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="cart-body">
+      {% for item in cart.items.all %}
+      <tr data-id="{{ item.id }}">
+        <td>{{ item.product.name }}</td>
+        <td>₦{{ item.product.price }}</td>
+        <td>
+          <input type="number" min="1" value="{{ item.quantity }}"
+            class="form-control qty-input">
+        </td>
+        <td class="line-total">
+          ₦{{ item.line_total }}
+        </td>
+        <td>
+          <a href="{% url 'brillspay:remove_cart_item' item.id %}"
+             class="btn btn-sm btn-danger">×</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="d-flex justify-content-between">
+    <h5>Total: ₦<span id="cart-total">{{ cart.total_amount }}</span></h5>
+    <a href="{% url 'brillspay:checkout' %}" class="btn btn-success">
+      Proceed to Payment
+    </a>
+  </div>
+
+  {% else %}
+    <p class="text-muted">Your cart is empty.</p>
+  {% endif %}
+</div>
+
+<script>
+document.querySelectorAll(".qty-input").forEach(input => {
+  input.addEventListener("change", () => {
+    const row = input.closest("tr");
+    fetch("{% url 'brillspay:update_cart_item' 0 %}".replace("0", row.dataset.id), {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": "{{ csrf_token }}"
+      },
+      body: new URLSearchParams({ quantity: input.value })
+    }).then(() => location.reload());
+  });
+});
+</script>
+{% endblock %}

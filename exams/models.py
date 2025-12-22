@@ -85,6 +85,7 @@ class Exam(models.Model):
 class ExamAccess(models.Model):
     student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
+    reason = models.TextField()
     granted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -139,8 +140,6 @@ class Choice(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     text = models.CharField(max_length=255)
     is_correct = models.BooleanField(default=False)
-
-
 
 class ExamAttempt(models.Model):
 

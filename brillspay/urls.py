@@ -2,7 +2,7 @@
 
 from django.urls import path
 from . import views
-from .admin_views import admin_orders, admin_order_detail
+from . import admin_views
 
 app_name = "brillspay"
 
@@ -10,15 +10,58 @@ urlpatterns = [
     path("", views.store, name="store"),
     path("cart/", views.cart_view, name="cart"),
     path("cart/add/", views.add_to_cart, name="add_to_cart"),
-    path("cart/remove/", views.remove_from_cart, name="remove_from_cart"),
-    path("checkout/", views.checkout_view, name="checkout"),
-    path("checkout/", views.checkout_view, name="checkout"),
+    path("cart/update/", views.update_cart_item, name="update_cart_item"),
+    path("cart/remove/", views.remove_cart_item, name="remove_cart_item"),
+    path("checkout/", views.checkout, name="checkout"),
     path("payment/callback/", views.payment_callback, name="payment_callback"),
     path("webhook/paystack/", views.paystack_webhook, name="paystack_webhook"),
+    path("receipt/<int:tx_id>/pdf/", views.payment_receipt_pdf, name="receipt_pdf"),
+    path("products/", views.products_list, name="products_list"),
 
 
-    path("admin/orders/", admin_orders, name="admin_orders"),
-    path("admin/orders/<uuid:pk>/", admin_order_detail, name="admin_order_detail"),
+    path("admin/orders/", admin_views.admin_order_list, name="admin_orders"),
+    path("admin/orders/<uuid:pk>/", admin_views.admin_order_detail, name="admin_order_detail"),
 
 
+    # =======================
+    # ADMIN DASHBOARD
+    # =======================
+    path("admin/dashboard/", admin_views.admin_dashboard, name="admin_dashboard"),
+
+    # =======================
+    # PRODUCTS & STOCK
+    # =======================
+    path("admin/products/add/", admin_views.admin_add_product, name="admin_add_product"),
+    path("admin/products/<int:pk>/edit/", admin_views.admin_edit_product, name="admin_edit_product"),
+    path("admin/products/<int:pk>/delete/", admin_views.admin_delete_product, name="admin_delete_product"),
+
+    # Stock control
+    path("admin/products/<int:pk>/stock/add/", admin_views.admin_add_stock, name="admin_add_stock"),
+    path("admin/products/<int:pk>/stock/remove/", admin_views.admin_remove_stock, name="admin_remove_stock"),
+
+    # =======================
+    # ORDERS & PAYMENTS
+    # =======================
+    path("admin/orders/", admin_views.admin_order_list, name="admin_order_list"),
+    path("admin/orders/<int:pk>/", admin_views.admin_order_detail, name="admin_order_detail"),
+
+    path("admin/payments/", admin_views.admin_payment_list, name="admin_payment_list"),
+    path("admin/payments/<int:pk>/", admin_views.admin_payment_detail, name="admin_payment_detail"),
+
+    # =======================
+    # ACCESS UNLOCKS
+    # =======================
+    path("admin/access/", admin_views.admin_access_list, name="admin_access_list"),
+    
+    path("admin/access/grant/<int:order_id>/", admin_views.admin_grant_access, name="admin_grant_access"),
+    
+    path("admin/access/revoke/<int:access_id>/", admin_views.admin_revoke_access, name="admin_revoke_access"),
+
+    # =======================
+    # TRANSACTION LOGS
+    # =======================
+    path("admin/transactions/", admin_views.admin_transaction_logs, name="admin_transaction_logs"),
+
+
+    path("admin/analytics/", admin_views.admin_analytics_dashboard, name="admin_analytics"),
 ]
