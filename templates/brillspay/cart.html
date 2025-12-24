@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h4>Cart for {{ ward.get_full_name }}</h4>
+
+{% if cart.items.exists %}
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Product</th>
+        <th>Qty</th>
+        <th>Price</th>
+        <th>Subtotal</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in cart.items.all %}
+      <tr>
+        <td>{{ item.product.name }}</td>
+        <td>{{ item.quantity }}</td>
+        <td>₦{{ item.product.price }}</td>
+        <td>₦{{ item.subtotal }}</td>
+      </tr>
+      {% endfor %}
+      <tr>
+        <th colspan="3">Total</th>
+        <th>₦{{ cart.total_amount }}</th>
+      </tr>
+    </tbody>
+  </table>
+{% else %}
+  <p>No items in cart.</p>
+{% endif %}
+{% endblock %}

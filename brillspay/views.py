@@ -28,102 +28,227 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.decorators import login_required
 
-from brillspay.models import Product, Cart, CartItem
-
-
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, render
+from django.views.decorators.http import require_POST
+from .models import Cart, CartItem, Product
+import json
 
 
 User = get_user_model()
 
-
 payment_logger = logging.getLogger("system")
+
+import json
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required
+
+from .models import (
+    Cart,
+    CartItem,
+    Product,
+    BrillsPayLog
+)
+
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+
+from brillspay.models import Product, CartItem
+from brillspay.utils import get_or_create_cart
+from accounts.models import User  
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from accounts.models import User
+
+
+@login_required
+def select_ward(request):
+    wards = User.objects.filter(
+        parents=request.user,
+        role="STUDENT"
+    )
+
+    if request.method == "POST":
+        ward_id = request.POST.get("ward_id")
+        return redirect(f"/brillspay/products/?ward={ward_id}")
+
+    return render(request, "brillspay/select_ward.html", {
+        "wards": wards
+    })
 
 
 
 @login_required
-def get_or_create_cart(request):
-    ward_id = request.GET.get("ward_id")
+def product_list(request):
+    """
+    Product list filtered by ward's class.
+    """
+    ward_id = request.GET.get("ward")
+    ward = get_object_or_404(User, id=ward_id, role="STUDENT")
 
-    if not ward_id:
-        return JsonResponse(
-            {"success": False, "message": "Ward is required"},
-            status=400
-        )
+    cart = get_or_create_cart(request.user, ward)
 
-    ward = get_object_or_404(
-        User,
-        id=ward_id,
-        role="STUDENT"
+    products = Product.objects.filter(
+        SchoolClass=ward.student_class,  
+        is_active=True
     )
 
-    cart, created = Cart.objects.get_or_create(
+    cart_product_ids = set(
+        cart.items.values_list("product_id", flat=True)
+    )
+
+    return render(request, "brillspay/product_list.html", {
+        "products": products,
+        "ward": ward,
+        "cart_product_ids": cart_product_ids,
+        "cart": cart,
+    })
+
+
+@login_required
+@require_POST
+def add_to_cart(request):
+    product_id = request.POST.get("product_id")
+    ward_id = request.POST.get("ward_id")
+
+    ward = get_object_or_404(User, id=ward_id, role="STUDENT")
+    product = get_object_or_404(Product, id=product_id, is_active=True)
+
+    # 🔐 HARD RULE: class must match
+    if product.SchoolClass != ward.student_class:
+        return JsonResponse({"error": "Invalid product for this ward"}, status=403)
+
+    cart = get_or_create_cart(request.user, ward)
+
+    item, created = CartItem.objects.get_or_create(
+        cart=cart,
+        product=product,
+        defaults={"quantity": 1}
+    )
+
+    if not created:
+        return JsonResponse({
+            "status": "exists",
+            "message": "Product already in cart",
+            "cart_count": cart.items.count()
+        })
+
+    # 🧾 LOG
+    BrillsPayLog.objects.create(
         user=request.user,
-        ward=ward
+        action="ORDER_CREATED",
+        message="Product added to cart",
+        metadata={
+            "product": product.name,
+            "ward": ward.id
+        }
     )
 
     return JsonResponse({
-        "success": True,
-        "created": created,
-        "cart_id": cart.id,
-        "total_items": cart.total_items(),
-        "total_amount": float(cart.total_amount()),
+        "status": "added",
+        "cart_count": cart.items.count()
     })
 
 
-from brillspay.models import Cart
-
-def get_or_create_cart_for_user(user, ward):
-    cart, created = Cart.objects.get_or_create(
-        user=user,
-        ward=ward
-    )
-    return cart
-
-
-
 @login_required
-def cart_view(request):
-    ward_id = request.GET.get("ward_id")
+def cart_view(request, ward_id):
+    ward = get_object_or_404(User, id=ward_id, role="STUDENT")
+    cart = get_or_create_cart(request.user, ward)
 
-
-    if not ward_id:
-        return redirect("brillspay:products_list")
-
-
-    ward = get_object_or_404(
-        User,
-        id=ward_id,
-        role="STUDENT"
-    )
-
-    cart = get_or_create_cart_for_user(
-        user=request.user,
-        ward=ward
-    )
-
-    return render(request, "brillspay/cart/cart.html", {
+    return render(request, "brillspay/cart.html", {
         "cart": cart,
-        "items": cart.items.select_related("product"),
-        "ward": ward,
+        "ward": ward
     })
 
 
 
+@login_required
+def cart_sidebar(request):
+    ward_id = request.GET.get("ward")
+    ward = get_object_or_404(User, id=ward_id, role="STUDENT")
+
+    cart = get_or_create_cart(request.user, ward)
+
+    return render(request, "brillspay/partials/cart_sidebar.html", {
+        "cart": cart,
+        "ward": ward
+    })
+
 
 @login_required
-def products_list(request):
-    products = Product.objects.filter(is_active=True)
+def update_cart_item(request):
+    item_id = request.POST.get("item_id")
+    action = request.POST.get("action") 
 
-    # Parents see products based on selected ward
-    wards = User.objects.filter(parents=request.user, role="STUDENT")
-
-
-    class_filter = request.GET.get("class")
-    if class_filter:
-        products = products.filter(school_class=class_filter)
+    if not item_id or not action:
+        return JsonResponse({"success": False}, status=400)
 
 
-    return render(request, "brillspay/products/list.html", {
+    item = get_object_or_404(CartItem, id=item_id)
+
+    if action == "increase":
+        item.quantity += 1
+        item.save()
+
+    elif action == "decrease":
+        item.quantity -= 1
+        if item.quantity <= 0:
+            item.delete()
+        else:
+            item.save()
+
+    elif action == "remove":
+        item.delete()
+
+    return JsonResponse({"success": True})
+
+
+@login_required
+def cart_count(request):
+    ward_id = request.GET.get("ward")
+    ward = get_object_or_404(User, id=ward_id, role="STUDENT")
+
+    cart = get_or_create_cart(request.user, ward)
+    count = sum(item.quantity for item in cart.items.all())
+
+    return JsonResponse({"count": count})
+
+
+
+@login_required
+def verify_payment(request, reference):
+    tx = get_object_or_404(Transaction, reference=reference)
+
+    res = requests.get(
+        f"https://api.paystack.co/transaction/verify/{reference}",
+        headers={"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
+    )
+
+    data = res.json()["data"]
+
+    if data["status"] == "success":
+        tx.status = "success"
+        tx.payload = data
+        tx.save()
+
+        # 🔓 future: unlock exams/services here
+
+    else:
+        tx.status = "failed"
+        tx.save()
+
+    return JsonResponse({"status": tx.status})
+
+
+
+@login_required
+def store_view(request):
+    products = Product.objects.filter(is_active=True, stock_quantity__gt=0)
+    wards = request.user.children.filter(role="STUDENT")  # adjust if needed
+
+    return render(request, "brillspay/store.html", {
         "products": products,
         "wards": wards
     })
@@ -131,125 +256,24 @@ def products_list(request):
 
 
 # @login_required
-# def cart_view(request):
-#     cart = get_or_create_cart(request.user)
+# def add_to_cart(request):
+#     data = json.loads(request.body)
+#     product_id = data.get("product_id")
+#     ward_id = data.get("ward_id")
 
-#     items = cart.items.select_related("product")
+#     ward = get_object_or_404(User, id=ward_id, role="STUDENT")
+#     product = get_object_or_404(Product, id=product_id)
 
-#     total = sum(item.subtotal for item in items)
-
-#     return render(
-#         request,
-#         "brillspay/cart/cart.html",
-#         {
-#             "cart": cart,
-#             "items": items,
-#             "total": total
-#         }
-#     )
-
-
-
-@login_required
-def store(request):
-    user = request.user
-
-    wards = None
-    products = Product.objects.none()
-
-    # Parent: show products based on wards' classes
-    if user.role == "PARENT":
-        wards = user.children.select_related('student_class')
-
-        ward_classes = [
-            ward.student_class.id
-            for ward in wards
-            if ward.student_class
-        ]
-
-        products = Product.objects.filter(
-            category__in=ward_classes,
-            is_active=True
-        )
-
-    # Staff/Admin: see all products
-    elif user.role in ["STAFF", "ADMIN"]:
-        products = Product.objects.filter(is_active=True)
-
-    # Cart count (total cart items, not carts)
-    cart_count = Cart.objects.filter(user=user).count()
-
-    return render(request, "brillspay/store.html", {
-        "products": products,
-        "cart_count": cart_count,
-        "wards": wards,  
-    })
-
-
-
-# @login_required
-# def add_to_cart(request, product_id):
-#     if request.method != "POST":
-#         return redirect("brillspay:product_list")
-
-#     product = get_object_or_404(Product, id=product_id, is_active=True)
-
-#     ward_id = request.POST.get("ward_id")
-#     if not ward_id:
-#         messages.error(request, "Please select a student")
-#         return redirect("brillspay:product_list")
-
-#     ward = get_object_or_404(
-#         User,
-#         id=ward_id,
-#         role="STUDENT",
-#         parents=request.user
-#     )
+#     # 🔒 HARD LOCK: class must match
+#     if product.school_class.code != ward.student_class.code:
+#         return JsonResponse({"error": "Product not allowed for this class"}, status=400)
 
 #     if product.stock_quantity <= 0:
-#         messages.error(request, "Product out of stock")
-#         return redirect("brillspay:product_list")
+#         return JsonResponse({"error": "Out of stock"}, status=400)
 
 #     cart, _ = Cart.objects.get_or_create(
 #         user=request.user,
 #         ward=ward
-#     )
-
-#     item, created = CartItem.objects.get_or_create(
-#         cart=cart,
-#         product=product
-#     )
-
-#     if not created:
-#         item.quantity += 1
-#     item.save()
-
-#     messages.success(request, "Item added to cart")
-#     return redirect("brillspay:cart_detail")
-
-
-
-# @login_required
-# def add_to_cart(request):
-#     if request.method != "POST":
-#         return JsonResponse({"error": "Invalid request"}, status=400)
-
-#     product_id = request.POST.get("product_id")
-#     ward_id = request.POST.get("ward_id")
-
-#     product = get_object_or_404(Product, id=product_id)
-
-#     # 🔐 FINAL SAFETY CHECK (DO NOT MOVE THIS)
-#     if product.stock_quantity <= 0:
-#         return JsonResponse(
-#             {"success": False, "message": "Out of stock"},
-#             status=400
-#         )
-
-#     cart, _ = Cart.objects.get_or_create(
-#         user=request.user,
-#         ward_id=ward_id,
-#         is_checked_out=False
 #     )
 
 #     item, created = CartItem.objects.get_or_create(
@@ -259,111 +283,98 @@ def store(request):
 #     )
 
 #     if not created:
-#         # 🛑 Prevent exceeding available stock
-#         if item.quantity + 1 > product.stock_quantity:
-#             return JsonResponse(
-#                 {"success": False, "message": "Insufficient stock"},
-#                 status=400
-#             )
-
 #         item.quantity += 1
 #         item.save(update_fields=["quantity"])
 
-#     return JsonResponse({
-#         "success": True,
-#         "cart_total_items": cart.items.count()
+#     return JsonResponse({"success": True})
+
+
+
+# @login_required
+# def cart_sidebar(request):
+#     ward_id = request.GET.get("ward_id")
+#     if not ward_id:
+#         return HttpResponse("")
+
+#     cart = Cart.objects.filter(
+#         user=request.user,
+#         ward_id=ward_id
+#     ).first()
+
+#     return render(request, "brillspay/cart/sidebar.html", {
+#         "cart": cart
 #     })
 
 
 
+# @login_required
+# def cart_detail(request):
+#     cart = Cart.objects.filter(
+#         user=request.user
+#     ).select_related("ward").prefetch_related(
+#         "items__product"
+#     ).first()
 
-@login_required
-def add_to_cart(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "Invalid request"}, status=400)
-
-    data = json.loads(request.body)
-    product_id = data.get("product_id")
-
-    product = get_object_or_404(Product, id=product_id)
-
-    # FINAL SAFETY CHECK
-    if product.stock_quantity <= 0:
-        return JsonResponse({"error": "Out of stock"}, status=400)
-
-    cart = get_or_create_cart(request.user)
-
-    item, created = CartItem.objects.get_or_create(
-        cart=cart,
-        product=product,
-        defaults={"quantity": 1}
-    )
-
-    if not created:
-        if item.quantity + 1 > product.stock_quantity:
-            return JsonResponse({"error": "Stock limit reached"}, status=400)
-        item.quantity += 1
-        item.save(update_fields=["quantity"])
-
-    return JsonResponse({
-        "success": True,
-        "cart_total": cart.total_items()
-    })
+#     return render(request, "brillspay/cart/detail.html", {
+#         "cart": cart
+#     })
 
 
 
+# @login_required
+# def update_cart_item(request):
+#     if request.method != "POST":
+#         return JsonResponse({"error": "Invalid request"}, status=400)
 
-@login_required
-def cart_detail(request):
-    cart = Cart.objects.filter(
-        user=request.user
-    ).select_related("ward").prefetch_related(
-        "items__product"
-    ).first()
+#     item_id = request.POST.get("item_id")
+#     action = request.POST.get("action")
 
-    return render(request, "brillspay/cart/detail.html", {
-        "cart": cart
-    })
+#     item = get_object_or_404(
+#         CartItem,
+#         id=item_id,
+#         cart__user=request.user
+#     )
 
+#     if action == "increase":
+#         item.quantity += 1
+#     elif action == "decrease":
+#         item.quantity -= 1
 
-@login_required
-def clear_cart(request):
-    cart = get_or_create_cart(request.user)
-    cart.items.all().delete()
+#     if item.quantity <= 0:
+#         item.delete()
+#     else:
+#         item.save()
 
-    messages.success(request, "Cart cleared")
-    return redirect("brillspay:cart_view")
+#     cart = item.cart
+#     total = sum(i.subtotal for i in cart.items.all())
 
-
-@login_required
-def update_cart_item(request, item_id):
-    item = get_object_or_404(
-        CartItem,
-        id=item_id,
-        cart__user=request.user
-    )
-
-    qty = int(request.POST.get("quantity", 1))
-    if qty < 1:
-        item.delete()
-    else:
-        item.quantity = qty
-        item.save()
-
-    return redirect("brillspay:cart_detail")
+#     return JsonResponse({
+#         "success": True,
+#         "item_qty": item.quantity if item.pk else 0,
+#         "item_subtotal": item.subtotal if item.pk else 0,
+#         "cart_total": total
+#     })
 
 
+# @login_required
+# def remove_cart_item(request, item_id):
+#     item = get_object_or_404(
+#         CartItem,
+#         id=item_id,
+#         cart__user=request.user
+#     )
+#     item.delete()
 
-@login_required
-def remove_cart_item(request, item_id):
-    item = get_object_or_404(
-        CartItem,
-        id=item_id,
-        cart__user=request.user
-    )
-    item.delete()
-    messages.success(request, "Item removed")
-    return redirect("brillspay:cart_detail")
+#     return redirect("brillspay:cart_view")
+
+
+# @login_required
+# def clear_cart(request):
+#     cart = get_or_create_cart(request.user)
+#     cart.items.all().delete()
+
+#     messages.success(request, "Cart cleared")
+#     return redirect("brillspay:cart_view")
 
 
 @login_required

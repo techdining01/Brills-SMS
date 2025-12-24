@@ -1,72 +1,70 @@
 from django.core.management.base import BaseCommand
-from django.utils.text import slugify
+from django.db import transaction
 from decimal import Decimal
 
 from brillspay.models import ProductCategory, Product
+from exams.models import SchoolClass  
 
 
 class Command(BaseCommand):
-    help = "Seed BrillsPay categories and products"
+    help = "Seed BrillsPay with categories and class-based products"
 
     def handle(self, *args, **kwargs):
-        self.stdout.write(self.style.SUCCESS("🌱 Seeding BrillsPay data..."))
+        self.stdout.write(self.style.WARNING("Seeding BrillsPay data..."))
 
-        categories = [
-            "JSS1", "JSS2", "JSS3",
-            "SSS1", "SSS2", "SSS3",
-        ]
+        categories = ["JSS1", "JSS2", "JSS3", "SSS1", "SSS2", "SSS3"]
 
-        products_per_class = [
-            {
-                "name": "Exam Access Fee",
-                "price": Decimal("2500.00"),
-                "description": "Unlock access to all examinations for this term."
-            },
-            {
-                "name": "CBT Access Fee",
-                "price": Decimal("1500.00"),
-                "description": "Computer-Based Test access for this class."
-            },
-            {
-                "name": "Result Checking PIN",
-                "price": Decimal("1000.00"),
-                "description": "Access and download academic results."
-            },
-        ]
+        with transaction.atomic():
 
-        # =========================
-        # Create Categories
-        # =========================
-        for cat_name in categories:
-            category, created = ProductCategory.objects.get_or_create(
-                name=cat_name,
-                defaults={"slug": slugify(cat_name)}
-            )
-
-            if created:
-                self.stdout.write(self.style.SUCCESS(f"✅ Category created: {cat_name}"))
-            else:
-                self.stdout.write(self.style.WARNING(f"⚠️ Category exists: {cat_name}"))
-
-            # =========================
-            # Create Products per Category
-            # =========================
-            for product in products_per_class:
-                obj, created = Product.objects.get_or_create(
-                    name=product["name"],
-                    category=category,
-                    defaults={
-                        "price": product["price"],
-                        "description": product["description"],
-                        "is_active": True,
-                    }
+            # -------------------------
+            # Create Categories
+            # -------------------------
+            category_map = {}
+            for name in categories:
+                category, _ = ProductCategory.objects.get_or_create(
+                    name=name,
+                    defaults={"slug": name.lower()}
                 )
+                category_map[name] = category
 
-                if created:
+            # -------------------------
+            # Create Products per Class
+            # -------------------------
+            for class_obj in SchoolClass.objects.all():
+
+                cat = category_map.get(class_obj.name)
+                if not cat:
                     self.stdout.write(
-                        self.style.SUCCESS(
-                            f"   ➕ Product added: {product['name']} ({cat_name})"
-                        )
+                        self.style.WARNING(f"Skipping {class_obj.name}: no category")
+                    )
+                    continue
+
+                products = [
+                    {
+                        "name": f"{class_obj.name} CBT Exam Access",
+                        "price": Decimal("5000.00"),
+                        "stock_quantity": 100,
+                        "description": f"Full CBT exam access for {class_obj.name}",
+                    },
+                    {
+                        "name": f"{class_obj.name} Result Analytics",
+                        "price": Decimal("2500.00"),
+                        "stock_quantity": 100,
+                        "description": f"Advanced performance analytics for {class_obj.name}",
+                    },
+                ]
+
+                for p in products:
+                    Product.objects.get_or_create(
+                        name=p["name"],
+                        SchoolClass=class_obj,
+                        category=cat,
+                        defaults={
+                            "price": p["price"],
+                            "stock_quantity": p["stock_quantity"],
+                            "description": p["description"],
+                            "is_active": True,
+                        },
                     )
 
-        self.stdout.write(self.style.SUCCESS("🎉 BrillsPay seeding completed successfully!"))
+        self.stdout.write(self.style.SUCCESS("✅ BrillsPay seed completed successfully"))

@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 import uuid
+from exams.models import SchoolClass
 
 User = settings.AUTH_USER_MODEL
 
@@ -28,6 +29,8 @@ DEFAULT_CATEGORIES = ["JSS1", "JSS2", "JSS3", "SSS1", "SSS2", "SSS3"]
 class Product(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
+    SchoolClass = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name='class_category')
+
     category = models.ForeignKey(
         ProductCategory,
         on_delete=models.PROTECT,
@@ -39,7 +42,6 @@ class Product(models.Model):
         upload_to="products/",
         blank=True,
         null=True,
-        default='static/images/default_product.png'
     )
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
@@ -65,11 +67,10 @@ class Cart(models.Model):
     class Meta:
         unique_together = ("user", "ward")
 
-    def total_items(self):
-        return sum(item.quantity for item in self.items.all())
-
+    
+    @property
     def total_amount(self):
-        return sum(item.subtotal() for item in self.items.all())
+        return sum(item.subtotal for item in self.items.all())
 
     def __str__(self):
         return f"Cart - {self.user.username}"
@@ -86,11 +87,11 @@ class CartItem(models.Model):
     class Meta:
         unique_together = ("cart", "product")
 
+    @property
     def subtotal(self):
         return self.product.price * self.quantity
 
-    def __str__(self):
-        return f"{self.product.name} x {self.quantity}"
+
 
 # =========================
 # Order
@@ -135,8 +136,10 @@ class OrderItem(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     quantity = models.PositiveIntegerField(default=1)
 
+    @property
     def subtotal(self):
-        return self.unit_price * self.quantity
+        return self.price * self.quantity
+
 
     def __str__(self):
         return f"{self.product_name} x {self.quantity}"
@@ -145,12 +148,23 @@ class OrderItem(models.Model):
 # Transaction
 # =========================
 class Transaction(models.Model):
-    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name="transaction")
+    STATUS = (
+        ("initialized", "Initialized"),
+        ("success", "Success"),
+        ("failed", "Failed"),
+        ("abandoned", "Abandoned"),
+    )
+
     reference = models.CharField(max_length=100, unique=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='payer')
+    ward = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name="transaction")
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     verified = models.BooleanField(default=False)
-    raw_response = models.JSONField(blank=True, null=True)
+    status = models.CharField(max_length=20, choices=STATUS, default="initialized")
+    payload = models.JSONField()
     created_at = models.DateTimeField(auto_now_add=True)
+
 
     def __str__(self):
         return self.reference

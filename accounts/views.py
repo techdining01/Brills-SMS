@@ -194,7 +194,7 @@ def create_student(request):
 
 @login_required
 def pending_approval(request):
-    return render(request, 'pending_approval.html')
+    return render(request, 'accounts/admin/pending_approval.html')
 
 
 @staff_member_required

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h4>Select Ward</h4>
+
+<form method="post">
+  {% csrf_token %}
+  <select name="ward_id" class="form-select" required>
+    <option value="">-- Select Ward --</option>
+    {% for ward in wards %}
+      <option value="{{ ward.id }}">
+        {{ ward.get_full_name }}
+      </option>
+    {% endfor %}
+  </select>
+
+  <button class="btn btn-primary mt-3">
+    Continue
+  </button>
+</form>
+{% endblock %}

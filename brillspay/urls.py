@@ -3,22 +3,24 @@
 from django.urls import path
 from . import views
 from . import admin_views
+from django.urls import path
+
+
 
 app_name = "brillspay"
 
 urlpatterns = [
-    path("", views.store, name="store"),
-    path("cart/", views.cart_view, name="cart"),
-    path("cart/add/", views.add_to_cart, name="add_to_cart"),
-    path("cart/update/", views.update_cart_item, name="update_cart_item"),
-    path("cart/remove/", views.remove_cart_item, name="remove_cart_item"),
+    path("", views.store_view, name="store"),
+    # # path("cart/", views.cart_view, name="cart"),
+    # path("cart/add/", views.add_to_cart, name="add_to_cart"),
+    # path("cart/update/", views.update_cart_item, name="update_cart_item"),
+    # path("cart/remove/", views.remove_cart_item, name="remove_cart_item"),
+    # path("cart/sidebar/", views.cart_sidebar, name="cart_sidebar"),
     path("checkout/", views.checkout, name="checkout"),
     path("payment/callback/", views.payment_callback, name="payment_callback"),
     path("webhook/paystack/", views.paystack_webhook, name="paystack_webhook"),
     path("receipt/<int:tx_id>/pdf/", views.payment_receipt_pdf, name="receipt_pdf"),
-    path("products/", views.products_list, name="products_list"),
-
-
+    # path("products/", views.products_list, name="products_list"),
     path("admin/orders/", admin_views.admin_order_list, name="admin_orders"),
     path("admin/orders/<uuid:pk>/", admin_views.admin_order_detail, name="admin_order_detail"),
 
@@ -61,7 +63,25 @@ urlpatterns = [
     # TRANSACTION LOGS
     # =======================
     path("admin/transactions/", admin_views.admin_transaction_logs, name="admin_transaction_logs"),
-
-
     path("admin/analytics/", admin_views.admin_analytics_dashboard, name="admin_analytics"),
+
+
+
+
+    path("select-ward/", views.select_ward, name="brillspay_select_ward"),
+    path("products/", views.product_list, name="brillspay_products"),
+    path("cart/add/", views.add_to_cart, name="brillspay_add_to_cart"),
+    path("cart/<int:ward_id>/", views.cart_view, name="brillspay_cart"),
+    path("cart/sidebar/", views.cart_sidebar, name="brillspay_cart_sidebar"),
+    path("cart/update/", views.update_cart_item, name="brillspay_update_cart_item"),
+    path("cart/count/", views.cart_count, name="brillspay_cart_count"),
+
+
+
+
+
 ]
+
+
+
+

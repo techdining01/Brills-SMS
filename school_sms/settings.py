@@ -92,10 +92,6 @@ TEMPLATES = [
     },
 ]
 
-# AUTHENTICATION_BACKENDS = [
-#     "accounts.backends.ApprovedUserBackend",
-# ]
-
 
 WSGI_APPLICATION = 'school_sms.wsgi.application'
 

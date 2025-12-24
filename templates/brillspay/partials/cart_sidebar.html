@@ -1,0 +1,48 @@
+{% if cart.items.exists %}
+  {% for item in cart.items.all %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+
+      <div>
+        <strong>{{ item.product.name }}</strong><br>
+        <small>₦{{ item.product.price }}</small>
+      </div>
+
+      <div class="d-flex align-items-center gap-2">
+        <button
+          class="btn btn-sm btn-outline-secondary qty-btn"
+          data-action="decrease"
+          data-item="{{ item.id }}"
+        >−</button>
+
+        <span>{{ item.quantity }}</span>
+
+        <button
+          class="btn btn-sm btn-outline-secondary qty-btn"
+          data-action="increase"
+          data-item="{{ item.id }}"
+        >+</button>
+      </div>
+      <button
+        class="btn btn-sm btn-outline-danger remove-item ms-2"
+        data-action="remove"
+        data-item="{{ item.id }}"
+      >
+        Remove
+      </button>
+    </div>
+  {% endfor %}
+
+  <hr>
+  <div class="fw-bold text-end">
+    Total: ₦{{ cart.total_amount }}
+  </div>
+
+{% else %}
+  <p class="text-muted text-center mt-4">
+    Cart is empty
+  </p>
+{% endif %}
+
+
+
+
