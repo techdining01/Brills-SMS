@@ -231,20 +231,14 @@ def checkout(request):
         logger.exception("UUID conversion error while querying Order (likely malformed UUID in DB). ward_id=%r, user=%r, POST=%r",
                          ward_id, request.user.id, dict(request.POST))
 
-        # Inspect raw DB rows to see the offending values (bypass Django field conversion)
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "SELECT id, buyer_id, ward_id, status FROM brillspay_order WHERE buyer_id=%s AND ward_id=%s AND status=%s LIMIT 10",
-                    [request.user.id, ward.id, "PENDING"],
-                )
-                raw_rows = cursor.fetchall()
-            logger.error("Raw order rows for buyer=%s ward=%s status=PENDING: %s", request.user.id, ward.id, raw_rows)
-        except Exception:
-            logger.exception("Failed to fetch raw order rows")
-
-        messages.error(request, "A system error occurred while processing your order. Please contact support.")
-        return redirect("brillspay:brillspay_products")
+        # Delete corrupt records with invalid UUIDs
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM brillspay_order WHERE buyer_id=%s AND ward_id=%s AND status=%s AND id=''",
+                [request.user.id, ward.id, "PENDING"],
+            )
+        
+        order = None
 
     if not order:
         order = Order.objects.create(

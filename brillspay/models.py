@@ -155,15 +155,7 @@ class Transaction(models.Model):
         ("failed", "Failed"),
         ("abandoned", "Abandoned"),
     )
-
-     # Your internal reference (for your system)
-    internal_reference = models.CharField(
-        max_length=50,
-        unique=True,
-        editable=False,
-        help_text="Our internal reference (BP-XXXX)"
-    )
-    
+      
     # Paystack's reference (from API response)
     gateway_reference = models.CharField(
         max_length=100,
