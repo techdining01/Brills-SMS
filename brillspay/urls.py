@@ -11,28 +11,29 @@ app_name = "brillspay"
 
 urlpatterns = [
     path("", views.store_view, name="store"),
-    # # path("cart/", views.cart_view, name="cart"),
-    # path("cart/add/", views.add_to_cart, name="add_to_cart"),
-    # path("cart/update/", views.update_cart_item, name="update_cart_item"),
-    # path("cart/remove/", views.remove_cart_item, name="remove_cart_item"),
-    # path("cart/sidebar/", views.cart_sidebar, name="cart_sidebar"),
+    path("select-ward/", views.select_ward, name="brillspay_select_ward"),
+    path("products/", views.product_list, name="brillspay_products"),
+    path("cart/add/", views.add_to_cart, name="brillspay_add_to_cart"),
+    path("cart/<int:ward_id>/", views.cart_view, name="brillspay_cart"),
+    path("cart/sidebar/", views.cart_sidebar, name="brillspay_cart_sidebar"),
+    path("cart/update/", views.update_cart_item, name="brillspay_update_cart_item"),
+    path("cart/count/", views.cart_count, name="brillspay_cart_count"),
     path("checkout/", views.checkout, name="checkout"),
-    path("payment/callback/", views.payment_callback, name="payment_callback"),
-    path("webhook/paystack/", views.paystack_webhook, name="paystack_webhook"),
+    path("checkout/<uuid:order_id>/", views.checkout_detail, name="checkout_detail"),
+
     path("receipt/<int:tx_id>/pdf/", views.payment_receipt_pdf, name="receipt_pdf"),
-    # path("products/", views.products_list, name="products_list"),
-    path("admin/orders/", admin_views.admin_order_list, name="admin_orders"),
-    path("admin/orders/<uuid:pk>/", admin_views.admin_order_detail, name="admin_order_detail"),
-
-
     # =======================
     # ADMIN DASHBOARD
     # =======================
+
     path("admin/dashboard/", admin_views.admin_dashboard, name="admin_dashboard"),
 
     # =======================
     # PRODUCTS & STOCK
     # =======================
+
+    path("admin/orders/", admin_views.admin_order_list, name="admin_orders"),
+    path("admin/orders/<uuid:pk>/", admin_views.admin_order_detail, name="admin_order_detail"),
     path("admin/products/add/", admin_views.admin_add_product, name="admin_add_product"),
     path("admin/products/<int:pk>/edit/", admin_views.admin_edit_product, name="admin_edit_product"),
     path("admin/products/<int:pk>/delete/", admin_views.admin_delete_product, name="admin_delete_product"),
@@ -65,16 +66,16 @@ urlpatterns = [
     path("admin/transactions/", admin_views.admin_transaction_logs, name="admin_transaction_logs"),
     path("admin/analytics/", admin_views.admin_analytics_dashboard, name="admin_analytics"),
 
+    # 👉 Paystack init
+    path('paystack/init/<str:order_id>/', views.paystack_initialize, name='paystack_init'),
+    
+    # 👉 Paystack callback (redirect)
+    path("paystack/callback/", views.paystack_callback, name="paystack_callback"),
 
-
-
-    path("select-ward/", views.select_ward, name="brillspay_select_ward"),
-    path("products/", views.product_list, name="brillspay_products"),
-    path("cart/add/", views.add_to_cart, name="brillspay_add_to_cart"),
-    path("cart/<int:ward_id>/", views.cart_view, name="brillspay_cart"),
-    path("cart/sidebar/", views.cart_sidebar, name="brillspay_cart_sidebar"),
-    path("cart/update/", views.update_cart_item, name="brillspay_update_cart_item"),
-    path("cart/count/", views.cart_count, name="brillspay_cart_count"),
+    # 👉 Webhook (POST only, no CSRF)
+    path("paystack/webhook/", views.paystack_webhook, name="paystack_webhook"),
+    path("payment_status_check/", views.payment_status_check, name="payment_status_check"),
+    path("admin/webhooks/", views.webhook_monitor, name="webhook_monitor"),
 
 
 

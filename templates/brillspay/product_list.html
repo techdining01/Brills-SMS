@@ -182,34 +182,15 @@ document.addEventListener("click", function (e) {
         "X-CSRFToken": "{{ csrf_token }}",
         "Content-Type": "application/x-www-form-urlencoded"
       },
-      body: `item_id=${e.target.dataset.item}&action=decrease`
+      body: `item_id=${e.target.dataset.item}&action=remove`
     }).then(() => {
       loadCart();
       refreshCartCount();
     });
   }
 
-  fetch("/paystack/init/")
-.then(res => res.json())
-.then(data => {
-  let handler = PaystackPop.setup({
-    key: data.key,
-    email: data.email,
-    amount: data.amount,
-    ref: data.reference,
-    callback: function(response){
-      verifyPayment(response.reference);
-    }
-  });
-  handler.openIframe();
-});
-
-
 });
 
 </script>
-
-
-
 
 {% endblock %}

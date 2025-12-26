@@ -81,8 +81,8 @@ class OrderItemAdmin(admin.ModelAdmin):
 # =========================
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):
-    list_display = ('order', 'reference', 'amount', 'verified', 'created_at')
-    search_fields = ('reference', 'order__reference', 'order__buyer__username')
+    list_display = ('order', 'gateway_reference', 'amount', 'verified', 'created_at')
+    search_fields = ('gateway_reference', 'order__reference', 'order__buyer__username')
     readonly_fields = ('created_at',)
 
 # =========================

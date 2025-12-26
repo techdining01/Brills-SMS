@@ -1,30 +1,41 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container py-5 text-center">
 
-<h4>Checkout</h4>
-<p>Total: ₦{{ cart.total }}</p>
+<h3>Checkout</h3>
 
-<button id="payBtn" class="btn btn-success">
-Pay with Paystack
+<table class="table">
+  <thead>
+    <tr>
+      <th>Item</th>
+      <th>Qty</th>
+      <th>Subtotal</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in order.items.all %}
+    <tr>
+      <td>{{ item.product_name }}</td>
+      <td>{{ item.quantity }}</td>
+      <td>₦{{ item.price|floatformat:2 }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h4>Total: ₦{{ order.total_amount }}</h4>
+{% if order.status == "PENDING" %}
+<form method="post" action="{% url 'brillspay:checkout' %}">
+  {% csrf_token %}
+  <input type="hidden" id="csrf-token-debug" value="{{ csrf_token }}">
+  <input type="hidden" name="ward_id" value="{{ order.ward.id }}">
+  <button type="submit" class="btn btn-primary w-100">
+    Proceed to Checkout
+  </button>
+</form>
+{% else %}
+<button class="btn btn-secondary w-100" disabled>
+  Payment Not Available
 </button>
+{% endif %}
 
-<script src="https://js.paystack.co/v1/inline.js"></script>
-
-<script>
-document.getElementById("payBtn").onclick = function () {
-  PaystackPop.setup({
-    key: "{{ paystack_public_key }}",
-    email: "{{ request.user.email }}",
-    amount: {{ cart.total|floatformat:2 }} * 100,
-    ref: "{{ reference }}",
-    callback: function () {
-      window.location.href =
-        "{% url 'brillspay:verify_payment' reference %}";
-    }
-  }).openIframe();
-};
-</script>
-
-</div>
 {% endblock %}

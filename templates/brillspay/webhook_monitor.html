@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h4>🔔 Paystack Webhook Monitor</h4>
+
+  <table class="table table-bordered table-sm">
+    <thead>
+      <tr>
+        <th>Reference</th>
+        <th>Status</th>
+        <th>Verified</th>
+        <th>Amount</th>
+        <th>Time</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for tx in transactions %}
+      <tr class="{% if tx.verified %}table-success{% else %}table-warning{% endif %}">
+        <td>{{ tx.reference }}</td>
+        <td>{{ tx.status }}</td>
+        <td>{{ tx.verified }}</td>
+        <td>₦{{ tx.amount }}</td>
+        <td>{{ tx.created_at }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5">No webhook events yet</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
