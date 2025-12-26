@@ -17,7 +17,7 @@ class Command(BaseCommand):
         # Ensure classes exist
         # --------------------------------------------------
         classes = []
-        for name in ["JSS1", "JSS2", "JSS3", "SS1", "SS2", "SS3"]:
+        for name in ["JSS1", "JSS2", "JSS3", "SSS1", "SSS2", "SSS3"]:
             cls, _ = SchoolClass.objects.get_or_create(name=name)
             classes.append(cls)
 

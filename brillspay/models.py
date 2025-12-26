@@ -155,7 +155,8 @@ class Transaction(models.Model):
         ("failed", "Failed"),
         ("abandoned", "Abandoned"),
     )
-      
+    
+
     # Paystack's reference (from API response)
     gateway_reference = models.CharField(
         max_length=100,
@@ -173,6 +174,17 @@ class Transaction(models.Model):
     status = models.CharField(max_length=20, choices=STATUS, default="initialized")
     payload = models.JSONField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        # Ensure internal_reference exists and aligns with order.reference when possible
+        if not getattr(self, "internal_reference", None):
+            try:
+                # Prefer the order's reference when available
+                self.internal_reference = self.order.reference
+            except Exception:
+                # Fallback to a generated internal ref
+                self.internal_reference = f"BP-{uuid.uuid4().hex[:10].upper()}"
+        super().save(*args, **kwargs)
 
 
     def __str__(self):

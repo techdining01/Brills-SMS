@@ -24,7 +24,7 @@ from reportlab.pdfgen import canvas
 from django.views.decorators.http import require_POST
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Sum
-from django.db import connection
+from django.db import connection, transaction as db_transaction, IntegrityError, OperationalError
 
 from brillspay.utils import get_or_create_cart
 
@@ -193,84 +193,104 @@ def cart_count(request):
 
 
 @login_required
+@require_POST
 def checkout(request):
-    if request.method != "POST":
-        return HttpResponseNotAllowed(["POST"])
-
     ward_id = request.POST.get("ward_id")
     try:
         ward = get_object_or_404(User, id=ward_id, role="STUDENT")
-    except ValueError as e:
-        # Log details to help debug malformed IDs (e.g., UUID parsing errors)
+    except ValueError:
         logger = logging.getLogger("brillspay")
         logger.exception("Failed to resolve ward in checkout; ward_id=%r POST=%r", ward_id, dict(request.POST))
         messages.error(request, "Invalid ward selected. Please re-select ward and try again.")
         return redirect("brillspay:brillspay_products")
 
-    cart = get_object_or_404(
-        Cart.objects.prefetch_related("items__product"),
-        user=request.user,
-        ward=ward
-    )
-
-    if not cart.items.exists():
+    cart = get_or_create_cart(request.user, ward)
+    if not cart or not cart.items.exists():
         messages.error(request, "Cart is empty")
         return redirect("brillspay:brillspay_products")
 
     total = sum(item.product.price * item.quantity for item in cart.items.all())
 
-    # 🔒 Prevent duplicate pending orders
+    logger = logging.getLogger("brillspay")
+
     try:
-        order = Order.objects.filter(
-            buyer=request.user,
-            ward=ward,
-            status="PENDING"
-        ).first()
-    except ValueError as e:
-        logger = logging.getLogger("brillspay")
-        logger.exception("UUID conversion error while querying Order (likely malformed UUID in DB). ward_id=%r, user=%r, POST=%r",
-                         ward_id, request.user.id, dict(request.POST))
-
-        # Delete corrupt records with invalid UUIDs
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "DELETE FROM brillspay_order WHERE buyer_id=%s AND ward_id=%s AND status=%s AND id=''",
-                [request.user.id, ward.id, "PENDING"],
+        with db_transaction.atomic():
+            order, created = Order.objects.get_or_create(
+                buyer=request.user,
+                ward=ward,
+                status="PENDING",
+                defaults={"total_amount": total}
             )
-        
-        order = None
 
-    if not order:
-        order = Order.objects.create(
-            buyer=request.user,
-            ward=ward,
-            total_amount=total,
-            status="PENDING"
-        )
+            if not created:
+                # Ensure total is current
+                if order.total_amount != total:
+                    order.total_amount = total
+                    order.save(update_fields=["total_amount"])
+            else:
+                for item in cart.items.all():
+                    OrderItem.objects.create(
+                        order=order,
+                        product_name=item.product.name,
+                        price=item.product.price,
+                        quantity=item.quantity,
+                    )
 
-        for item in cart.items.all():
-            OrderItem.objects.create(
+            trans_defaults = {
+                "internal_reference": order.reference,
+                "user": request.user,
+                "ward": ward,
+                "amount": total,
+                "status": "initialized",
+            }
+
+            try:
+                transaction_obj, t_created = Transaction.objects.get_or_create(
+                    order=order,
+                    defaults=trans_defaults
+                )
+
+                # If model defines internal_reference, ensure it's set to order.reference
+                if hasattr(transaction_obj, "internal_reference") and not getattr(transaction_obj, "internal_reference"):
+                    transaction_obj.internal_reference = order.reference
+                    transaction_obj.save(update_fields=["internal_reference"])
+
+            except IntegrityError as e:
+                # Could happen if DB requires an internal_reference column that's not on the model
+                logger.exception("IntegrityError creating Transaction for order %s: %s", order.id, e)
+
+                # Check if internal_reference column exists in DB, insert directly as fallback
+                has_internal_column = False
+                try:
+                    with connection.cursor() as cursor:
+                        cursor.execute("SELECT internal_reference FROM brillspay_transaction LIMIT 1")
+                        has_internal_column = True
+                except Exception:
+                    has_internal_column = False
+
+                if has_internal_column:
+                    with connection.cursor() as cursor:
+                        cursor.execute("""
+                            INSERT INTO brillspay_transaction
+                            (internal_reference, gateway_reference, user_id, ward_id, order_id, amount, verified, status, payload, created_at)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                        """, [order.reference, None, request.user.id, ward.id, str(order.id), str(total), False, "initialized", None])
+                    transaction_obj = Transaction.objects.get(order=order)
+                else:
+                    # Re-raise so outer handler catches and shows error to user
+                    raise
+
+            BrillsPayLog.objects.create(
+                user=request.user,
                 order=order,
-                product_name=item.product.name,
-                price=item.product.price,
-                quantity=item.quantity
+                action="ORDER_CREATED",
+                message="Order created from cart"
             )
 
-        Transaction.objects.create(
-            internal_reference=order.reference,
-            user=request.user,
-            ward=ward,
-            order=order,
-            amount=total,
-            status="initialized"
-        )
-
-        BrillsPayLog.objects.create(
-            user=request.user,
-            order=order,
-            action="ORDER_CREATED",
-            message="Order created from cart"
-        )
+    except IntegrityError as e:
+        logger.exception("checkout IntegrityError: %s; user=%s ward=%s order=%s", e, request.user.id, getattr(ward, "id", None), getattr(order, "id", None))
+        messages.error(request, "Unable to create order/transaction. Please contact support.")
+        return redirect("brillspay:brillspay_products")
 
     return redirect("brillspay:checkout_detail", order_id=order.id)
 
