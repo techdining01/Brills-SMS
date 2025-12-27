@@ -21,14 +21,17 @@
           data-action="increase"
           data-item="{{ item.id }}"
         >+</button>
+
+        <button
+          class="btn btn-sm btn-outline-danger remove-item ms-2"
+          data-action="remove"
+          data-item="{{ item.id }}"
+        >
+          🗑 
+        </button>
+
       </div>
-      <button
-        class="btn btn-sm btn-outline-danger remove-item ms-2"
-        data-action="remove"
-        data-item="{{ item.id }}"
-      >
-        Remove
-      </button>
+     
     </div>
   {% endfor %}
 
@@ -43,6 +46,16 @@
   </p>
 {% endif %}
 
-
-
-
+{% if has_items %}
+<form method="post" action="{% url 'brillspay:checkout' %}">
+  {% csrf_token %}
+  <input type="hidden" name="ward_id" value="{{ cart.ward.id }}">
+  <button type="submit" class="btn btn-primary w-100">
+    Proceed to Checkout
+  </button>
+</form>
+{% else %}
+<button class="btn btn-secondary w-100" disabled>
+  Proceed to Checkout
+</button>
+{% endif %}

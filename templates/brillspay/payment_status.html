@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Payment Status{% endblock %}
+
+{% block content %}
+<div class="container py-5 text-center">
+    <h3>Payment Status</h3>
+    <p id="status-text">Verifying payment...</p>
+    <div id="spinner" class="my-4">
+        <img src="{% static 'images/spinner.gif' %}" alt="Loading..." width="50">
+    </div>
+    <a href="{% url 'brillspay:brillspay_products'  %}" class="btn btn-primary mt-3">Back to Store</a>
+</div>
+
+<script>
+const reference = "{{ transaction.reference }}";
+
+function checkPayment() {
+    fetch("{% url 'brillspay:payment_status_check' %}?ref=" + reference)
+        .then(res => res.json())
+        .then(data => {
+            const statusEl = document.getElementById("status-text");
+            const spinner = document.getElementById("spinner");
+
+            if (data.verified) {
+                statusEl.innerText = "Payment Successful ✅";
+                spinner.style.display = "none";
+                clearInterval(interval); // stop polling
+            } else if (data.status === "failed") {
+                statusEl.innerText = "Payment Failed ❌";
+                spinner.style.display = "none";
+                clearInterval(interval);
+            } else if (data.status === "abandoned") {
+                statusEl.innerText = "Payment Abandoned ⚠️";
+                spinner.style.display = "none";
+                clearInterval(interval);
+            } else {
+                statusEl.innerText = "Verifying payment...";
+            }
+        });
+}
+
+// check every 3 seconds
+const interval = setInterval(checkPayment, 3000);
+
+// optional: check immediately on page load
+checkPayment();
+</script>
+{% endblock %}

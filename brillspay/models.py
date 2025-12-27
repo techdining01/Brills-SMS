@@ -2,7 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 import uuid
-from exams.models import SchoolClass
+from exams.models import SchoolClass, Exam
 
 User = settings.AUTH_USER_MODEL
 
@@ -114,6 +114,7 @@ class Order(models.Model):
         help_text="The student this purchase is for"
     )
     reference = models.CharField(max_length=50, unique=True, editable=False)
+    exam = models.ForeignKey(Exam, on_delete=models.SET_NULL, null=True)
     status = models.CharField(max_length=20, choices=STATUS, default="PENDING")
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     is_override = models.BooleanField(default=False, help_text="Admin manually approved this order")
@@ -155,19 +156,51 @@ class Transaction(models.Model):
         ("abandoned", "Abandoned"),
     )
 
-    reference = models.CharField(max_length=100, unique=True)
+     # Your internal reference (for your system)
+    internal_reference = models.CharField(
+        max_length=50,
+        unique=True,
+        editable=False,
+        help_text="Our internal reference (BP-XXXX)"
+    )
+    
+    # Paystack's reference (from API response)
+    gateway_reference = models.CharField(
+        max_length=100,
+        unique=True,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Paystack's reference (T683902755095139)"
+    )
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='payer')
     ward = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name="transaction")
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     verified = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=STATUS, default="initialized")
-    payload = models.JSONField()
+    payload = models.JSONField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
 
     def __str__(self):
-        return self.reference
+        return f'{self.status} {self.internal_reference} {self.gateway_reference}'
+    
+
+
+class PaymentTransaction(models.Model):
+    """ Stores EVERY Paystack interaction. Webhook-safe, audit-safe. """
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="payment_transactions")
+    gateway_reference = models.CharField(max_length=100, unique=True)
+    gateway_name = models.CharField(max_length=20, default="paystack")
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    verified = models.BooleanField(default=False)
+    raw_response = models.JSONField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    
+    def __str__(self):
+        return self.gateway_reference
 
 # =========================
 # Log (optional)
@@ -192,14 +225,3 @@ class BrillsPayLog(models.Model):
         return f"{self.action} @ {self.created_at}"
 
 
-class PaymentTransaction(models.Model):
-    """ Stores EVERY Paystack interaction. Webhook-safe, audit-safe. """
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="payment_transactions")
-    reference = models.CharField(max_length=100, unique=True)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    verified = models.BooleanField(default=False)
-    raw_response = models.JSONField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return self.reference

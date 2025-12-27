@@ -30,6 +30,7 @@ urlpatterns = [
     # path('sms/', include('sms.urls')),
     # path('management/', include('management.urls')),
 ]
-
+# Serve media and static files locally when DEBUG=False
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

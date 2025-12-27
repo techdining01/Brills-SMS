@@ -27,9 +27,39 @@ SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 
-DEBUG = config('DEBUG', default=False, cast=bool)
+DEBUG = True  # config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = []
+# Allowed hosts
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    "newsiest-interlineally-guy.ngrok-free.dev",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.ngrok-free.dev",
+]
+
+
+# CSRF_TRUSTED_ORIGINS = [
+#     "https://newsiest-interlineally-guy.ngrok-free.dev",
+# ]
+
+# CSRF_TRUSTED_ORIGINS = [
+#     "https://*.ngrok-free.dev",
+# ]
+
+
+CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = False
+
+
+CSRF_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SAMESITE = "Lax"
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+CSRF_FAILURE_VIEW = "brillspay.views.csrf_failure"
 
 
 # Application definition
@@ -247,15 +277,15 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 ## School config (dynamic)
-SCHOOL_NAME = os.getenv("SCHOOL_NAME", "The Brills School")
-SCHOOL_ADDRESS = os.getenv("SCHOOL_ADDRESS", "No 1, Adaba Awotan-Akufo Road. Ibadan. Oyo State")
+SCHOOL_NAME = config("SCHOOL_NAME", "The Brills School")
+SCHOOL_ADDRESS = config("SCHOOL_ADDRESS", "No 1, Adaba Awotan-Akufo Road. Ibadan. Oyo State")
 SCHOOL_LOGO_PATH = BASE_DIR / "static/images/school_logo.png"
-SCHOOL_SLOGAN = os.getenv("SCHOOL_SLOGAN", "Knowledge is Light")
-SCHOOL_ECOMMERCE = os.getenv("SCHOOL_ECOMMERCE", "")
-PORTAL_DOMAIN = os.getenv("PORTAL_DOMAIN", "https://www.thebrillsschool.edu.ng")
-SITE_NAME = os.getenv("PORTAL_DOMAIN", "https://www.thebrillsschool.edu.ng")
-CURRENCY = os.getenv('NGN')
-CURRENCY_SYMBOL = os.getenv('₦')
+SCHOOL_SLOGAN = config("SCHOOL_SLOGAN", "Knowledge is Light")
+SCHOOL_ECOMMERCE = config("SCHOOL_ECOMMERCE", "")
+PORTAL_DOMAIN = config("PORTAL_DOMAIN", "https://www.thebrillsschool.edu.ng")
+SITE_NAME = config("PORTAL_DOMAIN", "https://www.thebrillsschool.edu.ng")
+CURRENCY = 'NGN'
+CURRENCY_SYMBOL = '₦'
 RECEIPT_WATERMARK = "PAID"
 
 
@@ -273,26 +303,59 @@ INTERNAL_IPS = [
 PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY')
 PAYSTACK_PUBLIC_KEY = config('PAYSTACK_PUBLIC_KEY')
 PAYSTACK_BASE_URL = config('PAYSTACK_BASE_URL')
-PAYSTACK_WEBHOOK_SECRET = PAYSTACK_SECRET_KEY
+PAYSTACK_WEBHOOK = config(
+    'PAYSTACK_WEBHOOK_SECRET', default='https://newsiest-interlineally-guy.ngrok-free.dev/brillspay/paystack/webhook/')
+PAYSTACK_CALLBACK_URL = config(
+    "PAYSTACK_CALLBACK_URL",
+    default="http://127.0.0.1:8000/brillspay/paystack/callback/"
+)
+
 
 # --- AWS S3 CONFIGURATION (New Section) ---
-# AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID')
-# AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY')
-# AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME')
-# AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME')
-# AWS_DEFAULT_ACL = config('AWS_DEFAULT_ACL', default='public-read')
-# AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME')
+AWS_DEFAULT_ACL = config('AWS_DEFAULT_ACL', default='public-read')
+AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+
 
 # Backend to use S3 for storing static and media files
-# STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-# DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-# STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
-# MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
+STATICFILES_STORAGE = config("STATICFILES_STORAGE")
+DEFAULT_FILE_STORAGE = config("DEFAULT_FILE_STORAGE")
+STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
+MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
+
 # -----------------------------------------
 
+
+# Email
+EMAIL_BACKEND='django.core.mail.backends.console.EmailBackend'
+EMAIL_HOST='smtp.gmail.com'
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER='your-email@gmail.com'
+EMAIL_HOST_PASSWORD='your-app-password'
+DEFAULT_FROM_EMAIL='noreply@schoolcommerce.com'
+
+# Redis (for Celery)
+REDIS_URL=config("REDIS_URL")
+
+# Backup
+BACKUP_ENCRYPTION_KEY=config("BACKUP_ENCRYPTION_KEY")
+BACKUP_RETENTION_DAYS=30
+
+
+# Celery Configuration
+CELERY_BROKER_URL = config('REDIS_URL', default='redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = config('REDIS_URL', default='redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+
 # Celery Configuration Options
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+
 CELERY_BEAT_SCHEDULE = {
     'cleanup_pickups_every_hour': {
         'task': 'pickups.tasks.cleanup_expired_pickups',

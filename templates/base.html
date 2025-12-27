@@ -111,7 +111,8 @@
 
 
 <script>
-   
+
+      
     setTimeout(() => {
         const alerts = document.querySelectorAll('.alert');
         alerts.forEach(alert => {
@@ -121,28 +122,25 @@
     }
     , 4000);
     
-    setInterval(() => {
-    document.querySelectorAll(".question-block").forEach(q => {
-        const questionId = q.dataset.question;
-        const choice = q.querySelector("input[type=radio]:checked");
-        const text = q.querySelector("textarea");
+ 
 
-        fetch("{% url 'exams:autosave_answer' %}", {
-            method: "POST",
-            headers: {
-                "X-CSRFToken": "{{ csrf_token }}",
-                "Content-Type": "application/x-www-form-urlencoded"
-            },
-            body: new URLSearchParams({
-                attempt_id: "{{ attempt.id }}",
-                question_id: questionId,
-                choice_id: choice ? choice.value : "",
-                text: text ? text.value : "",
-                remaining_seconds: window.remainingSeconds
-            })
-        });
-    });
-}, 5000);
+    function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.startsWith(name + "=")) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+const CSRF_TOKEN = getCookie("csrftoken");
 
 </script>
-</html>
+
+<</html>

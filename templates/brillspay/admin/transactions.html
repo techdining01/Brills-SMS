@@ -1,28 +1,40 @@
-{% extends "base.html" %}
+{% extends "admin/base_site.html" %}
 {% block content %}
-<div class="container py-4">
 
-<h4>Transactions</h4>
+<h2>BrillsPay Transactions</h2>
 
-<table class="table">
-<tr>
-<th>Ref</th>
-<th>User</th>
-<th>Amount</th>
-<th>Status</th>
-<th>Date</th>
-</tr>
+<div class="mb-3">
+  <strong>Total Revenue:</strong>
+  ₦{{ total_revenue }}
+</div>
 
-{% for tx in transactions %}
-<tr>
-<td>{{ tx.reference|slice:":8" }}</td>
-<td>{{ tx.user }}</td>
-<td>₦{{ tx.amount }}</td>
-<td>{{ tx.paystack_status }}</td>
-<td>{{ tx.created_at }}</td>
-</tr>
-{% endfor %}
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Reference</th>
+      <th>Buyer</th>
+      <th>Ward</th>
+      <th>Amount</th>
+      <th>Status</th>
+      <th>Verified</th>
+      <th>Date</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for tx in transactions %}
+    <tr>
+      <td>{{ tx.reference }}</td>
+      <td>{{ tx.user }}</td>
+      <td>{{ tx.ward }}</td>
+      <td>₦{{ tx.amount }}</td>
+      <td>{{ tx.status }}</td>
+      <td>{{ tx.verified }}</td>
+      <td>{{ tx.created_at }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7">No transactions</td></tr>
+    {% endfor %}
+  </tbody>
 </table>
 
-</div>
 {% endblock %}
