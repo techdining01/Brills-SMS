@@ -54,8 +54,8 @@ CSRF_COOKIE_SECURE = False
 SESSION_COOKIE_SECURE = False
 
 
-# CSRF_COOKIE_SAMESITE = "Lax"
-# SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SAMESITE = "Lax"
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
@@ -320,25 +320,18 @@ AWS_DEFAULT_ACL = config('AWS_DEFAULT_ACL', default='public-read')
 AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
 
 
+# Use local static/media in DEBUG, otherwise switch to S3 if configured
 if DEBUG:
     STATIC_URL = "/static/"
     STATICFILES_DIRS = [BASE_DIR / "static"]
-else:
-    STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/static/"
-
-
-if DEBUG:
     MEDIA_URL = "/media/"
     MEDIA_ROOT = BASE_DIR / "media"
 else:
-    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
-
-
-# # Backend to use S3 for storing static and media files
-# STATICFILES_STORAGE = config("STATICFILES_STORAGE")
-# DEFAULT_FILE_STORAGE = config("DEFAULT_FILE_STORAGE")
-# STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
-# MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
+    # Allow deployment to override storage backends via env
+    STATICFILES_STORAGE = config("STATICFILES_STORAGE", default=f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com")
+    DEFAULT_FILE_STORAGE = config("DEFAULT_FILE_STORAGE", default=f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com")
+    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
 
 # -----------------------------------------
 
@@ -360,13 +353,13 @@ BACKUP_ENCRYPTION_KEY=config("BACKUP_ENCRYPTION_KEY")
 BACKUP_RETENTION_DAYS=30
 
 
-# # Celery Configuration
-# CELERY_BROKER_URL = config('REDIS_URL', default='redis://localhost:6379/0')
-# CELERY_RESULT_BACKEND = config('REDIS_URL', default='redis://localhost:6379/0')
-# CELERY_ACCEPT_CONTENT = ['json']
-# CELERY_TASK_SERIALIZER = 'json'
-# CELERY_RESULT_SERIALIZER = 'json'
-# CELERY_TIMEZONE = TIME_ZONE
+# Celery Configuration
+CELERY_BROKER_URL = config('REDIS_URL', default='redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = config('REDIS_URL', default='redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
 
 # Celery Configuration Options
 

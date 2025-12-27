@@ -291,6 +291,92 @@ def checkout(request):
         logger.exception("checkout IntegrityError: %s; user=%s ward=%s order=%s", e, request.user.id, getattr(ward, "id", None), getattr(order, "id", None))
         messages.error(request, "Unable to create order/transaction. Please contact support.")
         return redirect("brillspay:brillspay_products")
+        messages.error(request, "Cart is empty")
+        return redirect("brillspay:brillspay_products")
+
+    total = sum(item.product.price * item.quantity for item in cart.items.all())
+
+    logger = logging.getLogger("brillspay")
+
+    try:
+        with db_transaction.atomic():
+            order, created = Order.objects.get_or_create(
+                buyer=request.user,
+                ward=ward,
+                status="PENDING",
+                defaults={"total_amount": total}
+            )
+
+            if not created:
+                # Ensure total is current
+                if order.total_amount != total:
+                    order.total_amount = total
+                    order.save(update_fields=["total_amount"])
+            else:
+                for item in cart.items.all():
+                    OrderItem.objects.create(
+                        order=order,
+                        product_name=item.product.name,
+                        price=item.product.price,
+                        quantity=item.quantity,
+                    )
+
+            trans_defaults = {
+                "internal_reference": order.reference,
+                "user": request.user,
+                "ward": ward,
+                "amount": total,
+                "status": "initialized",
+            }
+
+            try:
+                transaction_obj, t_created = Transaction.objects.get_or_create(
+                    order=order,
+                    defaults=trans_defaults
+                )
+
+                # If model defines internal_reference, ensure it's set to order.reference
+                if hasattr(transaction_obj, "internal_reference") and not getattr(transaction_obj, "internal_reference"):
+                    transaction_obj.internal_reference = order.reference
+                    transaction_obj.save(update_fields=["internal_reference"])
+
+            except IntegrityError as e:
+                # Could happen if DB requires an internal_reference column that's not on the model
+                logger.exception("IntegrityError creating Transaction for order %s: %s", order.id, e)
+
+                # Check if internal_reference column exists in DB, insert directly as fallback
+                has_internal_column = False
+                try:
+                    with connection.cursor() as cursor:
+                        cursor.execute("SELECT internal_reference FROM brillspay_transaction LIMIT 1")
+                        has_internal_column = True
+                except Exception:
+                    has_internal_column = False
+
+                if has_internal_column:
+                    with connection.cursor() as cursor:
+                        cursor.execute("""
+                            INSERT INTO brillspay_transaction
+                            (internal_reference, gateway_reference, user_id, ward_id, order_id, amount, verified, status, payload, created_at)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                        """, [order.reference, None, request.user.id, ward.id, str(order.id), str(total), False, "initialized", None])
+                    transaction_obj = Transaction.objects.get(order=order)
+                else:
+                    # Re-raise so outer handler catches and shows error to user
+                    raise
+
+            BrillsPayLog.objects.create(
+                user=request.user,
+                order=order,
+                action="ORDER_CREATED",
+                message="Order created from cart"
+            )
+
+    except IntegrityError as e:
+        logger.exception("checkout IntegrityError: %s; user=%s ward=%s order=%s", e, request.user.id, getattr(ward, "id", None), getattr(order, "id", None))
+        messages.error(request, "Unable to create order/transaction. Please contact support.")
+        return redirect("brillspay:brillspay_products")
+
 
     return redirect("brillspay:checkout_detail", order_id=order.id)
 
