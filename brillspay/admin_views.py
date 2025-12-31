@@ -1,12 +1,18 @@
 from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import render, get_object_or_404, redirect
-from .models import Order, PaymentTransaction, Product, BrillsPayLog, Transaction
+from .models import Order, Transaction, Product, BrillsPayLog, PaymentTransaction
 from exams.models import ExamAccess
 from django.db.models import Sum
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import get_user_model
-
+from django.db.models.functions import TruncMonth
+from django.utils.timezone import now
+from .forms import ProductForm
+from django.utils import timezone
+from datetime import timedelta
+from django.http import HttpResponse
+import csv
 
 User = get_user_model()
 
@@ -18,8 +24,10 @@ def is_admin(user):
 @login_required
 @user_passes_test(is_admin)
 def admin_dashboard(request):
+
+    # ✅ correct status value
     total_sales = Transaction.objects.filter(
-        status="SUCCESS"
+        status="success", verified=True
     ).aggregate(total=Sum("amount"))["total"] or 0
 
     total_orders = Order.objects.count()
@@ -27,24 +35,41 @@ def admin_dashboard(request):
     total_products = Product.objects.count()
 
     recent_orders = Order.objects.select_related(
-        "user", "ward"
+        "buyer", "ward"
     ).order_by("-created_at")[:5]
 
-    low_stock = Product.objects.filter(stock_quantity__lte=5)
-
-    monthly = (
-        Transaction.objects.filter(status="SUCCESS")
-        .extra(select={"month": "strftime('%%Y-%%m', created_at)"})
+    # ===== Monthly Revenue =====
+    monthly_qs = (
+        Transaction.objects
+        .filter(status="success", verified=True)
+        .annotate(month=TruncMonth("created_at"))
         .values("month")
         .annotate(total=Sum("amount"))
+        .order_by("month")
     )
 
-    class_based = (
-        Order.objects.values("ward__student_class__name")
+    monthly_labels = [
+        m["month"].strftime("%b %Y") for m in monthly_qs
+    ]
+    monthly_data = [
+        float(m["total"]) for m in monthly_qs
+    ]
+
+    # ===== Class-based Revenue =====
+    class_qs = (
+        Order.objects
+        .filter(status="PAID")
+        .values("ward__student_class__name")
         .annotate(total=Sum("total_amount"))
     )
 
-
+    class_labels = [
+        c["ward__student_class__name"] or "Unknown"
+        for c in class_qs
+    ]
+    class_data = [
+        float(c["total"]) for c in class_qs
+    ]
 
     return render(
         request,
@@ -55,77 +80,138 @@ def admin_dashboard(request):
             "total_transactions": total_transactions,
             "total_products": total_products,
             "recent_orders": recent_orders,
-            "low_stock": low_stock,
-            "monthly": monthly,
-            "class_based": class_based
+
+            # charts
+            "monthly_labels": monthly_labels,
+            "monthly_data": monthly_data,
+            "class_labels": class_labels,
+            "class_data": class_data,
         }
     )
-
 
 
 
 @staff_member_required
 def admin_add_product(request):
     if request.method == "POST":
-        Product.objects.create(
-            name=request.POST["name"],
-            category_id=request.POST["category"],
-            price=request.POST["price"],
-            stock_quantity=request.POST["stock"]
-        )
-        messages.success(request, "Product added")
-        return redirect("brillspay:admin_product_list")
+        form = ProductForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            return redirect("brillspay:admin_product_list")
+    else:
+        form = ProductForm()
 
-    return render(request, "brillspay/admin/products/add.html")
+    return render(request,
+        "brillspay/admin/products/add.html", {"form": form}
+    )
 
 
 @staff_member_required
-def admin_edit_product(request, pk):
+def admin_product_list(request):
+    products = (
+        Product.objects
+        .select_related("category")
+        .order_by("-created_at")
+    )
+
+    return render(
+        request,
+        "brillspay/admin/products/product_list.html",
+        {
+            "products": products
+        }
+    )
+
+
+@staff_member_required
+def admin_product_edit(request, pk):
     product = get_object_or_404(Product, pk=pk)
 
     if request.method == "POST":
-        product.name = request.POST["name"]
-        product.price = request.POST["price"]
-        product.stock_quantity = request.POST["stock"]
-        product.save()
-        messages.success(request, "Product updated")
+        form = ProductForm(request.POST, request.FILES, instance=product)
+        if form.is_valid():
+            form.save()
+            return redirect("brillspay:admin_product_list")
+    else:
+        form = ProductForm(instance=product)
+
+    return render(
+        request,
+        "brillspay/admin/products/product_edit.html",
+        {
+            "form": form,
+            "product": product
+        }
+    )
+
+
+
+@staff_member_required
+def admin_product_delete(request, pk):
+    product = get_object_or_404(Product, pk=pk)
+
+    if request.method == "POST":
+        product.delete()
+        messages.success(request, f'{product.name} deleted successfully')
         return redirect("brillspay:admin_product_list")
 
-    return render(request, "brillspay/admin/products/edit.html", {
-        "product": product
-    })
-
-
-@staff_member_required
-def admin_delete_product(request, pk):
-    product = get_object_or_404(Product, pk=pk)
-    product.delete()
-    messages.success(request, "Product deleted")
-    return redirect("brillspay:admin_product_list")
+    return render(
+        request,
+        "brillspay/admin/products/product_confirm_delete.html",
+        {
+            "product": product
+        }
+    )
 
 
 
-@staff_member_required
-def admin_add_stock(request, pk):
-    product = get_object_or_404(Product, pk=pk)
-    qty = int(request.POST.get("quantity", 0))
-    product.stock_quantity += qty
-    product.save()
-    return redirect("brillspay:admin_product_list")
+# @staff_member_required
+# def admin_edit_product(request, pk):
+#     product = get_object_or_404(Product, pk=pk)
+
+#     if request.method == "POST":
+#         product.name = request.POST["name"]
+#         product.price = request.POST["price"]
+#         product.stock_quantity = request.POST["stock"]
+#         product.save()
+#         messages.success(request, "Product updated")
+#         return redirect("brillspay:admin_product_list")
+
+#     return render(request, "brillspay/admin/products/edit.html", {
+#         "product": product
+#     })
 
 
-@staff_member_required
-def admin_remove_stock(request, pk):
-    product = get_object_or_404(Product, pk=pk)
-    qty = int(request.POST.get("quantity", 0))
-    product.stock_quantity = max(0, product.stock_quantity - qty)
-    product.save()
-    return redirect("brillspay:admin_product_list")
+# @staff_member_required
+# def admin_delete_product(request, pk):
+#     product = get_object_or_404(Product, pk=pk)
+#     product.delete()
+#     messages.success(request, "Product deleted")
+#     return redirect("brillspay:admin_product_list")
+
+
+
+# @staff_member_required
+# def admin_add_stock(request, pk):
+#     product = get_object_or_404(Product, pk=pk)
+#     qty = int(request.POST.get("quantity", 0))
+#     product.stock_quantity += qty
+#     product.save()
+#     return redirect("brillspay:admin_product_list")
+
+
+# @staff_member_required
+# def admin_remove_stock(request, pk):
+#     product = get_object_or_404(Product, pk=pk)
+#     qty = int(request.POST.get("quantity", 0))
+#     product.stock_quantity = max(0, product.stock_quantity - qty)
+#     product.save()
+#     return redirect("brillspay:admin_product_list")
 
 
 @staff_member_required
 def admin_order_list(request):
-    orders = Order.objects.select_related("buyer", "ward")
+    orders = Order.objects.select_related("buyer", "ward").order_by('-created_at')
     return render(request, "brillspay/admin/orders/list.html", {
         "orders": orders
     })
@@ -141,7 +227,7 @@ def admin_order_detail(request, pk):
 
 @staff_member_required
 def admin_payment_list(request):
-    payments = PaymentTransaction.objects.all()
+    payments = Transaction.objects.all().order_by('-created_at')
     return render(request, "brillspay/admin/payments/list.html", {
         "payments": payments
     })
@@ -149,7 +235,7 @@ def admin_payment_list(request):
 
 @staff_member_required
 def admin_transaction_logs(request):
-    logs = BrillsPayLog.objects.select_related("user", "order")
+    logs = BrillsPayLog.objects.select_related("user", "order").order_by('-created_at')
     return render(request, "brillspay/admin/logs/list.html", {
         "logs": logs
     })
@@ -160,7 +246,7 @@ def admin_transaction_logs(request):
 def admin_access_list(request):
     accesses = ExamAccess.objects.select_related(
         "student", "exam"
-    ).order_by("-granted_at")
+    ).order_by("-granted_by")
 
     return render(
         request,
@@ -233,17 +319,52 @@ def admin_grant_access(request, order_id):
 
 @staff_member_required
 def admin_analytics_dashboard(request):
-    qs = PaymentTransaction.objects.filter(
-        paystack_status="SUCCESS"
-    ).values("created_at__date").annotate(
-        total=Sum("amount")
+    range_days = int(request.GET.get("range", 7))
+    start_date = timezone.now().date() - timedelta(days=range_days)
+
+    qs = (
+        Transaction.objects
+        .filter(
+            status="success",
+            verified=True,
+            created_at__date__gte=start_date
+        )
+        .values("created_at__date")
+        .annotate(total=Sum("amount"))
+        .order_by("created_at__date")
     )
 
     labels = [str(x["created_at__date"]) for x in qs]
-    data = [x["total"] for x in qs]
+    data = [float(x["total"]) for x in qs]
+
+    total_revenue = sum(data)
 
     return render(request, "brillspay/admin/analytics.html", {
         "labels": labels,
-        "data": data
+        "data": data,
+        "total_revenue": total_revenue,
+        "range_days": range_days,
     })
+
+
+@staff_member_required
+def export_revenue_csv(request):
+    qs = (
+        Transaction.objects
+        .filter(status="success", verified=True)
+        .values("created_at__date")
+        .annotate(total=Sum("amount"))
+        .order_by("created_at__date")
+    )
+
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="revenue_report.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(["Date", "Revenue (₦)"])
+
+    for row in qs:
+        writer.writerow([row["created_at__date"], row["total"]])
+
+    return response
 

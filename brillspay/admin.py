@@ -6,8 +6,8 @@ from .models import ProductCategory, Product, Cart, CartItem, Order, OrderItem, 
 # =========================
 @admin.register(ProductCategory)
 class ProductCategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'is_active')
-    search_fields = ('name',)
+    list_display = ('class_name', 'slug', 'is_active')
+    search_fields = ('class_name',)
     actions = ['activate_categories', 'deactivate_categories']
 
     def activate_categories(self, request, queryset):
@@ -46,7 +46,7 @@ class ProductAdmin(admin.ModelAdmin):
 # =========================
 @admin.register(Cart)
 class CartAdmin(admin.ModelAdmin):
-    list_display = ('user', 'total_amount', 'updated_at')
+    list_display = ('user', 'updated_at')
     search_fields = ('user__username',)
     readonly_fields = ('created_at', 'updated_at')
 
@@ -55,7 +55,7 @@ class CartAdmin(admin.ModelAdmin):
 # =========================
 @admin.register(CartItem)
 class CartItemAdmin(admin.ModelAdmin):
-    list_display = ('cart', 'product', 'quantity', 'subtotal')
+    list_display = ('cart', 'product', 'quantity', 'subtotal', 'total_amount')
     search_fields = ('product__name', 'cart__user__username')
 
 # =========================
@@ -64,7 +64,7 @@ class CartItemAdmin(admin.ModelAdmin):
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     list_display = ('reference', 'buyer', 'ward', 'status', 'total_amount', 'created_at')
-    list_filter = ('status',)
+    list_filter = ('status', 'total_amount')
     search_fields = ('buyer__username', 'ward__first_name', 'reference')
     readonly_fields = ('created_at', 'reference')
 
@@ -73,8 +73,8 @@ class OrderAdmin(admin.ModelAdmin):
 # =========================
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):
-    list_display = ('order', 'product_name', 'quantity', 'price', 'subtotal')
-    search_fields = ('product_name',)
+    list_display = ('order', 'product_name', 'quantity', 'price', 'subtotal', 'total_amount')
+    search_fields = ('product_name', 'total_amount')
 
 # =========================
 # Transaction Admin

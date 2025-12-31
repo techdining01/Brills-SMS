@@ -5,13 +5,16 @@
 
 <table class="table table-hover">
 <tr>
-<th>ID</th><th>Parent</th><th>Ward</th><th>Total</th><th></th>
+<th>Orde Ref</th><th>Paystack Ref</th><th>Date</th><th>Parent</th><th>Ward</th><th>Status</th><th>Total</th><th>More</th><th></th>
 </tr>
 {% for o in orders %}
 <tr>
-<td>{{ o.id }}</td>
-<td>{{ o.user }}</td>
-<td>{{ o.ward }}</td>
+<td>{{ o.reference }}</td>
+<td>{{ o.transaction.gateway_reference }}</td>
+<td>{{ o.created_at }}</td>
+<td>{{ o.buyer.get_full_name }}</td>
+<td>{{ o.ward.get_full_name }}</td>
+<td>{{ o.status }}</td>
 <td>₦{{ o.total_amount }}</td>
 <td>
 <a href="{% url 'brillspay:admin_order_detail' o.id %}">View</a>

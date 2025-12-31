@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Sum, F
 from django.conf import settings
 from django.utils import timezone
 import uuid
@@ -13,12 +14,12 @@ class ProductCategory(models.Model):
     """
     Class-based category (e.g. JSS1, SSS3).
     """
-    name = models.CharField(max_length=50, unique=True)
+    class_name = models.CharField(max_length=50, unique=True)
     slug = models.SlugField(unique=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
-        return self.name
+        return self.class_name
 
 # Default categories you can create via migrations or admin
 DEFAULT_CATEGORIES = ["JSS1", "JSS2", "JSS3", "SSS1", "SSS2", "SSS3"]
@@ -29,8 +30,6 @@ DEFAULT_CATEGORIES = ["JSS1", "JSS2", "JSS3", "SSS1", "SSS2", "SSS3"]
 class Product(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
-    SchoolClass = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name='class_category')
-
     category = models.ForeignKey(
         ProductCategory,
         on_delete=models.PROTECT,
@@ -48,7 +47,7 @@ class Product(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.name} ({self.category.name})"
+        return f"{self.name} ({self.category.class_name})"
 
 # =========================
 # Cart
@@ -67,10 +66,30 @@ class Cart(models.Model):
     class Meta:
         unique_together = ("user", "ward")
 
+    @property
+    def subtotal(self):
+        return sum(item.product.price * item.quantity for item in self.items.all())
+
+    
+    @property
+    def total_items(self):
+        """
+        Number of unique products in cart
+        """
+        return self.items.count()
+    
+    
+    @property
+    def total_quantity(self):
+        return self.items.aggregate(
+            total=Sum("quantity")
+        )["total"] or 0
+
     
     @property
     def total_amount(self):
         return sum(item.subtotal for item in self.items.all())
+
 
     def __str__(self):
         return f"Cart - {self.user.username}"
@@ -90,6 +109,11 @@ class CartItem(models.Model):
     @property
     def subtotal(self):
         return self.product.price * self.quantity
+    
+    @property
+    def total_amount(self):
+        return sum(item.subtotal for item in self.items.all())
+
 
 
 
@@ -141,7 +165,10 @@ class OrderItem(models.Model):
     def subtotal(self):
         return self.price * self.quantity
 
-
+    @property
+    def total_amount(self):
+        return sum(item.subtotal for item in self.items.all())
+    
     def __str__(self):
         return f"{self.product_name} x {self.quantity}"
 
@@ -157,14 +184,6 @@ class Transaction(models.Model):
     )
     
 
-    # Your internal reference (for your system)
-    internal_reference = models.CharField(
-        max_length=50,
-        unique=True,
-        editable=False,
-        help_text="Our internal reference (BP-XXXX)"
-    )
-    
     # Paystack's reference (from API response)
     gateway_reference = models.CharField(
         max_length=100,
@@ -183,20 +202,9 @@ class Transaction(models.Model):
     payload = models.JSONField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def save(self, *args, **kwargs):
-        # Ensure internal_reference exists and aligns with order.reference when possible
-        if not getattr(self, "internal_reference", None):
-            try:
-                # Prefer the order's reference when available
-                self.internal_reference = self.order.reference
-            except Exception:
-                # Fallback to a generated internal ref
-                self.internal_reference = f"BP-{uuid.uuid4().hex[:10].upper()}"
-        super().save(*args, **kwargs)
-
-
     def __str__(self):
-        return f'{self.status} {self.internal_reference} {self.gateway_reference}'
+        # Use order.reference to avoid redundant internal_reference field
+        return f"{self.status} {getattr(self.order, 'reference', '')} {self.gateway_reference}"
     
 
 

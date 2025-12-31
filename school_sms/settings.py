@@ -307,7 +307,7 @@ PAYSTACK_WEBHOOK = config(
     'PAYSTACK_WEBHOOK_SECRET', default='https://newsiest-interlineally-guy.ngrok-free.dev/brillspay/paystack/webhook/')
 PAYSTACK_CALLBACK_URL = config(
     "PAYSTACK_CALLBACK_URL",
-    default="http://127.0.0.1:8000/brillspay/paystack/callback/"
+    default="https://newsiest-interlineally-guy.ngrok-free.dev/brillspay/paystack/callback/"
 )
 
 

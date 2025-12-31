@@ -19,10 +19,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Count
 from django.shortcuts import render, redirect
 from django.utils import timezone
-from exams.models import Exam, ExamAttempt, StudentAnswer
 from accounts.models import User
 from django.db.models import Sum, Avg, F    
-from brillspay.models import PaymentTransaction
+from brillspay.models import Transaction
 from pickup.models import PickupAuthorization
 from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import render
@@ -363,36 +362,6 @@ def exam_list(request):
     return render(request, 'exams/student/exam_list.html', {'exams': exams})
 
 #### ======= Student Exam Views ======= ####
-
-
-# @login_required
-# def student_dashboard(request):
-#     student = request.user
-
-#     attempts = ExamAttempt.objects.filter(student=student)
-
-#     attempted_exam_ids = attempts.filter(
-#         status__in=["submitted", "archived"]
-#     ).values_list("exam_id", flat=True)
-
-#     available_exams = Exam.objects.filter(
-#         school_class=student.student_class,
-#         is_published=True,
-#         is_active=True
-#     ).exclude(id__in=attempted_exam_ids)
-
-#     leaderboard = (
-#         ExamAttempt.objects
-#         .filter(status="submitted", exam__school_class=student.student_class)
-#         .select_related("student")
-#         .order_by("-score")[:10]
-#     )
-
-#     return render(request, "exams/student_dashboard.html", {
-#         "available_exams": available_exams,
-#         "attempts": attempts,
-#         "leaderboard": leaderboard,
-#     })
 
 @login_required
 def student_dashboard(request):
@@ -858,66 +827,6 @@ def teacher_grading_summary_pdf(request, exam_id):
 
 
 
-# @login_required
-# def student_dashboard(request):
-#     user = request.user
-
-#     if user.role != "STUDENT":
-#         return render(request, "403.html")
-
-#     # Available exams
-#     granted_exams = ExamAccess.objects.filter(student=user).values_list('exam_id', flat=True)
-#     in_progress_attempts = ExamAttempt.objects.filter(student=user, status='in_progress')
-#     past_attempts = ExamAttempt.objects.filter(student=user, status='submitted')
-    
-
-#     available_exams = Exam.objects.filter(
-#         id__in=granted_exams,
-#         is_published=True,
-#         is_active=True
-#     ).exclude(
-#         attempts__student=user,
-#         attempts__status='submitted'
-#     )
-
-#     from django.db.models import Sum, F
-#     from django.db.models.functions import Coalesce
-
-#     leaderboard = (
-#         ExamAttempt.objects
-#         .filter(
-#             exam__school_class=user.student_class,
-#             status="submitted"
-#         )
-#         .values(
-#             "student__id",
-#             "student__first_name",
-#             "student__last_name",
-#         )
-#         .annotate(
-#             objective_score=Coalesce(Sum("score"), 0),
-#             subjective_score=Coalesce(
-#                 Sum("answers__subjective_mark__score"), 0
-#             ),
-#         )
-#         .annotate(
-#             total_score=F("objective_score") + F("subjective_score")
-#         )
-#         .order_by("-total_score")[:10]
-#     )
-
-
-#     context = {
-#         "available_exams": available_exams,
-#         "in_progress_attempts": in_progress_attempts,
-#         "past_attempts": past_attempts,
-#         "leaderboard": leaderboard,
-#         'attempt': past_attempts.first() if past_attempts.exists() else None,
-
-#     }
-#     return render(request, "exams/student_dashboard.html", context)
-
-
 @login_required
 @require_POST
 def autosave_answer(request):
@@ -976,38 +885,38 @@ def grade_subjective(request, exam_id):
 # ----------------------------
 # Admin: Grant/Revoke Exam Access
 # ----------------------------
-@staff_member_required
-def admin_exam_access(request):
-    exams = Exam.objects.all().order_by("-created_at")
-    students = User.objects.filter(role="STUDENT").order_by("first_name")
+# @staff_member_required
+# def admin_exam_access(request):
+#     exams = Exam.objects.all().order_by("-created_at")
+#     students = User.objects.filter(role="STUDENT").order_by("first_name")
     
-    if request.method == "POST":
-        exam_id = request.POST.get("exam_id")
-        student_id = request.POST.get("student_id")
-        action = request.POST.get("action")  # grant or revoke
-        exam = get_object_or_404(Exam, id=exam_id)
-        student = get_object_or_404(User, id=student_id, role="STUDENT")
+#     if request.method == "POST":
+#         exam_id = request.POST.get("exam_id")
+#         student_id = request.POST.get("student_id")
+#         action = request.POST.get("action")  # grant or revoke
+#         exam = get_object_or_404(Exam, id=exam_id)
+#         student = get_object_or_404(User, id=student_id, role="STUDENT")
 
-        if action == "grant":
-            ExamAccess.objects.get_or_create(student=student, exam=exam)
-            messages.success(request, f"Access granted to {student.get_full_name()} for {exam.title}")
-        elif action == "revoke":
-            ExamAccess.objects.filter(student=student, exam=exam).delete()
-            messages.success(request, f"Access revoked from {student.get_full_name()} for {exam.title}")
-        return redirect("exams:admin_exam_access")
+#         if action == "grant":
+#             ExamAccess.objects.get_or_create(student=student, exam=exam)
+#             messages.success(request, f"Access granted to {student.get_full_name()} for {exam.title}")
+#         elif action == "revoke":
+#             ExamAccess.objects.filter(student=student, exam=exam).delete()
+#             messages.success(request, f"Access revoked from {student.get_full_name()} for {exam.title}")
+#         return redirect("exams:admin_exam_access")
 
-    # Build dict of student -> exams granted
-    access_dict = {}
-    for student in students:
-        granted_exams = ExamAccess.objects.filter(student=student).values_list('exam_id', flat=True)
-        access_dict[student.id] = list(granted_exams)
+#     # Build dict of student -> exams granted
+#     access_dict = {}
+#     for student in students:
+#         granted_exams = ExamAccess.objects.filter(student=student).values_list('exam_id', flat=True)
+#         access_dict[student.id] = list(granted_exams)
 
-    context = {
-        "exams": exams,
-        "students": students,
-        "access_dict": access_dict,
-    }
-    return render(request, "exams/admin/exams/exam_access_list.html", context)
+#     context = {
+#         "exams": exams,
+#         "students": students,
+#         "access_dict": access_dict,
+#     }
+#     return render(request, "exams/admin/exams/exam_access_list.html", context)
 
 # ----------------------------
 # Admin: View Student Attempts for an Exam
@@ -1017,7 +926,7 @@ def admin_exam_attempts(request, exam_id):
     exam = get_object_or_404(Exam, id=exam_id)
     attempts = ExamAttempt.objects.filter(exam=exam, status='submitted') \
         .select_related('student') \
-        .annotate(total_score=Sum('score') + Sum('subjectivemark__score'))
+        .annotate(total_score=Sum('score') + Sum('subjective_score'))
     
     context = {
         "exam": exam,
@@ -1084,44 +993,6 @@ def verify_result(request, attempt_id, token):
 
 ###======================END STUDENT EXAM VIEWS======================###
 
-# @login_required
-# def start_exam(request, exam_id):
-#     exam = get_object_or_404(Exam, id=exam_id, is_published=True)
-#     user = request.user
-
-#     if timezone.now() < exam.start_time or timezone.now() > exam.end_time:
-#         messages.error(request, "Exam not active")
-#         return redirect("exams:student_dashboard")
-
-#     allowed = ExamAccess.objects.filter(
-#         student=request.user,
-#         exam=exam
-#     ).exists()
-
-#     if not allowed:
-#         messages.error(request, "Payment required to access this exam")
-#         return redirect("brillspay:store")
-
-#     # Check if already started
-#     attempt = ExamAttempt.objects.filter(exam=exam, student=user, is_submitted=False).first()
-#     if attempt:
-#         return redirect('exams:resume_exam', attempt_id=attempt.id)
-
-#     # Start new attempt
-#     attempt = ExamAttempt.objects.create(
-#         exam=exam,
-#         student=user,
-#         retake_allowed=exam.allow_retake
-#     )
-
-#     # Record question order
-#     question_ids = list(exam.question_set.values_list('id', flat=True))
-#     import random
-#     random.shuffle(question_ids)
-#     attempt.question_order = ','.join(str(q) for q in question_ids)
-#     attempt.save()
-
-#     return redirect('exams:resume_exam', attempt_id=attempt.id)
 
 
 @login_required
@@ -1185,38 +1056,6 @@ def auto_grade_objective(attempt):
             ans.save()
 
 
-
-
-# @login_required
-# @user_passes_test(teacher_required)
-# def subjective_marking(request, exam_id):
-#     exam = get_object_or_404(Exam, id=exam_id)
-#     attempts = ExamAttempt.objects.filter(exam=exam, is_submitted=True)
-
-#     if request.method == 'POST':
-#         with transaction.atomic():
-#             for key, value in request.POST.items():
-#                 if key.startswith('mark_'):
-#                     ans_id = int(key.split('_')[1])
-#                     ans = StudentAnswer.objects.get(id=ans_id)
-#                     score = int(value)
-#                     SubjectiveMark.objects.update_or_create(
-#                         answer=ans,
-#                         defaults={'score': score, 'marked_by': request.user}
-#                     )
-#         messages.success(request, "Marks saved successfully!")
-#         return redirect('exams:subjective_marking', exam_id=exam.id)
-
-#     # Gather all unmarked subjective answers
-#     answers = StudentAnswer.objects.filter(
-#         attempt__exam=exam,
-#         question__type='subjective'
-#     ).select_related('attempt', 'question').order_by('attempt__student__username')
-
-#     return render(request, 'exams/teacher/subjective_marking.html', {
-#         'exam': exam,
-#         'answers': answers
-#     })
 
 
 @login_required
@@ -1846,100 +1685,34 @@ def is_admin(user):
     return user.is_authenticated and user.role == User.Role.ADMIN
 
 
-@login_required(login_url='accounts:login')
-@user_passes_test(is_admin)
-def admin_mega_dashboard(request):
-    # ==========================
-    # USERS
-    # ==========================
-    total_users = User.objects.count()
-    pending_users = User.objects.filter(is_approved=False).count()
-    students = User.objects.filter(role=User.Role.STUDENT).count()
-    parents = User.objects.filter(role=User.Role.PARENT).count()
-    staff = User.objects.filter(role=User.Role.TEACHER).count()
 
-    # ==========================
-    # EXAMS
-    # ==========================
-    total_exams = Exam.objects.count()
-    active_exams = Exam.objects.filter(
-        is_active=True,
-        start_time__lte=timezone.now(),
-        end_time__gte=timezone.now()
-    ).count()
-    attempts_today = ExamAttempt.objects.filter(
-        started_at__date=timezone.now().date()
-    ).count()
+# @login_required(login_url="accounts:login")
+# @user_passes_test(is_admin)
+# def admin_analytics_chart(request):
+#     today = timezone.now().date()
+#     last_30 = today - timedelta(days=30)
 
-    # ==========================
-    # PAYMENTS
-    # ==========================
-    total_revenue = PaymentTransaction.objects.filter(
-        verified=True,
-    ).aggregate(total=Sum("amount"))["total"] or 0
+#     revenue = (
+#         PaymentTransaction.objects
+#         .filter(status="success", created_at__date__gte=last_30)
+#         .extra(select={'day': "date(created_at)"})
+#         .values('day')
+#         .annotate(total=Sum('amount'))
+#         .order_by('day')
+#     )
 
-    pending_orders = Order.objects.filter(status="pending").count()
+#     orders = Order.objects.values('status').annotate(count=Count('id'))
 
-    # ==========================
-    # PTA
-    # ==========================
-    pending_pta = PTARequest.objects.filter(status="PENDING").count()
+#     exam_stats = Exam.objects.annotate(
+#         attempts=Count('examattempt')
+#     ).values('title', 'attempts')
 
-    # ==========================
-    # PICKUPS
-    # ==========================
-    active_pickups = PickupAuthorization.objects.filter(
-        is_used=False,
-        expires_at__gt=timezone.now()
-    ).count()
+#     user_roles = User.objects.values('role').annotate(count=Count('id'))
 
-    context = {
-        "stats": {
-            "total_users": total_users,
-            "pending_users": pending_users,
-            "students": students,
-            "parents": parents,
-            "staff": staff,
-            "total_exams": total_exams,
-            "active_exams": active_exams,
-            "attempts_today": attempts_today,
-            "total_revenue": total_revenue,
-            "pending_orders": pending_orders,
-            "pending_pta": pending_pta,
-            "active_pickups": active_pickups,
-        }
-    }
-
-    return render(request, "exams/admin/admin_mega_dashboard.html", context)
-
-
-@login_required(login_url="accounts:login")
-@user_passes_test(is_admin)
-def admin_analytics_chart(request):
-    today = timezone.now().date()
-    last_30 = today - timedelta(days=30)
-
-    revenue = (
-        PaymentTransaction.objects
-        .filter(status="success", created_at__date__gte=last_30)
-        .extra(select={'day': "date(created_at)"})
-        .values('day')
-        .annotate(total=Sum('amount'))
-        .order_by('day')
-    )
-
-    orders = Order.objects.values('status').annotate(count=Count('id'))
-
-    exam_stats = Exam.objects.annotate(
-        attempts=Count('examattempt')
-    ).values('title', 'attempts')
-
-    user_roles = User.objects.values('role').annotate(count=Count('id'))
-
-    return JsonResponse({
-        "revenue": list(revenue),
-        "orders": list(orders),
-        "exams": list(exam_stats),
-        "users": list(user_roles),
-    })
+#     return JsonResponse({
+#         "revenue": list(revenue),
+#         "orders": list(orders),
+#         "exams": list(exam_stats),
+#         "users": list(user_roles),
+#     })
 

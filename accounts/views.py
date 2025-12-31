@@ -137,13 +137,11 @@ def dashboard_redirect(request):
     elif user.role == "TEACHER":
         return redirect("exams:teacher_dashboard")
     elif user.role == "ADMIN":
-        return redirect("exams:admin_dashboard")
+        return redirect("admin_mega_dashboard")
     elif user.role == 'PARENT':
         return redirect('pickups:parent_dashboard')
    
     return redirect("accounts:login")
-
-
 
 
 # @login_required

@@ -11,7 +11,7 @@ class PickupCodeGenerationForm(forms.Form):
         queryset=User.objects.none(), 
         label="Select Child for Pickup",
         empty_label="--- Select a Student ---",
-        widget=forms.Select(attrs={'class': 'w-full p-3 border border-gray-300 rounded-lg'})
+        widget=forms.Select(attrs={'class': 'form-control'})
     )
 
     def __init__(self, *args, **kwargs):

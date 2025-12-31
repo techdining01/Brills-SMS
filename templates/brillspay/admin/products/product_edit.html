@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Add Product{% endblock %}
+{% block title %}Edit Product{% endblock %}
 
 {% block content %}
 <div class="container py-4">
-    <h4 class="mb-4">Add New Product</h4>
+    <h4 class="mb-4">Edit Product – {{ product.name }}</h4>
 
     <div class="card shadow-sm p-4">
         <form method="post" enctype="multipart/form-data">
@@ -17,8 +17,8 @@
                     Cancel
                 </a>
 
-                <button type="submit" class="btn btn-success">
-                    Save Product
+                <button type="submit" class="btn btn-primary">
+                    Save Changes
                 </button>
             </div>
         </form>

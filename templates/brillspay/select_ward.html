@@ -1,21 +1,30 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h4>Select Ward</h4>
 
-<form method="post">
-  {% csrf_token %}
-  <select name="ward_id" class="form-select" required>
-    <option value="">-- Select Ward --</option>
-    {% for ward in wards %}
-      <option value="{{ ward.id }}">
-        {{ ward.get_full_name }}
-      </option>
-    {% endfor %}
-  </select>
+<div class="row d-flex justify-content-center">
+  <div class="col-md-6">
+    <div class="text-center">
+        <h4>Select Ward</h4>
+    </div>
+    <div class="text-center">
+        <form method="post">
+          {% csrf_token %}
+          <select name="ward_id" class="form-select text-center" required>
+            <option value="">-- Select Ward --</option>
+            {% for ward in wards %}
+              <option value="{{ ward.id }}">
+                {{ ward.get_full_name }}
+              </option>
+            {% endfor %}
+          </select>
 
-  <button class="btn btn-primary mt-3">
-    Continue
-  </button>
-</form>
+          <button class="btn btn-primary mt-3">
+            Continue
+          </button>
+        </form>
+    </div>
+    </div>
+</div>
+
 {% endblock %}

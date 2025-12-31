@@ -25,12 +25,12 @@ from django.views.decorators.http import require_POST
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Sum
 from django.db import connection, transaction as db_transaction, IntegrityError, OperationalError
-
+import requests
 from brillspay.utils import get_or_create_cart
 
 User = get_user_model()
 
-payment_logger = logging.getLogger("system")
+logger = logging.getLogger("system")
 
 @login_required
 def select_ward(request):
@@ -48,25 +48,38 @@ def select_ward(request):
     })
 
 
+# def serialize_cart(cart):
+#     return {
+#         "total_items": cart.total_items,
+#         "total_quantity": cart.total_quantity,
+#         "subtotal": float(cart.subtotal),
+#         "items": [
+#             {
+#                 "id": item.id,
+#                 "product": item.product.name,
+#                 "price": float(item.product.price),
+#                 "quantity": item.quantity,
+#                 "image": item.product.image.url if item.product.image else "",
+#             }
+#             for item in cart.items.select_related("product")
+#         ]
+#     }
+
+
+# views.py
 
 @login_required
 def product_list(request):
-    """
-    Product list filtered by ward's class.
-    """
     ward_id = request.GET.get("ward")
     ward = get_object_or_404(User, id=ward_id, role="STUDENT")
-
     cart = get_or_create_cart(request.user, ward)
 
     products = Product.objects.filter(
-        SchoolClass=ward.student_class,  
+        category__class_name=ward.student_class,
         is_active=True
     )
 
-    cart_product_ids = set(
-        cart.items.values_list("product_id", flat=True)
-    )
+    cart_product_ids = set(cart.items.values_list("product_id", flat=True))
 
     return render(request, "brillspay/product_list.html", {
         "products": products,
@@ -76,119 +89,144 @@ def product_list(request):
     })
 
 
+def get_cart(user, ward_id):
+    cart, _ = Cart.objects.get_or_create(user=user, ward_id=ward_id)
+    return cart
+
 
 @login_required
-@require_POST
 def add_to_cart(request):
-    product_id = request.POST.get("product_id")
-    ward_id = request.POST.get("ward_id")
+    if request.method == "POST":
+        product_id = request.POST.get("product_id")
+        ward_id = request.POST.get("ward_id")
 
-    ward = get_object_or_404(User, id=ward_id, role="STUDENT")
-    product = get_object_or_404(Product, id=product_id, is_active=True)
+        product = get_object_or_404(Product, id=product_id)
+        cart = get_cart(request.user, ward_id)
 
-    # 🔐 HARD RULE: class must match
-    if product.SchoolClass != ward.student_class:
-        return JsonResponse({"error": "Invalid product for this ward"}, status=403)
+        item, created = CartItem.objects.get_or_create(
+            cart=cart,
+            product=product,
+            defaults={"quantity": 1}
+        )
 
-    cart = get_or_create_cart(request.user, ward)
+        if not created:
+            item.quantity += 1
+            item.save()
 
-    item, created = CartItem.objects.get_or_create(
-        cart=cart,
-        product=product,
-        defaults={"quantity": 1}
-    )
-
-    if not created:
         return JsonResponse({
-            "status": "exists",
-            "message": "Product already in cart",
-            "cart_count": cart.items.count()
+            "success": True,
+            "count": cart.items.count()
         })
-
-    # 🧾 LOG
-    BrillsPayLog.objects.create(
-        user=request.user,
-        action="ORDER_CREATED",
-        message="Product added to cart",
-        metadata={
-            "product": product.name,
-            "ward": ward.id
-        }
-    )
-
-    return JsonResponse({
-        "status": "added",
-        "cart_count": cart.items.count()
-    })
-
-
-@login_required
-def cart_view(request, ward_id):
-    ward = get_object_or_404(User, id=ward_id, role="STUDENT")
-    cart = get_or_create_cart(request.user, ward)
-
-    return render(request, "brillspay/cart.html", {
-        "cart": cart,
-        "ward": ward
-    })
-
-
-
-
-def cart_sidebar(request):
-    ward_id = request.GET.get("ward")
-    ward = get_object_or_404(User, id=ward_id, role="STUDENT")
-
-    cart = get_or_create_cart(request.user, ward)
-
-    items = cart.items.select_related("product") if cart else []
-
-    return render(request, "brillspay/partials/cart_sidebar.html", {
-        "cart": cart,
-         "ward": ward,
-        "items": items,
-        "has_items": bool(items),
-    })
-
 
 
 @login_required
 def update_cart_item(request):
-    item_id = request.POST.get("item_id")
-    action = request.POST.get("action") 
+    if request.method == "POST":
+        item_id = request.POST.get("item_id")
+        action = request.POST.get("action")
 
-    if not item_id or not action:
-        return JsonResponse({"success": False}, status=400)
+        item = get_object_or_404(CartItem, id=item_id)
 
+        if action == "inc":
+            item.quantity += 1
+        elif action == "dec":
+            item.quantity -= 1
+            if item.quantity <= 0:
+                item.delete()
+                return JsonResponse({"removed": True})
 
-    item = get_object_or_404(CartItem, id=item_id)
-
-    if action == "increase":
-        item.quantity += 1
         item.save()
+        return JsonResponse({"qty": item.quantity})
 
-    if action == "decrease":
-        item.quantity -= 1
-        if item.quantity <= 0:
-            item.delete()
-        else:
-            item.save()
 
-    if action == "remove":
+
+@login_required
+def remove_cart_item(request):
+    item_id = request.POST.get("item_id")
+
+    try:
+        item = CartItem.objects.select_related("cart").get(
+            id=item_id,
+            cart__user=request.user
+        )
+        cart = item.cart
+        product_name = item.product.name
+
         item.delete()
-    return JsonResponse({"success": True})
 
+        logger.info(
+            "CART ITEM REMOVED | user=%s | product=%s | ward=%s",
+            request.user.id,
+            product_name,
+            cart.ward_id
+        )
+
+        return JsonResponse({"status": "removed"})
+
+    except CartItem.DoesNotExist:
+        return JsonResponse({"status": "error"}, status=400)
+
+
+@login_required
+def clear_cart(request):
+    ward_id = request.POST.get("ward_id")
+
+    cart = Cart.objects.filter(
+        user=request.user,
+        ward_id=ward_id
+    ).first()
+
+    if cart:
+        cart.items.all().delete()
+
+        logger.warning(
+            "CART CLEARED | user=%s | ward=%s",
+            request.user.id,
+            ward_id
+        )
+
+    return JsonResponse({"status": "cleared"})
+
+
+
+
+@login_required
+def cart_sidebar(request):
+    ward_id = request.GET.get("ward")
+    cart = Cart.objects.filter(user=request.user, ward_id=ward_id).first()
+
+    return render(request, "brillspay/partials/cart_sidebar.html", {
+        "cart": cart
+    })
 
 
 @login_required
 def cart_count(request):
     ward_id = request.GET.get("ward")
-    ward = get_object_or_404(User, id=ward_id, role="STUDENT")
-
-    cart = get_or_create_cart(request.user, ward)
-    count = sum(item.quantity for item in cart.items.all())
-
+    cart = Cart.objects.filter(user=request.user, ward_id=ward_id).first()
+    count = cart.items.count() if cart else 0
     return JsonResponse({"count": count})
+
+
+@login_required
+def cart_count(request):
+    ward_id = request.GET.get("ward")
+
+    if not ward_id or ward_id in ("null", "undefined"):
+        return JsonResponse({"count": 0})
+
+    try:
+        cart = Cart.objects.filter(
+            user=request.user,
+            ward_id=ward_id
+        ).first()
+    except (ValueError, TypeError):
+        return JsonResponse({"count": 0})
+
+    return JsonResponse({
+        "count": cart.total_items if cart else 0
+    })
+
 
 
 
@@ -196,190 +234,138 @@ def cart_count(request):
 @require_POST
 def checkout(request):
     ward_id = request.POST.get("ward_id")
-    try:
-        ward = get_object_or_404(User, id=ward_id, role="STUDENT")
-    except ValueError:
-        logger = logging.getLogger("brillspay")
-        logger.exception("Failed to resolve ward in checkout; ward_id=%r POST=%r", ward_id, dict(request.POST))
-        messages.error(request, "Invalid ward selected. Please re-select ward and try again.")
-        return redirect("brillspay:brillspay_products")
+    logger = logging.getLogger("brillspay")
 
+    ward = get_object_or_404(User, id=ward_id, role="STUDENT")
     cart = get_or_create_cart(request.user, ward)
-    if not cart or not cart.items.exists():
+
+    if not cart.items.exists():
         messages.error(request, "Cart is empty")
         return redirect("brillspay:brillspay_products")
 
     total = sum(item.product.price * item.quantity for item in cart.items.all())
 
-    logger = logging.getLogger("brillspay")
+    with db_transaction.atomic():
+        # Always create a fresh order
+        order = Order.objects.create(
+            buyer=request.user,
+            ward=ward,
+            total_amount=total,
+            status="PENDING"
+        )
 
-    try:
-        with db_transaction.atomic():
-            order, created = Order.objects.get_or_create(
-                buyer=request.user,
-                ward=ward,
-                status="PENDING",
-                defaults={"total_amount": total}
-            )
-
-            if not created:
-                # Ensure total is current
-                if order.total_amount != total:
-                    order.total_amount = total
-                    order.save(update_fields=["total_amount"])
-            else:
-                for item in cart.items.all():
-                    OrderItem.objects.create(
-                        order=order,
-                        product_name=item.product.name,
-                        price=item.product.price,
-                        quantity=item.quantity,
-                    )
-
-            trans_defaults = {
-                "internal_reference": order.reference,
-                "user": request.user,
-                "ward": ward,
-                "amount": total,
-                "status": "initialized",
-            }
-
-            try:
-                transaction_obj, t_created = Transaction.objects.get_or_create(
-                    order=order,
-                    defaults=trans_defaults
-                )
-
-                # If model defines internal_reference, ensure it's set to order.reference
-                if hasattr(transaction_obj, "internal_reference") and not getattr(transaction_obj, "internal_reference"):
-                    transaction_obj.internal_reference = order.reference
-                    transaction_obj.save(update_fields=["internal_reference"])
-
-            except IntegrityError as e:
-                # Could happen if DB requires an internal_reference column that's not on the model
-                logger.exception("IntegrityError creating Transaction for order %s: %s", order.id, e)
-
-                # Check if internal_reference column exists in DB, insert directly as fallback
-                has_internal_column = False
-                try:
-                    with connection.cursor() as cursor:
-                        cursor.execute("SELECT internal_reference FROM brillspay_transaction LIMIT 1")
-                        has_internal_column = True
-                except Exception:
-                    has_internal_column = False
-
-                if has_internal_column:
-                    with connection.cursor() as cursor:
-                        cursor.execute("""
-                            INSERT INTO brillspay_transaction
-                            (internal_reference, gateway_reference, user_id, ward_id, order_id, amount, verified, status, payload, created_at)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-                        """, [order.reference, None, request.user.id, ward.id, str(order.id), str(total), False, "initialized", None])
-                    transaction_obj = Transaction.objects.get(order=order)
-                else:
-                    # Re-raise so outer handler catches and shows error to user
-                    raise
-
-            BrillsPayLog.objects.create(
-                user=request.user,
+        # 🔥 ALWAYS create order items
+        for item in cart.items.select_related("product"):
+            OrderItem.objects.create(
                 order=order,
-                action="ORDER_CREATED",
-                message="Order created from cart"
+                product_name=item.product.name,
+                price=item.product.price,
+                quantity=item.quantity,
             )
 
-    except IntegrityError as e:
-        logger.exception("checkout IntegrityError: %s; user=%s ward=%s order=%s", e, request.user.id, getattr(ward, "id", None), getattr(order, "id", None))
-        messages.error(request, "Unable to create order/transaction. Please contact support.")
-        return redirect("brillspay:brillspay_products")
-        messages.error(request, "Cart is empty")
-        return redirect("brillspay:brillspay_products")
+        # Create transaction
+        transaction_obj = Transaction.objects.create(
+            order=order,
+            user=request.user,
+            ward=ward,
+            amount=total,
+            status="initialized"
+        )
 
-    total = sum(item.product.price * item.quantity for item in cart.items.all())
+        # LOG
+        logger.info(
+            "CHECKOUT_CREATED | user=%s ward=%s order=%s amount=%s",
+            request.user.id,
+            ward.id,
+            order.id,
+            total
+        )
 
-    logger = logging.getLogger("brillspay")
-
-    try:
-        with db_transaction.atomic():
-            order, created = Order.objects.get_or_create(
-                buyer=request.user,
-                ward=ward,
-                status="PENDING",
-                defaults={"total_amount": total}
-            )
-
-            if not created:
-                # Ensure total is current
-                if order.total_amount != total:
-                    order.total_amount = total
-                    order.save(update_fields=["total_amount"])
-            else:
-                for item in cart.items.all():
-                    OrderItem.objects.create(
-                        order=order,
-                        product_name=item.product.name,
-                        price=item.product.price,
-                        quantity=item.quantity,
-                    )
-
-            trans_defaults = {
-                "internal_reference": order.reference,
-                "user": request.user,
-                "ward": ward,
-                "amount": total,
-                "status": "initialized",
-            }
-
-            try:
-                transaction_obj, t_created = Transaction.objects.get_or_create(
-                    order=order,
-                    defaults=trans_defaults
-                )
-
-                # If model defines internal_reference, ensure it's set to order.reference
-                if hasattr(transaction_obj, "internal_reference") and not getattr(transaction_obj, "internal_reference"):
-                    transaction_obj.internal_reference = order.reference
-                    transaction_obj.save(update_fields=["internal_reference"])
-
-            except IntegrityError as e:
-                # Could happen if DB requires an internal_reference column that's not on the model
-                logger.exception("IntegrityError creating Transaction for order %s: %s", order.id, e)
-
-                # Check if internal_reference column exists in DB, insert directly as fallback
-                has_internal_column = False
-                try:
-                    with connection.cursor() as cursor:
-                        cursor.execute("SELECT internal_reference FROM brillspay_transaction LIMIT 1")
-                        has_internal_column = True
-                except Exception:
-                    has_internal_column = False
-
-                if has_internal_column:
-                    with connection.cursor() as cursor:
-                        cursor.execute("""
-                            INSERT INTO brillspay_transaction
-                            (internal_reference, gateway_reference, user_id, ward_id, order_id, amount, verified, status, payload, created_at)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-                        """, [order.reference, None, request.user.id, ward.id, str(order.id), str(total), False, "initialized", None])
-                    transaction_obj = Transaction.objects.get(order=order)
-                else:
-                    # Re-raise so outer handler catches and shows error to user
-                    raise
-
-            BrillsPayLog.objects.create(
-                user=request.user,
-                order=order,
-                action="ORDER_CREATED",
-                message="Order created from cart"
-            )
-
-    except IntegrityError as e:
-        logger.exception("checkout IntegrityError: %s; user=%s ward=%s order=%s", e, request.user.id, getattr(ward, "id", None), getattr(order, "id", None))
-        messages.error(request, "Unable to create order/transaction. Please contact support.")
-        return redirect("brillspay:brillspay_products")
-
+        BrillsPayLog.objects.create(
+                 user=request.user,
+                 order=order,
+                 action="ORDER_CREATED",
+                 message="Order created from cart"
+             )
+        # 🔥 CLEAR CART AFTER SUCCESS
+        cart.items.all().delete()
 
     return redirect("brillspay:checkout_detail", order_id=order.id)
 
+
+# @login_required
+# @require_POST
+# def checkout(request):
+#     ward_id = request.POST.get("ward_id")
+#     logger = logging.getLogger("brillspay")
+
+#     try:
+#         ward = get_object_or_404(User, id=ward_id, role="STUDENT")
+#     except (ValueError, User.DoesNotExist):
+#         logger.exception("Failed to resolve ward in checkout; ward_id=%r POST=%r", ward_id, dict(request.POST))
+#         messages.error(request, "Invalid ward selected. Please re-select ward and try again.")
+#         return redirect("brillspay:brillspay_products")
+
+#     cart = get_or_create_cart(request.user, ward)
+#     if not cart or not cart.items.exists():
+#         messages.error(request, "Cart is empty")
+#         return redirect("brillspay:brillspay_products")
+
+#     total = sum(item.product.price * item.quantity for item in cart.items.all())
+
+#     try:
+#         with db_transaction.atomic():
+#             order, created = Order.objects.get_or_create(
+#                 buyer=request.user,
+#                 ward=ward,
+#                 status="PENDING",
+#                 defaults={"total_amount": total}
+#             )
+
+#             # Ensure server-side total correctness
+#             if order.total_amount != total:
+#                 order.total_amount = total
+#                 order.save(update_fields=["total_amount"])
+
+#             # Create order items if the order was just created
+#             if created:
+#                 for item in cart.items.all():
+#                     OrderItem.objects.create(
+#                         order=order,
+#                         product_name=item.product.name,
+#                         price=item.product.price,
+#                         quantity=item.quantity,
+#                     )
+
+#             # Create transaction (no internal_reference field — use order.reference when needed)
+#             trans_defaults = {
+#                 "user": request.user,
+#                 "ward": ward,
+#                 "amount": total,
+#                 "status": "initialized",
+#             }
+
+#             transaction_obj, t_created = Transaction.objects.get_or_create(
+#                 order=order,
+#                 defaults=trans_defaults
+#             )
+
+#             BrillsPayLog.objects.create(
+#                 user=request.user,
+#                 order=order,
+#                 action="ORDER_CREATED",
+#                 message="Order created from cart"
+#             )
+
+#     except (IntegrityError, OperationalError) as e:
+#         logger.exception("checkout DB error: %s; user=%s ward=%s", e, request.user.id, getattr(ward, "id", None))
+#         if isinstance(e, OperationalError) and 'no such column' in str(e):
+#             messages.error(request, "Database schema mismatch detected for BrillsPay. Please run `py manage.py migrate` to apply pending migrations.")
+#         else:
+#             messages.error(request, "Unable to create order/transaction. Please contact support.")
+#         return redirect("brillspay:brillspay_products")
+
+#     return redirect("brillspay:checkout_detail", order_id=order.id)
 
 
 @login_required
@@ -391,10 +377,36 @@ def checkout_detail(request, order_id):
         status="PENDING"
     )
 
+    items = order.items.all()
+
     return render(request, "brillspay/checkout.html", {
         "order": order,
-        "transaction": order.transaction
+        "items": items
     })
+
+
+
+# @login_required
+# def checkout_detail(request, order_id):
+#     order = get_object_or_404(
+#         Order,
+#         id=order_id,
+#         buyer=request.user,
+#         status="PENDING"
+#     )
+
+#     # attach images to order items when possible (best-effort lookup by product name)
+#     items = []
+#     for item in order.items.all():
+#         product = Product.objects.filter(name=item.product_name).first()
+#         image_url = product.image.url if product and getattr(product, 'image', None) else None
+#         items.append({"item": item, "image_url": image_url})
+
+#     return render(request, "brillspay/checkout.html", {
+#         "order": order,
+#         "transaction": order.transaction,
+#         "items": items
+#     })
 
 
 
@@ -422,11 +434,7 @@ def paystack_initialize(request, order_id):
         "Content-Type": "application/json",
     }
 
-    # Generate internal reference if not exists
-    if not transaction.internal_reference:
-        transaction.internal_reference = f"BP-{uuid.uuid4().hex[:10].upper()}"
-        transaction.save()
-
+    # Use order.reference as the internal reference (no separate model field)
     payload = {
         "email": request.user.email,
         "amount": int(order.total_amount * 100),
@@ -435,7 +443,7 @@ def paystack_initialize(request, order_id):
             "order_id": str(order.id),
             "ward_id": str(order.ward.id),
             "user_id": str(request.user.id),
-            "internal_reference": transaction.internal_reference,  # Add internal ref to metadata
+            "internal_reference": str(order.reference),
         }
     }
 
@@ -458,7 +466,7 @@ def paystack_initialize(request, order_id):
         
         # Update Transaction with gateway reference
         transaction.gateway_reference = paystack_ref
-        transaction.save()
+        transaction.save(update_fields=["gateway_reference"])
         
         # Create PaymentTransaction record for audit
         PaymentTransaction.objects.create(
@@ -485,7 +493,8 @@ def paystack_callback(request):
         messages.error(request, "Invalid payment reference")
         return redirect("brillspay:brillspay_products")
 
-    tx = get_object_or_404(Transaction, reference=reference)
+    # The 'reference' param from Paystack is the gateway reference; look up by gateway_reference
+    tx = get_object_or_404(Transaction, gateway_reference=reference)
 
     # Do NOT trust browser redirect for verification
     # Webhook will confirm payment later
@@ -510,276 +519,120 @@ def paystack_callback(request):
 def payment_status_check(request):
     reference = request.GET.get("ref")
     try:
-        tx = Transaction.objects.get(internal_reference=reference, user=request.user)
+        tx = Transaction.objects.get(gateway_reference=reference, user=request.user)
         return JsonResponse({
             "status": tx.status,
             "verified": tx.verified
         })
     except Transaction.DoesNotExist:
         return JsonResponse({"status": "unknown", "verified": False})
+    
 
-
+import json
 import hmac
 import hashlib
-import json
-import requests
+from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.conf import settings
 from django.db import transaction as db_transaction
-import logging
 
-logger = logging.getLogger('brillspay')
+from .models import (
+    Transaction,
+    PaymentTransaction,
+    Cart,
+    BrillsPayLog,
+)
+from exams.models import ExamAccess
+
 
 @csrf_exempt
 def paystack_webhook(request):
-    """Handle Paystack webhook notifications."""
-    
-    logger.info(f"Webhook received - Method: {request.method}")
-    
+    logger.info("Paystack webhook received")
+
     if request.method != "POST":
-        return HttpResponse("Method not allowed", status=405)
+        logger.warning(" Webhook called with non-POST")
+        return HttpResponse(status=405)
+
+    payload = request.body
+    signature = request.headers.get("x-paystack-signature")
+
+    if not signature:
+        logger.error(" Missing Paystack signature")
+        return HttpResponse(status=400)
+
+    # 🔐 Verify signature
+    computed_signature = hmac.new(
+        key=settings.PAYSTACK_SECRET_KEY.encode(),
+        msg=payload,
+        digestmod=hashlib.sha512
+    ).hexdigest()
+
+    if signature != computed_signature:
+        logger.error(" Invalid Paystack signature")
+        return HttpResponse(status=400)
+
+    data = json.loads(payload)
+    event = data.get("event")
+    reference = data.get("data", {}).get("reference")
+
+    logger.info(f"Event: {event}")
+    logger.info(f"Reference: {reference}")
+
+    if event != "charge.success":
+        logger.info(" Ignored non-success event")
+        return HttpResponse(status=200)
 
     try:
-        # Get raw body
-        body = request.body
-        
-        # Verify signature
-        signature = request.headers.get("X-Paystack-Signature")
-        if not signature:
-            logger.error("Missing X-Paystack-Signature header")
-            return HttpResponse("Missing signature", status=400)
+        transaction = Transaction.objects.select_related("order").get(
+            gateway_reference=reference
+        )
+    except Transaction.DoesNotExist:
+        logger.error(f" Transaction not found for ref {reference}")
+        return HttpResponse(status=200)
 
-        secret = settings.PAYSTACK_SECRET_KEY.encode('utf-8')
-        computed_signature = hmac.new(secret, body, hashlib.sha512).hexdigest()
-        
-        if not hmac.compare_digest(computed_signature, signature):
-            logger.error("Invalid webhook signature")
-            return HttpResponse("Invalid signature", status=400)
+    if transaction.verified:
+        logger.info("Transaction already verified")
+        return HttpResponse(status=200)
 
-        # Parse payload
-        payload = json.loads(body.decode('utf-8'))
-        event = payload.get("event")
-        data = payload.get("data", {})
-        gateway_reference = data.get("reference")  # Paystack's reference
-        
-        logger.info(f"Event: {event}, Gateway Ref: {gateway_reference}")
+    # ✅ Mark transaction successful
+    transaction.status = "success"
+    transaction.verified = True
+    transaction.payload = data
+    transaction.save(update_fields=["status", "verified", "payload"])
 
-        # Only process successful charges
-        if event != "charge.success":
-            logger.info(f"Ignoring non-success event: {event}")
-            return HttpResponse("OK", status=200)
+    # ---- STEP 5: UPDATE ORDER ----
+    order = transaction.order
+    order.status = "PAID"
+    order.save(update_fields=["status"])
 
-        if not gateway_reference:
-            logger.error("No gateway reference in payload")
-            return HttpResponse("No reference", status=200)
+    # ---- STEP 6: AUTO-UNLOCK CBT / EXAM ----
+    if order.exam:
+        ExamAccess.objects.get_or_create(
+            student=order.ward,
+            exam=order.exam,
+            defaults={"via_payment": True}
+        )
 
-        # Use database transaction for atomic operations
-        with db_transaction.atomic():
-            # Look up the Transaction
-            transaction = None
-            
-            # First try: Find by gateway_reference in Transaction model
-            try:
-                transaction = Transaction.objects.select_for_update().get(
-                    gateway_reference=gateway_reference
-                )
-                logger.info(f"Found Transaction by gateway_reference: {transaction.id}")
-            except Transaction.DoesNotExist:
-                # Second try: Find by gateway_reference in PaymentTransaction
-                try:
-                    payment_tx = PaymentTransaction.objects.select_for_update().get(
-                        gateway_reference=gateway_reference
-                    )
-                    # Link to Transaction if not already linked
-                    transaction = payment_tx.order.transaction
-                    if transaction and not transaction.gateway_reference:
-                        transaction.gateway_reference = gateway_reference
-                        transaction.save()
-                    logger.info(f"Found via PaymentTransaction: {transaction.id if transaction else 'No transaction linked'}")
-                except PaymentTransaction.DoesNotExist:
-                    # Third try: Check metadata
-                    metadata = data.get("metadata", {})
-                    internal_reference = metadata.get("internal_reference")
-                    
-                    if internal_reference:
-                        try:
-                            transaction = Transaction.objects.select_for_update().get(
-                                internal_reference=internal_reference
-                            )
-                            # Update with gateway reference
-                            transaction.gateway_reference = gateway_reference
-                            transaction.save()
-                            logger.info(f"Found via metadata (internal_reference): {transaction.id}")
-                        except Transaction.DoesNotExist:
-                            logger.error(f"Transaction not found with internal_reference: {internal_reference}")
-                            return HttpResponse("Transaction not found", status=200)
-                    else:
-                        logger.error(f"No transaction found for gateway_reference: {gateway_reference}")
-                        return HttpResponse("Transaction not found", status=200)
+    # ---- STEP 7: CLEAR CART ----
+    Cart.objects.filter(
+        user=transaction.user,
+        ward=transaction.ward
+    ).delete()
 
-            # If still no transaction, return error
-            if not transaction:
-                logger.error(f"Could not find transaction for reference: {gateway_reference}")
-                return HttpResponse("Transaction not found", status=200)
+    BrillsPayLog.objects.create(
+        user=transaction.user,
+        order=order,
+        action="PAYMENT_SUCCESS",
+        message="Paystack payment confirmed via webhook",
+        metadata={
+            "gateway_reference": reference,
+            "amount": data["data"]["amount"]
+        }
+    )
 
-            # Skip if already verified
-            if transaction.verified:
-                logger.info(f"Transaction {gateway_reference} already verified")
-                return HttpResponse("Already processed", status=200)
+    logger.info(f"Payment verified for order {order.reference}")
 
-            # Verify with Paystack API
-            verify_url = f"https://api.paystack.co/transaction/verify/{gateway_reference}"
-            headers = {
-                "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
-                "Content-Type": "application/json"
-            }
-            
-            try:
-                verify_response = requests.get(verify_url, headers=headers, timeout=10)
-                verify_response.raise_for_status()
-                verification_data = verify_response.json()
-                
-                if not verification_data.get("status"):
-                    logger.error(f"Paystack verification failed: {verification_data}")
-                    return HttpResponse("Verification failed", status=200)
-                    
-            except requests.RequestException as e:
-                logger.error(f"Paystack API error: {str(e)}")
-                return HttpResponse("API verification error", status=200)
-
-            # Update Transaction
-            transaction.status = "success"
-            transaction.verified = True
-            transaction.payload = verification_data.get("data", {})
-            transaction.save()
-            logger.info(f"Updated Transaction {transaction.id} to verified")
-
-            # Update Order
-            order = transaction.order
-            order.status = "PAID"
-            order.save()
-            logger.info(f"Updated Order {order.id} to PAID")
-
-            # Update PaymentTransaction
-            try:
-                payment_tx = PaymentTransaction.objects.get(gateway_reference=gateway_reference)
-                payment_tx.verified = True
-                payment_tx.raw_response = verification_data
-                payment_tx.save()
-                logger.info(f"Updated PaymentTransaction for {gateway_reference}")
-            except PaymentTransaction.DoesNotExist:
-                # Create PaymentTransaction if it doesn't exist
-                PaymentTransaction.objects.create(
-                    order=order,
-                    gateway_reference=gateway_reference,
-                    amount=transaction.amount,
-                    verified=True,
-                    raw_response=verification_data
-                )
-                logger.info(f"Created PaymentTransaction for {gateway_reference}")
-
-            # Clear cart
-            try:
-                CartItem.objects.filter(
-                    cart__user=transaction.user,
-                    cart__ward=transaction.ward
-                ).delete()
-                logger.info(f"Cleared cart for user {transaction.user.id}")
-            except Exception as e:
-                logger.warning(f"Failed to clear cart: {str(e)}")
-
-            # Grant exam access
-            try:
-                if hasattr(order, 'exam') and order.exam:
-                    from exams.models import ExamAccess
-                    ExamAccess.objects.get_or_create(
-                        student=order.ward,
-                        exam=order.exam,
-                        defaults={
-                            "via_payment": True,
-                            "granted_by": transaction.user,
-                            "transaction": transaction
-                        }
-                    )
-                    logger.info(f"Granted exam access for ward {order.ward.id}")
-            except Exception as e:
-                logger.warning(f"Failed to grant exam access: {str(e)}")
-
-            logger.info(f"Successfully processed payment: {gateway_reference}")
-            return HttpResponse("Payment verified successfully", status=200)
-
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in webhook: {str(e)}")
-        return HttpResponse("Invalid JSON", status=400)
-    except Exception as e:
-        logger.error(f"Unexpected error in webhook: {str(e)}", exc_info=True)
-        return HttpResponse("Processing error", status=200)
-    
-
-@staff_member_required
-def webhook_monitor(request):
-    txs = Transaction.objects.order_by("-created_at")[:20]
-    return render(request, "brillspay/webhook_monitor.html", {
-        "transactions": txs
-    })
-
-
-
-
-# @login_required
-# def checkout(request, ward_id):
-#     cart = get_object_or_404(
-#         Cart.objects.prefetch_related("items__product"),
-#         user=request.user,
-#         ward_id=ward_id
-#     )
-
-#     if not cart.items.exists():
-#         messages.error(request, "Cart is empty")
-#         return redirect("brillspay:product_list")
-
-#     # Server-side total (never trust frontend)
-#     total = sum(item.product.price * item.quantity for item in cart.items.all())
-
-#     order = Order.objects.create(
-#         buyer=request.user,
-#         ward=cart.ward,
-#         total_amount=total,
-#         status="PENDING"
-#     )
-
-#     for item in cart.items.all():
-#         OrderItem.objects.create(
-#             order=order,
-#             product_name=item.product.name,
-#             price=item.product.price,
-#             quantity=item.quantity
-#         )
-
-#     # Create pending transaction
-#     tx = Transaction.objects.create(
-#         reference=f"BP-{uuid.uuid4().hex[:10].upper()}",
-#         user=request.user,
-#         ward=cart.ward,
-#         order=order,
-#         amount=total,
-#         status="initialized",
-#         payload=None
-#     )
-
-#     # Clear cart ONLY after order is created
-#     cart.items.all().delete()
-
-#     BrillsPayLog.objects.create(
-#         user=request.user,
-#         order=order,
-#         action="ORDER_CREATED",
-#         message="Order created from cart",
-#         metadata={"transaction": tx.reference}
-#     )
-
-#     return redirect("brillspay:paystack_init", tx.reference)
+    return HttpResponse(status=200)
 
 
 
@@ -918,79 +771,6 @@ def unlock_exams_for_order(order, actor):
 
 
 
-from django.db import transaction as db_transaction
-
-@csrf_exempt
-def paystack_webhook(request):
-    paystack_signature = request.headers.get("x-paystack-signature")
-    raw_body = request.body
-
-    # 1️⃣ Verify signature
-    computed_signature = hmac.new(
-        key=settings.PAYSTACK_SECRET_KEY.encode(),
-        msg=raw_body,
-        digestmod=hashlib.sha512
-    ).hexdigest()
-
-    if paystack_signature != computed_signature:
-        return HttpResponse(status=400)
-
-    payload = json.loads(raw_body)
-
-    if payload.get("event") != "charge.success":
-        return HttpResponse(status=200)
-
-    data = payload["data"]
-    reference = data["reference"]
-
-    try:
-        tx = Transaction.objects.select_related(
-            "order", "ward"
-        ).get(reference=reference)
-    except Transaction.DoesNotExist:
-        return HttpResponse(status=200)
-
-    # 2️⃣ Idempotency guard
-    if tx.verified:
-        return HttpResponse(status=200)
-
-    with db_transaction.atomic():
-        # 3️⃣ Verify transaction
-        tx.verified = True
-        tx.status = "success"
-        tx.payload = payload
-        tx.save()
-
-        order = tx.order
-        order.status = "PAID"
-        order.save()
-
-        # 4️⃣ CLEAR CART (SAFE POINT)
-        Cart.objects.filter(
-            user=tx.user,
-            ward=tx.ward
-        ).delete()
-
-        # 5️⃣ CBT AUTO-UNLOCK
-        unlock_exams_for_order(order, tx.user)
-
-        # 6️⃣ LOG
-        BrillsPayLog.objects.create(
-            user=tx.user,
-            order=order,
-            action="PAYMENT_SUCCESS",
-            message="Payment verified via Paystack webhook",
-            metadata={
-                "reference": reference,
-                "amount": data["amount"] / 100,
-                "channel": data.get("channel"),
-            }
-        )
-
-    return HttpResponse(status=200)
-
-
-
 @staff_member_required
 def admin_transaction_dashboard(request):
     qs = Transaction.objects.select_related(
@@ -1023,276 +803,6 @@ def store_view(request):
     })
 
 
-
-# @login_required
-# def add_to_cart(request):
-#     data = json.loads(request.body)
-#     product_id = data.get("product_id")
-#     ward_id = data.get("ward_id")
-
-#     ward = get_object_or_404(User, id=ward_id, role="STUDENT")
-#     product = get_object_or_404(Product, id=product_id)
-
-#     # 🔒 HARD LOCK: class must match
-#     if product.school_class.code != ward.student_class.code:
-#         return JsonResponse({"error": "Product not allowed for this class"}, status=400)
-
-#     if product.stock_quantity <= 0:
-#         return JsonResponse({"error": "Out of stock"}, status=400)
-
-#     cart, _ = Cart.objects.get_or_create(
-#         user=request.user,
-#         ward=ward
-#     )
-
-#     item, created = CartItem.objects.get_or_create(
-#         cart=cart,
-#         product=product,
-#         defaults={"quantity": 1}
-#     )
-
-#     if not created:
-#         item.quantity += 1
-#         item.save(update_fields=["quantity"])
-
-#     return JsonResponse({"success": True})
-
-
-
-# @login_required
-# def cart_sidebar(request):
-#     ward_id = request.GET.get("ward_id")
-#     if not ward_id:
-#         return HttpResponse("")
-
-#     cart = Cart.objects.filter(
-#         user=request.user,
-#         ward_id=ward_id
-#     ).first()
-
-#     return render(request, "brillspay/cart/sidebar.html", {
-#         "cart": cart
-#     })
-
-
-
-# @login_required
-# def cart_detail(request):
-#     cart = Cart.objects.filter(
-#         user=request.user
-#     ).select_related("ward").prefetch_related(
-#         "items__product"
-#     ).first()
-
-#     return render(request, "brillspay/cart/detail.html", {
-#         "cart": cart
-#     })
-
-
-
-# @login_required
-# def update_cart_item(request):
-#     if request.method != "POST":
-#         return JsonResponse({"error": "Invalid request"}, status=400)
-
-#     item_id = request.POST.get("item_id")
-#     action = request.POST.get("action")
-
-#     item = get_object_or_404(
-#         CartItem,
-#         id=item_id,
-#         cart__user=request.user
-#     )
-
-#     if action == "increase":
-#         item.quantity += 1
-#     elif action == "decrease":
-#         item.quantity -= 1
-
-#     if item.quantity <= 0:
-#         item.delete()
-#     else:
-#         item.save()
-
-#     cart = item.cart
-#     total = sum(i.subtotal for i in cart.items.all())
-
-#     return JsonResponse({
-#         "success": True,
-#         "item_qty": item.quantity if item.pk else 0,
-#         "item_subtotal": item.subtotal if item.pk else 0,
-#         "cart_total": total
-#     })
-
-
-# @login_required
-# def remove_cart_item(request, item_id):
-#     item = get_object_or_404(
-#         CartItem,
-#         id=item_id,
-#         cart__user=request.user
-#     )
-#     item.delete()
-
-#     return redirect("brillspay:cart_view")
-
-
-# @login_required
-# def clear_cart(request):
-#     cart = get_or_create_cart(request.user)
-#     cart.items.all().delete()
-
-#     messages.success(request, "Cart cleared")
-#     return redirect("brillspay:cart_view")
-
-
-# @login_required
-# def checkout(request):
-#     cart = Cart.objects.filter(user=request.user).first()
-#     if not cart or not cart.items.exists():
-#         messages.error(request, "Cart is empty")
-#         return redirect("brillspay:cart_detail")
-
-#     order = Order.objects.create(
-#         buyer=request.user,
-#         ward=cart.ward,
-#         amount=cart.total_amount
-#     )
-
-#     for item in cart.items.all():
-#         OrderItem.objects.create(
-#             order=order,
-#             product=item.product,
-#             quantity=item.quantity,
-#             price=item.product.price
-#         )
-
-#     return redirect("brillspay:paystack_init", order_id=order.id)
-
-
-
-# @login_required
-# def paystack_init(request, order_id):
-#     order = get_object_or_404(Order, id=order_id, buyer=request.user)
-
-#     tx = PaymentTransaction.objects.create(
-#         user=request.user,
-#         order=order,
-#         amount=order.amount,
-#         reference=uuid.uuid4().hex
-#     )
-
-#     return render(request, "brillspay/paystack.html", {
-#         "order": order,
-#         "tx": tx,
-#         "paystack_key": settings.PAYSTACK_PUBLIC_KEY
-#     })
-
-
-
-# @login_required
-# def verify_payment(request, reference):
-#     tx = get_object_or_404(PaymentTransaction, reference=reference)
-
-#     tx.paystack_status = "SUCCESS"
-#     tx.save()
-
-#     tx.order.status = "PAID"
-#     tx.order.save()
-
-#     # AUTO UNLOCK EXAM / SERVICE
-#     for item in tx.order.items.all():
-#         if item.product.exam:
-#             ExamAccess.objects.get_or_create(
-#                 student=tx.order.ward,
-#                 exam=item.product.exam,
-#                 defaults={"via_payment": True}
-#             )
-
-#     Cart.objects.filter(user=request.user).delete()
-
-#     messages.success(request, "Payment successful")
-#     return redirect("brillspay:parent_orders")
-
-
-# @login_required
-# def verify_payment(request, reference):
-#     tx = get_object_or_404(PaymentTransaction, reference=reference)
-
-#     if tx.paystack_status == "SUCCESS":
-#         return redirect("brillspay:receipt_pdf", tx.id)
-
-#     # Normally verify via Paystack API here
-#     tx.paystack_status = "SUCCESS"
-#     tx.save()
-
-#     order = tx.order
-#     order.status = "PAID"
-#     order.save()
-
-#     # Unlock services/exams
-#     for item in order.items.all():
-#         if item.product.exam:
-#             ExamAccess.objects.get_or_create(
-#                 student=order.ward,
-#                 exam=item.product.exam,
-#                 defaults={"via_payment": True}
-#             )
-
-#     Cart.objects.filter(user=request.user).delete()
-
-#     return redirect("brillspay:receipt_pdf", tx.id)
-
-
-# @csrf_exempt
-# def paystack_webhook(request):
-#     payload = request.body
-#     signature = request.headers.get("X-Paystack-Signature")
-
-#     computed_signature = hmac.new(
-#         settings.PAYSTACK_WEBHOOK_SECRET.encode(),
-#         payload,
-#         hashlib.sha512
-#     ).hexdigest()
-
-#     if signature != computed_signature:
-#         return HttpResponse(status=401)
-
-#     event = json.loads(payload)
-#     event_type = event.get("event")
-#     data = event.get("data")
-
-#     if event_type == "charge.success":
-#         reference = data.get("reference")
-
-#         try:
-#             tx = PaymentTransaction.objects.select_related("order").get(
-#                 reference=reference
-#             )
-#         except PaymentTransaction.DoesNotExist:
-#             return HttpResponse(status=200)
-
-#         if tx.paystack_status == "SUCCESS":
-#             return HttpResponse(status=200)
-
-#         tx.paystack_status = "SUCCESS"
-#         tx.raw_response = data
-#         tx.save()
-
-#         order = tx.order
-#         order.status = "PAID"
-#         order.save()
-
-#         # 🔓 UNLOCK EXAMS / SERVICES
-#         for item in order.items.all():
-#             if item.product.exam:
-#                 ExamAccess.objects.get_or_create(
-#                     student=order.ward,
-#                     exam=item.product.exam,
-#                     defaults={"via_payment": True}
-#                 )
-
-#     return HttpResponse(status=200)
 
 
 @login_required
@@ -1399,85 +909,9 @@ def payment_receipt_pdf(request, tx_id):
     return response
 
 
-
-import requests
-
-@login_required
-def payment_callback(request):
-    reference = request.GET.get("reference")
-
-    tx = Transaction.objects.get(reference=reference)
-
-    headers = {
-        "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"
-    }
-
-    res = requests.get(
-        f"https://api.paystack.co/transaction/verify/{reference}",
-        headers=headers
-    )
-
-    data = res.json()["data"]
-    tx.raw_response = data
-    tx.verified = data["status"] == "success"
-    tx.save()
-
-    if tx.verified:
-        tx.order.status = "PAID"
-        tx.order.save()
-
-        request.session.pop("cart", None)
-
-    return redirect("brillspay:payment_success")
-
-
-@csrf_exempt
-def paystack_webhook(request):
-    signature = request.headers.get("X-Paystack-Signature")
-    body = request.body
-
-    expected = hmac.new(
-        settings.PAYSTACK_SECRET_KEY.encode(),
-        body,
-        hashlib.sha512
-    ).hexdigest()
-
-    if signature != expected:
-        payment_logger.warning("INVALID WEBHOOK SIGNATURE")
-        return HttpResponse(status=400)
-
-    payload = json.loads(body)
-    event = payload.get("event")
-    data = payload.get("data", {})
-
-    if event == "charge.success":
-        reference = data["reference"]
-
-        tx = Transaction.objects.select_related(
-            "order", "order__ward", "order__exam"
-        ).get(reference=reference)
-
-        if tx.verified:
-            return HttpResponse(status=200)
-
-        tx.verified = True
-        tx.raw_response = data
-        tx.save()
-
-        order = tx.order
-        order.status = "PAID"
-        order.save()
-
-        # 🔓 AUTO UNLOCK EXAM AFTER PAYMENT
-        ExamAccess.objects.get_or_create(
-            student=order.ward,
-            exam=order.exam,
-            defaults={"via_payment": True}
-        )
-
-        payment_logger.info(f"Order {order.id} marked as PAID via webhook.")
-
-    return HttpResponse(status=200)
-
-
-
+@staff_member_required
+def webhook_monitor(request):
+    txs = Transaction.objects.order_by("-created_at")[:20]
+    return render(request, "brillspay/webhook_monitor.html", {
+        "transactions": txs
+    })

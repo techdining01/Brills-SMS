@@ -6,7 +6,8 @@
   <table class="table table-bordered table-sm">
     <thead>
       <tr>
-        <th>Reference</th>
+        <th>Order Reference</th>
+        <th>Gateway Reference</th>
         <th>Status</th>
         <th>Verified</th>
         <th>Amount</th>
@@ -16,7 +17,8 @@
     <tbody>
       {% for tx in transactions %}
       <tr class="{% if tx.verified %}table-success{% else %}table-warning{% endif %}">
-        <td>{{ tx.reference }}</td>
+        <td>{{ tx.order.reference }}</td>
+        <td>{{ tx.gateway_reference }}</td>
         <td>{{ tx.status }}</td>
         <td>{{ tx.verified }}</td>
         <td>₦{{ tx.amount }}</td>

@@ -1,61 +1,59 @@
-{% if cart.items.exists %}
+{% load static %}
+
+{% if cart and cart.items.exists %}
+<div class="p-3 flex-grow-1 overflow-auto">
   {% for item in cart.items.all %}
-    <div class="d-flex justify-content-between align-items-center mb-3">
-
-      <div>
-        <strong>{{ item.product.name }}</strong><br>
-        <small>₦{{ item.product.price }}</small>
+    <div class="d-flex gap-2 mb-3">
+      {% if item.image %}
+        <img src="{{ item.product.image.url }}"  width="60" height="60" class="rounded">
+        {% else %}
+        <img src="{% static 'images/default_product.png' %}"  width="60" height="60" class="rounded">
+      {% endif %} 
+   
+    <div class="flex-grow-1">
+        <div class="fw-semibold">{{ item.product.name }}</div>
+        <small>₦{{ item.product.price }} x {{ item.quantity }} = </small> 
+        <small>₦{{ item.subtotal }}</small>
+        <div class="d-flex align-items-center gap-2 mt-1">
+            <button class="btn btn-sm btn-light"
+                    onclick="updateQty('{{ item.id }}','dec')">−</button>
+            <span>{{ item.quantity }}</span>
+            <button class="btn btn-sm btn-light"
+                    onclick="updateQty('{{ item.id }}','inc')">+</button>
+            <button class="btn btn-sm btn-outline-danger"
+                    onclick="removeItem('{{ item.id }}')">
+                <i class="bi bi-trash"></i>
+            </button>
+          </div>
       </div>
-
-      <div class="d-flex align-items-center gap-2">
-        <button
-          class="btn btn-sm btn-outline-secondary qty-btn"
-          data-action="decrease"
-          data-item="{{ item.id }}"
-        >−</button>
-
-        <span>{{ item.quantity }}</span>
-
-        <button
-          class="btn btn-sm btn-outline-secondary qty-btn"
-          data-action="increase"
-          data-item="{{ item.id }}"
-        >+</button>
-
-        <button
-          class="btn btn-sm btn-outline-danger remove-item ms-2"
-          data-action="remove"
-          data-item="{{ item.id }}"
-        >
-          🗑 
-        </button>
-
-      </div>
-     
-    </div>
+  </div>
   {% endfor %}
 
   <hr>
-  <div class="fw-bold text-end">
-    Total: ₦{{ cart.total_amount }}
+    <button class="btn btn-outline-danger w-100 mt-2"
+            onclick="clearCart()">
+        Empty Cart
+    </button>
+
+  <hr>
+  
+    <div class="fw-bold text-end">
+      Total: ₦{{ cart.total_amount }}
+    </div>
+
   </div>
-
-{% else %}
-  <p class="text-muted text-center mt-4">
-    Cart is empty
-  </p>
-{% endif %}
-
-{% if has_items %}
-<form method="post" action="{% url 'brillspay:checkout' %}">
-  {% csrf_token %}
-  <input type="hidden" name="ward_id" value="{{ cart.ward.id }}">
-  <button type="submit" class="btn btn-primary w-100">
-    Proceed to Checkout
+  <form method="POST" action="{% url 'brillspay:checkout' %}">
+    {% csrf_token %}
+    <input type="hidden" name="ward_id" value="{{ cart.ward.id }}">
+    
+    <button type="submit" class="btn btn-primary w-100">
+      Proceed to Payment
   </button>
 </form>
-{% else %}
-<button class="btn btn-secondary w-100" disabled>
-  Proceed to Checkout
-</button>
-{% endif %}
+
+    
+  {% else %}
+  <div class="p-4 text-center text-muted">
+      Cart is empty
+  </div>
+  {% endif %}

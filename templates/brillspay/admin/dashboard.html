@@ -5,6 +5,16 @@
 {% block content %}
 <div class="container py-4">
 
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <ul class="navbar-nav me-auto">
+      <l1 nav-item><a href="{% url 'brillspay:admin_payment_list' %}" class="nav-link">Payments</l1></a>
+      <l1 nav-item><a href="{% url 'brillspay:admin_add_product' %}" class="nav-link">Products</l1></a>
+      <l1 nav-item><a href="{% url 'brillspay:admin_order_list' %}" class="nav-link">Orders</l1></a>
+      <l1 nav-item><a href="{% url 'brillspay:admin_access_list' %}" class="nav-link">Access List</l1></a>
+      <l1 nav-item><a href="{% url 'brillspay:admin_transaction_logs' %}" class="nav-link">Transactions</l1></a>
+      <l1 nav-item><a href="{% url 'brillspay:admin_analytics' %}" class="nav-link">Analytics</l1></a>
+    </ul>
+  </nav>
   <h3 class="fw-bold mb-4">BrillsPay Overview</h3>
 
   <!-- KPI CARDS -->
@@ -55,6 +65,7 @@
       <thead>
         <tr>
           <th>#</th>
+          <th>Time</th>
           <th>Parent</th>
           <th>Ward</th>
           <th>Total</th>
@@ -64,8 +75,9 @@
       <tbody>
         {% for o in recent_orders %}
         <tr>
-          <td>{{ o.id }}</td>
-          <td>{{ o.user.get_full_name }}</td>
+          <td>{{ o.reference }}</td>
+          <td>{{ o.created_at }}</td>
+          <td>{{ o.buyer.get_full_name }}</td>
           <td>{{ o.ward.get_full_name }}</td>
           <td>₦{{ o.total_amount }}</td>
           <td>{{ o.status }}</td>
@@ -78,22 +90,50 @@
   </div>
 
 </div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<canvas id="revenueChart"></canvas>
-<canvas id="monthlyChart"></canvas>
-<canvas id="classChart"></canvas>
+<div class="row mt-5">
+  <div class="col-md-6" style="height: 900px; width: 700px;">
+    <canvas id="monthlyChart"></canvas>
+  </div>
+  <div class="col-md-6" style="height: 400px; width: 500px;">
+    <canvas id="classChart"></canvas>
+  </div>
+</div>
+
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
-new Chart(document.getElementById("revenueChart"), {
+const monthlyCtx = document.getElementById("monthlyChart");
+
+new Chart(monthlyCtx, {
   type: "bar",
   data: {
-    labels: {{ labels|safe }},
+    labels: {{ monthly_labels|safe }},
     datasets: [{
-      label: "Revenue",
-      data: {{ data|safe }}
+      label: "Monthly Revenue (₦)",
+      data: {{ monthly_data|safe }},
+      backgroundColor: "#0d6efd"
+    }]
+  }
+});
+
+const classCtx = document.getElementById("classChart");
+
+new Chart(classCtx, {
+  type: "pie",
+  data: {
+    labels: {{ class_labels|safe }},
+    datasets: [{
+      data: {{ class_data|safe }},
+      backgroundColor: [
+        "#0d6efd", "#198754", "#ffc107",
+        "#dc3545", "#6f42c1"
+      ]
     }]
   }
 });
 </script>
+
 {% endblock %}

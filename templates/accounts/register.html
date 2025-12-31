@@ -2,41 +2,49 @@
 {% block title %}Register{% endblock %}
 
 {% block content %}
-<h5 class="text-center mb-3">Create Account</h5>
 
-<form method="post">
-    {% csrf_token %}
+<div class="row d-flex justify-content-center">
 
-    <div class="mb-2">
-        <input type="text" name="username" class="form-control" placeholder="Username" required>
+    <div class="col-md-6">
+
+        <h5 class="text-center mb-3">Create Account</h5>
+
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="mb-2">
+                    <input type="text" name="username" class="form-control" placeholder="Username" required>
+                </div>
+
+                <div class="mb-2">
+                    <input type="email" name="email" class="form-control" placeholder="Email" required>
+                </div>
+
+                <div class="mb-2">
+                    <select name="role" class="form-select" required>
+                        <option value="">Select Role</option>
+                        <option value="STUDENT">Student</option>
+                        <option value="PARENT">Parent</option>
+                        <option value="TEACHER">Teacher</option>
+                        <option value="ADMIN">Admin</option>
+                    </select>
+                </div>
+
+                <div class="mb-2">
+                    <input type="password" name="password1" class="form-control" placeholder="Password" required>
+                </div>
+
+                <div class="mb-3">
+                    <input type="password" name="password2" class="form-control" placeholder="Confirm Password" required>
+                </div>
+
+                <button class="btn btn-primary w-100">Register</button>
+            </form>
+
+            <div class="text-center mt-3">
+                <small>Already have an account? <a href="{% url 'accounts:login' %}">Login</a></small>
+            </div>
+        </div>
     </div>
 
-    <div class="mb-2">
-        <input type="email" name="email" class="form-control" placeholder="Email" required>
-    </div>
-
-    <div class="mb-2">
-        <select name="role" class="form-select" required>
-            <option value="">Select Role</option>
-            <option value="STUDENT">Student</option>
-            <option value="PARENT">Parent</option>
-            <option value="TEACHER">Teacher</option>
-            <option value="ADMIN">Admin</option>
-        </select>
-    </div>
-
-    <div class="mb-2">
-        <input type="password" name="password1" class="form-control" placeholder="Password" required>
-    </div>
-
-    <div class="mb-3">
-        <input type="password" name="password2" class="form-control" placeholder="Confirm Password" required>
-    </div>
-
-    <button class="btn btn-primary w-100">Register</button>
-</form>
-
-<div class="text-center mt-3">
-    <small>Already have an account? <a href="{% url 'accounts:login' %}">Login</a></small>
-</div>
 {% endblock %}

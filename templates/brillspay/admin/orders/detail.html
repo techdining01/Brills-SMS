@@ -2,15 +2,17 @@
 {% block content %}
 <div class="container py-4">
 
-<h4>Order #{{ order.id }}</h4>
-<p>Parent: {{ order.user }}</p>
-<p>Ward: {{ order.ward }}</p>
+<h4>Order #{{ order.reference }}</h4>
+<p>Parent: {{ order.buyer.get_full_name }}</p>
+<p>Ward: {{ order.ward.get_full_name }}</p>
 
 <table class="table">
-<tr><th>Product</th><th>Qty</th><th>Subtotal</th></tr>
+<tr><th>Date</th><th>Product</th><th>Price</th><th>Qty</th><th>Subtotal</th></tr>
 {% for item in order.items.all %}
 <tr>
-<td>{{ item.product.name }}</td>
+<td>{{ order.created_at}}</td>
+<td>{{ item.product_name }}</td>
+<td>{{ item.price }}</td>
 <td>{{ item.quantity }}</td>
 <td>₦{{ item.subtotal }}</td>
 </tr>

@@ -30,6 +30,9 @@
 <script>
 let remaining = {{ attempt.remaining_seconds }};
 const attemptId = {{ attempt.id }};
+const saveProgressUrl = "{% url 'exams:save_exam_progress' attempt.id %}";
+const submitExamUrl = "{% url 'exams:submit_exam' attempt.id %}";
+const csrftoken = '{{ csrf_token }}';
 
 function startTimer() {
     const timerEl = document.getElementById('timer');
@@ -50,22 +53,32 @@ function startTimer() {
 }
 
 function saveProgress() {
-    fetch("{% url 'exams:save_exam_progress' attemptId %}", {
+    fetch(saveProgressUrl, {
         method: 'POST',
-        headers: {'X-CSRFToken': '{{ csrf_token }}'},
+        headers: {'X-CSRFToken': csrftoken, 'Content-Type': 'application/x-www-form-urlencoded'},
         body: new URLSearchParams({'remaining_seconds': remaining})
-    });
+    }).catch(err => console.error('Save progress failed', err));
 }
 
+let autoSubmitting = false;
 function autoSubmit() {
-    fetch("{% url 'auto_submit_exam' attemptId %}", {
+    if (autoSubmitting) return;
+    autoSubmitting = true;
+    const form = document.getElementById('exam-form');
+    const formData = new FormData(form);
+
+    fetch(submitExamUrl, {
         method: 'POST',
-        headers: {'X-CSRFToken': '{{ csrf_token }}'}
-    }).then(()=>alert('Time is up! Exam submitted.'));
+        headers: {'X-CSRFToken': csrftoken},
+        body: formData
+    })
+    .then(()=>alert('Time is up! Exam submitted.'))
+    .catch(err => console.error('Auto-submit failed', err))
+    .finally(()=>{ autoSubmitting = false; });
 }
 
 document.getElementById('submit-exam').addEventListener('click', ()=>{
-    autoSubmit();
+    if (confirm('Submit exam now?')) autoSubmit();
 });
 
 startTimer();
