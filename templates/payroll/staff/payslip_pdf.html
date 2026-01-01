@@ -1,0 +1,11 @@
+<h2>Payslip — {{ record.payroll_period }}</h2>
+
+<p><strong>Name:</strong> {{ record.payee }}</p>
+
+<table>
+<tr><td>Gross Pay</td><td>{{ record.gross_pay }}</td></tr>
+<tr><td>Deductions</td><td>{{ record.total_deductions }}</td></tr>
+<tr><td><strong>Net Pay</strong></td><td><strong>{{ record.net_pay }}</strong></td></tr>
+</table>
+
+<p>Status: {{ record.status }}</p>

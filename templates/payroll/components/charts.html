@@ -1,0 +1,20 @@
+<canvas id="monthlyChart"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+fetch("{% url 'payroll:monthly_chart' %}")
+  .then(res => res.json())
+  .then(data => {
+    new Chart(document.getElementById('monthlyChart'), {
+      type: 'line',
+      data: {
+        labels: data.map(d => d.month),
+        datasets: [{
+          label: 'Monthly Payroll',
+          data: data.map(d => d.total),
+          borderWidth: 2
+        }]
+      }
+    })
+  })
+</script>

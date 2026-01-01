@@ -446,6 +446,19 @@ function getCookie(name) {
 
 
 document.addEventListener("DOMContentLoaded", refreshCartCount);
+
+// Swipr right on Mobile
+let touchStartX = 0;
+
+document.addEventListener("touchstart", e => {
+  touchStartX = e.touches[0].clientX;
+});
+
+document.addEventListener("touchend", e => {
+  const diff = e.changedTouches[0].clientX - touchStartX;
+  if (diff > 80) closeCart(); // swipe right
+});
+
 </script>
 
 

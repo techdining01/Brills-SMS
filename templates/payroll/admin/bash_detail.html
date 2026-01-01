@@ -1,0 +1,29 @@
+<h2>Payment Batch — {{ batch.payroll_period }}</h2>
+<p>Status: <strong>{{ batch.status }}</strong></p>
+
+<table class="table">
+  <tr>
+    <th>Staff</th>
+    <th>Amount</th>
+    <th>Bank</th>
+    <th>Status</th>
+    <th>Action</th>
+  </tr>
+
+  {% for tx in transactions %}
+  <tr>
+    <td>{{ tx.payroll_record.payee }}</td>
+    <td>{{ tx.amount }}</td>
+    <td>{{ tx.bank_name }}</td>
+    <td>{{ tx.status }}</td>
+    <td>
+      {% if tx.status == "failed" %}
+        <a href="{% url 'payroll:retry_payment' tx.id %}"
+           class="btn btn-sm btn-warning">
+           Retry
+        </a>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>

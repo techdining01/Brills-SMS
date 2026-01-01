@@ -2,6 +2,22 @@
 {% load static %}
 {% block title %}BrillsPay Admin Dashboard{% endblock %}
 
+<style>
+.back-btn {
+  border: none;
+  background: transparent;
+  font-weight: 600;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  transition: transform .15s ease;
+}
+
+.back-btn:active {
+  transform: translateX(-4px);
+}
+</style>
+
 {% block content %}
 <div class="container py-4">
 
@@ -16,6 +32,11 @@
     </ul>
   </nav>
   <h3 class="fw-bold mb-4">BrillsPay Overview</h3>
+
+  <button class="back-btn" onclick="safeBack()">
+  ← Back
+  </button>
+
 
   <!-- KPI CARDS -->
   <div class="row g-4 mb-4">
@@ -105,6 +126,13 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
+  
+function safeBack() {
+  if (history.length > 1) history.back();
+  else window.location.href = "/";
+}
+
+
 const monthlyCtx = document.getElementById("monthlyChart");
 
 new Chart(monthlyCtx, {

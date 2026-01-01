@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="card shadow p-3">
+    <h5>Apply for Leave</h5>
+
+    <form id="leaveForm">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button class="btn btn-primary w-100">Submit</button>
+    </form>
+  </div>
+
+  <div class="mt-4">
+    <h6>My Leave History</h6>
+    <div class="table-responsive">
+      <table class="table table-sm">
+        {% for l in leaves %}
+        <tr>
+          <td>{{ l.leave_type }}</td>
+          <td>{{ l.start_date }} → {{ l.end_date }}</td>
+          <td>
+            <span class="badge bg-{% if l.status == 'approved' %}success{% elif l.status == 'rejected' %}danger{% else %}warning{% endif %}">
+              {{ l.status }}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.getElementById("leaveForm").addEventListener("submit", e => {
+  e.preventDefault();
+  fetch("", {
+    method: "POST",
+    headers: {"X-Requested-With": "XMLHttpRequest"},
+    body: new FormData(e.target)
+  })
+  .then(r => r.json())
+  .then(data => {
+    if(data.ok){
+      Swal.fire({
+        icon: "success",
+        title: "Leave Submitted",
+        showConfirmButton: false,
+        timer: 1600
+      }).then(() => location.reload())
+    } else {
+      Swal.fire("Error", "Please check your input", "error")
+    }
+  })
+})
+</script>
+{% endblock %}

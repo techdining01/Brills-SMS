@@ -1,0 +1,22 @@
+<h2>Payroll Dashboard</h2>
+
+<canvas id="monthlyPayrollChart" height="120"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+fetch("{% url 'payroll:monthly_payroll_chart' %}")
+  .then(res => res.json())
+  .then(data => {
+    new Chart(document.getElementById("monthlyPayrollChart"), {
+      type: "line",
+      data: {
+        labels: data.map(d => d.month),
+        datasets: [{
+          label: "Total Salary Paid",
+          data: data.map(d => d.total),
+          tension: 0.3
+        }]
+      }
+    });
+  });
+</script>
