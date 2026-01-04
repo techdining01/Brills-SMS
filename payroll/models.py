@@ -110,7 +110,6 @@ class PayrollPeriod(models.Model):
         return f"{self.month}/{self.year}"
 
 
-
 class PayrollRecord(models.Model):
     STATUS = (
         ("pending", "Pending"),
@@ -320,3 +319,29 @@ class AuditLog(models.Model):
             raise ValueError("Audit logs are immutable")
         super().save(*args, **kwargs)
 
+
+class PayrollLineItem(models.Model):
+    LINE_TYPES = (
+        ("earning", "Earning"),
+        ("deduction", "Deduction"),
+    )
+
+    payroll_record = models.ForeignKey(
+        PayrollRecord,
+        on_delete=models.CASCADE,
+        related_name="line_items"
+    )
+
+    component = models.ForeignKey(
+        SalaryComponent,
+        on_delete=models.PROTECT
+    )
+
+    line_type = models.CharField(max_length=20, choices=LINE_TYPES)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.component.name} - {self.amount}"

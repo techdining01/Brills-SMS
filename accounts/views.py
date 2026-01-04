@@ -134,14 +134,14 @@ def dashboard_redirect(request):
 
     if user.role == "STUDENT":
         return redirect("exams:student_dashboard")
-    elif user.role == "TEACHER":
+    if user.role == "TEACHER":
         return redirect("exams:teacher_dashboard")
-    elif user.role == "ADMIN":
+    if user.role == "ADMIN":
         return redirect("admin_mega_dashboard")
-    elif user.role == 'PARENT':
-        return redirect('pickups:parent_dashboard')
+    if user.role == 'PARENT':
+        return redirect('pickup:parent_dashboard')
    
-    return redirect("accounts:login")
+    # return redirect("accounts:login")
 
 
 # @login_required
@@ -160,13 +160,13 @@ def post_login_router(request):
         return redirect('exams:teacher_dashboard')
 
     if user.role == 'PARENT':
-        return redirect('brillspay:parent_dashboard')
+        return redirect('pickups:parent_dashboard')
 
     if user.role == 'ADMIN':
         return redirect('/admin/')
 
-    logout(request)
-    return redirect('accounts:login')
+    # logout(request)
+    # return redirect('accounts:login')
 
 
 @login_required

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load humanize %}
 {% block title %}BrillsPay Admin Dashboard{% endblock %}
 
 <style>
@@ -31,12 +32,14 @@
       <l1 nav-item><a href="{% url 'brillspay:admin_analytics' %}" class="nav-link">Analytics</l1></a>
     </ul>
   </nav>
-  <h3 class="fw-bold mb-4">BrillsPay Overview</h3>
-
-  <button class="back-btn" onclick="safeBack()">
-  ← Back
-  </button>
-
+  <div class="d-flex justify-content-between aligh-item-center">
+      <h3 class="fw-bold mb-4">BrillsPay Overview</h3>
+      <button class="back-btn btn btn-outline-primary" onclick="safeBack()">
+          ← Back
+      </button>
+    </div>
+ 
+<br>
 
   <!-- KPI CARDS -->
   <div class="row g-4 mb-4">
@@ -114,10 +117,10 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <div class="row mt-5">
-  <div class="col-md-6" style="height: 900px; width: 700px;">
+  <div class="col-md-6" style="height: 800px; width: 600px;">
     <canvas id="monthlyChart"></canvas>
   </div>
-  <div class="col-md-6" style="height: 400px; width: 500px;">
+  <div class="col-md-6" style="height: 300px; width: 400px;">
     <canvas id="classChart"></canvas>
   </div>
 </div>

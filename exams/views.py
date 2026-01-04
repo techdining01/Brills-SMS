@@ -61,10 +61,6 @@ from django.shortcuts import render, get_object_or_404, redirect
 from .models import Exam, ExamAttempt, ExamAccess
 from django.db.models import Sum
 from django.http import HttpResponseForbidden
-
-
-
-
 from brillspay.models import PaymentTransaction, Order
 from exams.models import Exam, ExamAttempt
 from accounts.models import User
@@ -95,23 +91,24 @@ def teacher_required(user):
 
 
 def cbt_exam(request):
-    return render(request, 'exams/home.html')
+    return render(request, 'exams/cbt_home.html')
 
 @login_required
 @user_passes_test(teacher_required)
 def create_exam(request):
     classes = SchoolClass.objects.all()
     if request.method == 'POST':
-        Exam.objects.create(
+        exam = Exam.objects.create(
             title=request.POST['title'],
             school_class_id=request.POST['school_class'],
             duration=request.POST['duration'],
             start_time=request.POST['start_time'],
             end_time=request.POST['end_time'],
             created_by=request.user,
-            is_published=False  # 🔒 FORCE DRAFT
+            is_published=False 
         )
-        return redirect('exams:teacher_exam_list')
+        messages.success(request, "Exam created. Now add questions.")
+        return redirect('exams:question_list', exam_id=exam.id)
 
     return render(request, 'exams/teacher/create_exam.html', { 'classes': classes})
 
@@ -413,7 +410,7 @@ def student_dashboard(request):
         .order_by('-total')[:10]
     )
 
-    return render(request, "exams/student_dashboard.html", {
+    return render(request, "exams/student/student_dashboard.html", {
         "available_exams": available_exams,
         "active_attempts": active_attempts,
         "past_attempts": past_attempts,
@@ -1343,9 +1340,9 @@ def approve_retake(request, retake_id):
 @login_required
 def teacher_grading_dashboard(request):
     user = request.user
-    if user.role != 'STAFF':
+    if user.role != 'TEACHER':
         messages.error(request, "Access denied.")
-        return redirect('exams:home')
+        return redirect('exams:exams')
 
     # Fetch all subjective answers for exams created by this teacher
     answers = StudentAnswer.objects.filter(
@@ -1366,7 +1363,7 @@ def save_subjective_mark(request, answer_id):
     user = request.user
     answer = get_object_or_404(StudentAnswer, id=answer_id)
 
-    if user.role != 'STAFF':
+    if user.role != 'TEACHER':
         return JsonResponse({'status':'error','msg':'Access denied'}, status=403)
 
     if request.method == 'POST':
@@ -1632,7 +1629,7 @@ def parent_dashboard(request):
 def teacher_dashboard(request):
     user = request.user
 
-    if user.role != 'STAFF':
+    if user.role != 'TEACHER':
         return redirect('accounts:login')
 
     exams = Exam.objects.filter(created_by=user).order_by('-created_at')
@@ -1640,7 +1637,7 @@ def teacher_dashboard(request):
     pending_marking = StudentAnswer.objects.filter(
         question__exam__created_by=user,
         question__type='subjective',
-        subjectivemark__isnull=True,
+        subjective_mark__isnull=True,
         attempt__is_submitted=True
     ).count()
 

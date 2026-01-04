@@ -1,3 +1,9 @@
+{% extends 'base.html' %}
+{% humanize %}
+
+{% load static %}
+
+{% block content %}
 <h2>Payment Batch — {{ batch.payroll_period }}</h2>
 <p>Status: <strong>{{ batch.status }}</strong></p>
 
@@ -27,3 +33,4 @@
   </tr>
   {% endfor %}
 </table>
+{% endblock %}

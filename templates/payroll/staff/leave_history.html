@@ -1,3 +1,9 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block content %}
+  
 <h2>My Leave History</h2>
 
 <table class="table">
@@ -18,3 +24,5 @@
 </tr>
 {% endfor %}
 </table>
+
+{% endblock %}

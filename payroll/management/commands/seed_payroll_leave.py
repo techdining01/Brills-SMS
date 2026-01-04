@@ -1,140 +1,210 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
-from django.utils import timezone
 from decimal import Decimal
-import random
+from datetime import date
 
 from payroll.models import (
-    Payee,
-    BankAccount,
-    SalaryComponent,
-    SalaryStructure,
-    SalaryStructureItem,
+    Payee, BankAccount,
+    SalaryComponent, SalaryStructure, SalaryStructureItem,
     PayeeSalaryStructure,
-    PayrollPeriod,
-    PayrollRecord,
-    PayrollAuditLog,
+    PayrollPeriod, PayrollRecord,
+    PayrollLineItem, PayslipItem,
     StaffProfile,
+    LeaveType, LeaveRequest
 )
 
 User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = "Seed payroll system with realistic data"
+    help = "Seed payroll and leave using canonical models only"
 
     def handle(self, *args, **kwargs):
-        self.stdout.write("🚀 Seeding payroll system...")
-
-        # 1️⃣ USERS
         admin, _ = User.objects.get_or_create(
             username="admin",
-            defaults={"is_staff": True, "is_superuser": True},
+            defaults={"is_staff": True, "is_superuser": True}
         )
-        admin.set_password("admin123")
-        admin.save()
 
-        # 2️⃣ PAYEES
+        # -------------------------------------------------
+        # USERS / PAYEES / STAFF
+        # -------------------------------------------------
         payees = []
-        for i in range(5):
-            payee = Payee.objects.create(
-                full_name=f"Staff {i+1}",
-                payee_type="teacher",
-                reference_code=f"STF-{i+1:03}",
+        for i in range(1, 6):
+            user, _ = User.objects.get_or_create(
+                username=f"staff{i}",
+                defaults={"is_staff": False}
+            )
+
+            payee, _ = Payee.objects.get_or_create(
+                reference_code=f"PAYEE{i:03}",
+                defaults={
+                    "user": user,
+                    "full_name": f"Staff Member {i}",
+                    "payee_type": "teacher" if i <= 3 else "non_teacher",
+                }
             )
             payees.append(payee)
 
-        # 3️⃣ BANK ACCOUNTS
-        for payee in payees:
-            BankAccount.objects.create(
+            StaffProfile.objects.get_or_create(
                 payee=payee,
-                bank_name="GTBank",
-                account_number=f"01234567{random.randint(10,99)}",
-                account_name=payee.full_name,
-                is_primary=True,
+                defaults={
+                    "phone_number": f"080000000{i}",
+                    "address": "Test Address",
+                    "date_of_employment": date(2022, 1, 1),
+                    "is_confirmed": True,
+                }
             )
 
-        # 4️⃣ STAFF PROFILES
-        for payee in payees:
-            StaffProfile.objects.create(
+            BankAccount.objects.get_or_create(
                 payee=payee,
-                phone_number="08012345678",
-                address="School Quarters",
-                date_of_employment=timezone.now().date(),
-                is_confirmed=True,
+                account_number=f"01234567{i}",
+                defaults={
+                    "bank_name": "Access Bank",
+                    "account_name": payee.full_name,
+                    "is_primary": True,
+                }
             )
 
-        # 5️⃣ SALARY COMPONENTS
-        basic = SalaryComponent.objects.create(
-            name="Basic Salary", component_type="earning"
-        )
-        housing = SalaryComponent.objects.create(
-            name="Housing Allowance", component_type="earning"
-        )
-        tax = SalaryComponent.objects.create(
-            name="PAYE Tax", component_type="deduction", is_taxable=True
-        )
+        # -------------------------------------------------
+        # SALARY COMPONENTS
+        # -------------------------------------------------
+        components = {
+            "Basic Salary": ("earning", False),
+            "Tax": ("deduction", True),
+            "Pension": ("deduction", False),
+            "Bonus": ("earning", False),
+        }
 
-        # 6️⃣ SALARY STRUCTURE
-        structure = SalaryStructure.objects.create(
-            name="Teacher Standard",
+        component_objs = {}
+        for name, (ctype, taxable) in components.items():
+            component_objs[name], _ = SalaryComponent.objects.get_or_create(
+                name=name,
+                defaults={
+                    "component_type": ctype,
+                    "is_taxable": taxable,
+                }
+            )
+
+        # -------------------------------------------------
+        # SALARY STRUCTURE
+        # -------------------------------------------------
+        structure, _ = SalaryStructure.objects.get_or_create(
+            name="Teacher Default Structure",
             payee_type="teacher",
-            created_by=admin,
+            defaults={"created_by": admin},
         )
 
-        # 7️⃣ STRUCTURE ITEMS
-        SalaryStructureItem.objects.create(
+        SalaryStructureItem.objects.get_or_create(
             salary_structure=structure,
-            component=basic,
-            amount=Decimal("120000"),
-        )
-        SalaryStructureItem.objects.create(
-            salary_structure=structure,
-            component=housing,
-            amount=Decimal("30000"),
-        )
-        SalaryStructureItem.objects.create(
-            salary_structure=structure,
-            component=tax,
-            percentage=Decimal("10.00"),
+            component=component_objs["Basic Salary"],
+            defaults={"amount": Decimal("120000")},
         )
 
-        # 8️⃣ ASSIGN STRUCTURE
+        SalaryStructureItem.objects.get_or_create(
+            salary_structure=structure,
+            component=component_objs["Tax"],
+            defaults={"percentage": Decimal("10")},
+        )
+
+        SalaryStructureItem.objects.get_or_create(
+            salary_structure=structure,
+            component=component_objs["Pension"],
+            defaults={"percentage": Decimal("8")},
+        )
+
         for payee in payees:
-            PayeeSalaryStructure.objects.create(
+            PayeeSalaryStructure.objects.get_or_create(
                 payee=payee,
-                salary_structure=structure,
-                assigned_by=admin,
+                defaults={
+                    "salary_structure": structure,
+                    "assigned_by": admin,
+                }
             )
 
-        # 9️⃣ PAYROLL PERIOD
-        period = PayrollPeriod.objects.create(
-            month=1,
+        # -------------------------------------------------
+        # PAYROLL PERIOD
+        # -------------------------------------------------
+        period, _ = PayrollPeriod.objects.get_or_create(
+            month=8,
             year=2025,
-            status="draft",
         )
 
-        # 🔟 PAYROLL RECORDS
+        # -------------------------------------------------
+        # PAYROLL RECORDS + LINE ITEMS
+        # -------------------------------------------------
         for payee in payees:
-            gross = Decimal("150000")
-            deductions = Decimal("15000")
+            gross = Decimal("120000")
+            tax = gross * Decimal("0.10")
+            pension = gross * Decimal("0.08")
+            deductions = tax + pension
             net = gross - deductions
 
-            PayrollRecord.objects.create(
+            record, _ = PayrollRecord.objects.get_or_create(
                 payee=payee,
                 payroll_period=period,
-                gross_pay=gross,
-                total_deductions=deductions,
-                net_pay=net,
-                generated_by=admin,
-                status="pending",
+                defaults={
+                    "gross_pay": gross,
+                    "total_deductions": deductions,
+                    "net_pay": net,
+                    "generated_by": admin,
+                }
             )
 
-        # 1️⃣1️⃣ AUDIT LOG
-        PayrollAuditLog.objects.create(
-            action="Seeded payroll system",
-            performed_by=admin,
-            metadata={"period": str(period)},
+            PayrollLineItem.objects.get_or_create(
+                payroll_record=record,
+                component=component_objs["Basic Salary"],
+                line_type="earning",
+                amount=gross,
+            )
+
+            PayrollLineItem.objects.get_or_create(
+                payroll_record=record,
+                component=component_objs["Tax"],
+                line_type="deduction",
+                amount=tax,
+            )
+
+            PayrollLineItem.objects.get_or_create(
+                payroll_record=record,
+                component=component_objs["Pension"],
+                line_type="deduction",
+                amount=pension,
+            )
+
+            PayslipItem.objects.get_or_create(
+                payroll_record=record,
+                component_name="Basic Salary",
+                component_type="earning",
+                calculation_type="fixed",
+                value=gross,
+            )
+
+        # -------------------------------------------------
+        # LEAVE TYPES & REQUESTS
+        # -------------------------------------------------
+        annual, _ = LeaveType.objects.get_or_create(
+            name="Annual Leave",
+            defaults={"is_paid": True, "default_days": 14},
         )
 
-        self.stdout.write(self.style.SUCCESS("✅ Payroll seeding completed successfully"))
+        unpaid, _ = LeaveType.objects.get_or_create(
+            name="Unpaid Leave",
+            defaults={"is_paid": False, "default_days": 0},
+        )
+
+        for payee in payees:
+            staff = payee.staffprofile
+
+            LeaveRequest.objects.get_or_create(
+                staff=staff,
+                leave_type=unpaid,
+                start_date=date(2025, 8, 10),
+                end_date=date(2025, 8, 12),
+                defaults={
+                    "reason": "Personal",
+                    "status": "approved",
+                    "approved_by": admin,
+                }
+            )
+
+        self.stdout.write(self.style.SUCCESS("✅ Payroll + Leave seeded correctly"))

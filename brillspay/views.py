@@ -48,25 +48,6 @@ def select_ward(request):
     })
 
 
-# def serialize_cart(cart):
-#     return {
-#         "total_items": cart.total_items,
-#         "total_quantity": cart.total_quantity,
-#         "subtotal": float(cart.subtotal),
-#         "items": [
-#             {
-#                 "id": item.id,
-#                 "product": item.product.name,
-#                 "price": float(item.product.price),
-#                 "quantity": item.quantity,
-#                 "image": item.product.image.url if item.product.image else "",
-#             }
-#             for item in cart.items.select_related("product")
-#         ]
-#     }
-
-
-# views.py
 
 @login_required
 def product_list(request):
@@ -226,7 +207,6 @@ def cart_count(request):
     return JsonResponse({
         "count": cart.total_items if cart else 0
     })
-
 
 
 

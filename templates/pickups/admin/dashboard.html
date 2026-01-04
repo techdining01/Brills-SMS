@@ -130,23 +130,23 @@
                         <td>
                             <div class="btn-group btn-group-sm">
 
-                                <a href="{% url 'pickups:pickup_scan' %}"
+                                <a href="{% url 'pickup:pickup_scan' %}"
                                 class="btn btn-outline-success">
                                 Verify
                                 </a>
 
-                                <a href="{% url 'pickups:pickup_audit_log_pdf' %}"
+                                <a href="{% url 'pickup:pickup_audit_log_pdf' %}"
                                 class="btn btn-outline-primary">
                                 Logs
                                 </a>
 
-                                <a href="{% url 'pickups:daily_pickup_report_pdf' %}?date={{ pickup.created_at|date:'d-m-Y' }}"
+                                <a href="{% url 'pickup:daily_pickup_report_pdf' %}?date={{ pickup.created_at|date:'d-m-Y' }}"
                                 class="btn btn-outline-secondary">
                                 Daily
                                 </a>
 
                                 {% if not pickup.is_used %}
-                                <a href="{% url 'pickups:force_expire_pickup' pickup.id %}"
+                                <a href="{% url 'pickup:force_expire_pickup' pickup.id %}"
                                 class="btn btn-outline-danger">
                                 Expire
                                 </a>
@@ -174,7 +174,7 @@
 
     {% if pickups.has_previous %}
       <li class="page-item">
-        <a class="page-link" href="?page={{ pickups.previous_page_number }}">Prev</a>
+        <a class="page-link" href="?page={{ pickup.previous_page_number }}">Prev</a>
       </li>
     {% endif %}
 
@@ -192,7 +192,7 @@
 
     {% if pickups.has_next %}
       <li class="page-item">
-        <a class="page-link" href="?page={{ pickups.next_page_number }}">Next</a>
+        <a class="page-link" href="?page={{ pickup.next_page_number }}">Next</a>
       </li>
     {% endif %}
 

@@ -6,6 +6,7 @@ app_name = 'exams'
 urlpatterns = [
    
     # exams/urls.py
+    path('', views.cbt_exam, name='cbt'),
     path('student/exams/', views.exam_list, name='exam_list'),
     path('student/exams/<int:exam_id>/start/', views.start_exam, name='start_exam'),
     path('student/exams/<int:attempt_id>/resume/', views.resume_exam, name='resume_exam'),

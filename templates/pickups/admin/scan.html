@@ -75,7 +75,7 @@
 
 <script>
   function buildVerifyUrl(code) {
-    return "{% url 'pickups:verify_pickup_detail' 'CODE' %}".replace("CODE", code);
+    return "{% url 'pickup:verify_pickup_detail' 'CODE' %}".replace("CODE", code);
   }
 
   function startScanner() {
@@ -117,7 +117,7 @@ function startScanner() {
       text => {
         const code = text.replace("PICKUP:", "");
         window.location.href =
-          "{% url 'pickups:verify_pickup_detail' 'REFEREnce' %}".replace("REFEREnce", reference);
+          "{% url 'pickup:verify_pickup_detail' 'REFEREnce' %}".replace("REFEREnce", reference);
       }
     );
   }).catch(() => {

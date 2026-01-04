@@ -21,10 +21,11 @@ def is_admin(user):
 def landing_page(request):
     if request.user.is_authenticated:
         return redirect('accounts:dashboard_redirect')
-    return render(request, 'exams/landing_page.html')
+    return render(request, 'exams/landing.html')
 
 
-
+def about_page(request):
+    return render(request, 'exams/about.html')
 
 @login_required(login_url='accounts:login')
 @user_passes_test(is_admin)

@@ -1,3 +1,10 @@
+{% extends 'base.html' %}
+
+{% load static %}
+{% load humanize %}
+
+{% block content %}
+  
 <h2>Payslip — {{ record.payroll_period }}</h2>
 
 <p><strong>Name:</strong> {{ record.payee }}</p>
@@ -9,3 +16,5 @@
 </table>
 
 <p>Status: {{ record.status }}</p>
+
+{% endblock %}

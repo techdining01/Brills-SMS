@@ -1,3 +1,121 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <h4 class="mb-3">Payroll Control Panel</h4>
+
+  <!-- Stats -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <small>Total Payees</small>
+          <h5>{{ stats.payees }}</h5>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <small>Pending Payrolls</small>
+          <h5 class="text-warning">{{ stats.pending }}</h5>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <small>Approved Payrolls</small>
+          <h5 class="text-success">{{ stats.approved }}</h5>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <small>Total Net Pay</small>
+          <h5>₦{{ stats.total_net|intcomma }}</h5>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Payroll -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-white">
+      <strong>Recent Payroll Records</strong>
+    </div>
+
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Staff</th>
+          <th>Period</th>
+          <th>Net Pay</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in recent_payrolls %}
+        <tr>
+          <td>{{ p.payee.full_name }}</td>
+          <td>{{ p.payroll_period }}</td>
+          <td>₦{{ p.net_pay|intcomma }}</td>
+          <td>
+            {% if p.status == "approved" %}
+              <span class="badge bg-success">Approved</span>
+            {% else %}
+              <span class="badge bg-warning">Pending</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4" class="text-center text-muted py-3">
+            No records yet
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Payroll periods -->
+  <div class="card shadow-sm">
+    <div class="card-header bg-white">
+      <strong>Payroll Periods</strong>
+    </div>
+
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>Period</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in periods %}
+        <tr>
+          <td>{{ p }}</td>
+          <td>
+            <span class="badge bg-info">
+              {{ p.status|title }}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<hr>
 <h2>Payroll Dashboard</h2>
 
 <canvas id="monthlyPayrollChart" height="120"></canvas>
@@ -20,3 +138,4 @@ fetch("{% url 'payroll:monthly_payroll_chart' %}")
     });
   });
 </script>
+{% endblock %}

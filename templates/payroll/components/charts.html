@@ -1,3 +1,10 @@
+{% extends 'base.html' %}
+
+{% load static %}
+{% load humanize %}
+{% block content %}
+  
+
 <canvas id="monthlyChart"></canvas>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -18,3 +25,4 @@ fetch("{% url 'payroll:monthly_chart' %}")
     })
   })
 </script>
+{% endblock %}

@@ -1,40 +1,30 @@
-from django.shortcuts import render
-from django.contrib.auth.decorators import login_required
-from payroll.models import PayrollRecord, StaffProfile
-from payroll.services.payslip_pdf import generate_payslip_pdf
+from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse
 from django.core.mail import send_mail
-from payroll.models import Payroll
 from django.http import JsonResponse
 from django.db.models import Sum
 from django.contrib.auth.decorators import login_required
-from payroll.models import PaymentTransaction
-from payroll.models import PayrollRecord
+from payroll.models import PaymentTransaction, PayrollRecord, Payee, StaffProfile, BankAccount, LeaveRequest, AuditLog, PaymentBatch, PayrollAuditLog, PayrollLineItem
+from payroll.forms import LeaveRequestForm
+from payroll.services.audit import log_action
+from django.contrib.auth import get_user_model
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.core.exceptions import PermissionDenied
+from payroll.models import PayrollPeriod
+from payroll.services.payroll_generation import bulk_generate_payroll
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from django.utils import timezone
 
 
 
-@login_required
-def staff_salary_history(request):
-    records = PayrollRecord.objects.filter(
-        payee__user=request.user
-    ).order_by("-payroll_period__month")
-
-    return render(request, "payroll/staff/salary_history.html", {
-        "records": records
-    })
+User = get_user_model()
 
 
-
-@login_required
-def staff_download_payslip(request, pk):
-    record = PayrollRecord.objects.get(
-        id=pk, payee__linked_user=request.user
-    )
-    pdf = generate_payslip_pdf(record)
-
-    response = HttpResponse(pdf, content_type="application/pdf")
-    response["Content-Disposition"] = "attachment; filename=payslip.pdf"
-    return response
+def is_staff(user):
+    return User.role in ['ADMIN', 'TEACHER']
 
 
 def notify_salary_paid(payroll_record):
@@ -57,18 +47,32 @@ def send_sms(phone, message):
 
 
 @login_required
-def staff_dashboard(request):
-    profile = StaffProfile.objects.get(
-        payee__linked_user=request.user
-    )
-    payrolls = PayrollRecord.objects.filter(
-        payee=profile.payee
-    ).order_by("-created_at")[:6]
+def staff_payroll_dashboard(request):
+    # Get payee linked to logged-in user
+    payee = get_object_or_404(Payee, user=request.user)
 
-    return render(request, "staff/dashboard.html", {
-        "profile": profile,
-        "payrolls": payrolls,
-    })
+    payrolls = (
+        PayrollRecord.objects
+        .filter(payee=payee)
+        .select_related("payroll_period")
+        .order_by("-payroll_period__year", "-payroll_period__month")
+    )
+
+    total_paid = payrolls.filter(
+        paymenttransaction__status="SUCCESS"
+    ).aggregate(total=Sum("net_pay"))["total"] or 0
+
+    latest_payroll = payrolls.first()
+
+    context = {
+        "payee": payee,
+        "payrolls": payrolls[:6],
+        "total_paid": total_paid,
+        "latest": latest_payroll,
+    }
+
+    return render(request, "payroll/staff/dashboard.html", context)
+
 
 
 
@@ -93,44 +97,6 @@ def notify_leave_status(leave):
 
 
 
-@login_required
-def monthly_payroll_chart(request):
-    data = (
-        PaymentTransaction.objects
-        .filter(status=PaymentTransaction.Status.SUCCESS)
-        .values('payroll_record__payroll_period__month')
-        .annotate(total=Sum('amount'))
-        .order_by('payroll_record__payroll_period__month')
-    )
-
-    return JsonResponse([
-        {
-            "month": item["payroll_record__payroll_period__month"].strftime("%Y-%m"),
-            "total": float(item["total"]),
-        }
-        for item in data
-    ], safe=False)
-
-
-
-@login_required
-def monthly_deductions_chart(request):
-    data = (
-        PayrollRecord.objects
-        .filter(paymenttransaction__status='SUCCESS')
-        .values('payroll_period__month')
-        .annotate(total=Sum('total_deductions'))
-        .order_by('payroll_period__month')
-    )
-
-    return JsonResponse([
-        {
-            "month": d["payroll_period__month"].strftime("%Y-%m"),
-            "total": float(d["total"]),
-        }
-        for d in data
-    ], safe=False)
-
 
 
 @login_required
@@ -145,9 +111,6 @@ def staff_salary_history(request):
 
 
 
-from django.shortcuts import render, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from payroll.models import PaymentBatch
 
 @login_required
 def payment_batch_detail(request, batch_id):
@@ -163,39 +126,6 @@ def payment_batch_detail(request, batch_id):
     })
 
 
-# payroll/views/payslip.py
-from django.shortcuts import get_object_or_404
-from django.template.loader import render_to_string
-from weasyprint import HTML
-from django.http import HttpResponse
-from payroll.models import PayrollRecord
-from django.contrib.auth.decorators import login_required
-
-@login_required
-def payslip_pdf(request, record_id):
-    record = get_object_or_404(
-        PayrollRecord,
-        id=record_id,
-        payee__user=request.user
-    )
-
-    html = render_to_string("payroll/staff/payslip_pdf.html", {
-        "record": record
-    })
-
-    response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = "inline; filename=payslip.pdf"
-
-    HTML(string=html).write_pdf(response)
-    return response
-
-
-
-# payroll/views/payments.py
-from django.shortcuts import get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
-from payroll.models import PaymentTransaction
-from payroll.services.audit import log_action
 
 @login_required
 def retry_payment(request, tx_id):
@@ -218,15 +148,7 @@ def retry_payment(request, tx_id):
     return redirect("payroll:payment_batch_detail", tx.batch.id)
 
 
-# payroll/views/staff_leave.py
-from django.shortcuts import render
-from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
-from payroll.models import LeaveRequest, AuditLog
-from payroll.forms import LeaveRequestForm
-from payroll.services.audit import log_action
 
-# payroll/views/staff_leave.py
 @login_required
 def staff_apply_leave(request):
     staff = request.user.staffprofile
@@ -256,18 +178,10 @@ def staff_apply_leave(request):
 
 @login_required
 def staff_leave_history(request):
-    leaves = LeaveRequest.objects.filter(staff=request.user).order_by("-applied_at")
+    staff = get_object_or_404(StaffProfile, id=request.user.id)
+    leaves = LeaveRequest.objects.filter(staff=staff).order_by("-applied_at")
     return render(request, "payroll/staff/ajax_leave_history.html", {"leaves": leaves})
 
-
-# payroll/views/payroll_generation.py
-from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from django.core.exceptions import PermissionDenied
-
-from payroll.models import PayrollPeriod
-from payroll.services.payroll_generation import bulk_generate_payroll
 
 
 @login_required
@@ -296,10 +210,270 @@ def generate_payroll_view(request, period_id):
             }
         )
 
+
+
+@login_required
+def staff_payslip_dashboard(request):
+    payee = get_object_or_404(Payee, user=request.user)
+
+    payrolls = (
+        PayrollRecord.objects
+        .filter(payee=payee)
+        .select_related("payroll_period")
+        .order_by("-payroll_period__year", "-payroll_period__month")
+    )
+
     return render(
         request,
-        "payroll/admin/generate_payroll_confirm.html",
+        "payroll/staff/payslip_dashboard.html",
         {
-            "period": period
+            "payrolls": payrolls,
+            "payee": payee,
         }
     )
+
+
+
+
+@login_required
+def payslip_pdf_view(request, payroll_id):
+    payroll = get_object_or_404(PayrollRecord, id=payroll_id)
+
+    # SECURITY: staff can only access their own
+    if payroll.payee.user != request.user and not request.user.is_superuser:
+        return HttpResponse("Unauthorized", status=403)
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = (
+        f'attachment; filename="Payslip_{payroll.payroll_period.month}_{payroll.payroll_period.year}.pdf"'
+    )
+
+    p = canvas.Canvas(response, pagesize=A4)
+    width, height = A4
+
+    y = height - 50
+
+    def draw(text, offset=20):
+        nonlocal y
+        p.drawString(50, y, text)
+        y -= offset
+
+    # HEADER
+    p.setFont("Helvetica-Bold", 16)
+    draw("PAYSLIP", 30)
+
+    p.setFont("Helvetica", 11)
+    draw(f"Name: {payroll.payee.full_name}")
+    draw(f"Period: {payroll.payroll_period.month}/{payroll.payroll_period.year}")
+    draw(f"Payee Type: {payroll.payee.payee_type}")
+
+    draw("-" * 80, 25)
+
+    # PAY DETAILS
+    draw(f"Gross Pay: ₦{payroll.gross_pay}")
+    draw(f"Total Deductions: ₦{payroll.total_deductions}")
+    draw(f"Net Pay: ₦{payroll.net_pay}", 30)
+
+    draw("-" * 80, 25)
+
+    draw("This is a system-generated payslip.", 30)
+
+    p.showPage()
+    p.save()
+
+    return response
+
+
+
+@login_required
+def staff_bank_account_update(request):
+    payee = get_object_or_404(Payee, user=request.user)
+
+    bank = payee.bank_accounts.filter(is_primary=True).first()
+
+    if request.method == "POST":
+        BankAccount.objects.update_or_create(
+            payee=payee,
+            is_primary=True,
+            defaults={
+                "bank_name": request.POST["bank_name"],
+                "account_number": request.POST["account_number"],
+                "account_name": request.POST["account_name"],
+            },
+        )
+        return redirect("staff_dashboard")
+
+    return render(
+        request,
+        "payroll/staff/bank_account_form.html",
+        {"bank": bank},
+    )
+
+
+@login_required
+def staff_bank_account_submit(request):
+    payee = get_object_or_404(Payee, user=request.user)
+
+    if request.method == "POST":
+        BankAccount.objects.create(
+            payee=payee,
+            bank_name=request.POST["bank_name"],
+            account_number=request.POST["account_number"],
+            account_name=request.POST["account_name"],
+            is_primary=True,
+            is_approved=False,
+        )
+        return JsonResponse({"success": True})
+
+    return render(
+        request,
+        "payroll/staff/bank_account_form.html"
+    )
+
+
+@login_required
+def approve_bank_account(request, account_id):
+    if not request.user.is_superuser:
+        return HttpResponse(status=403)
+
+    account = get_object_or_404(BankAccount, id=account_id)
+
+    account.is_approved = True
+    account.approved_by = request.user
+    account.approved_at = timezone.now()
+    account.save()
+
+    PayrollAuditLog.objects.create(
+        action="Approved bank account",
+        performed_by=request.user,
+        metadata={"account_id": account.id}
+    )
+
+    return redirect("admin_bank_accounts")
+
+
+
+@login_required
+def monthly_payroll_chart(request):
+    if not request.user.is_superuser:
+        return HttpResponse(status=403)
+
+    data = (
+        PayrollRecord.objects
+        .values("payroll_period__month", "payroll_period__year")
+        .annotate(total=Sum("net_pay"))
+        .order_by("payroll_period__year", "payroll_period__month")
+    )
+
+    return JsonResponse(list(data), safe=False)
+
+
+
+@login_required
+def monthly_deductions_chart(request):
+    if not request.user.is_superuser:
+        return JsonResponse([], safe=False)
+
+    data = (
+        PayrollRecord.objects
+        .filter(paymenttransaction__status="SUCCESS")
+        .values("payroll_period__year", "payroll_period__month")
+        .annotate(total=Sum("total_deductions"))
+        .order_by("payroll_period__year", "payroll_period__month")
+    )
+
+    return JsonResponse([
+        {
+            "month": f'{d["payroll_period__year"]}-{str(d["payroll_period__month"]).zfill(2)}',
+            "total": float(d["total"]),
+        }
+        for d in data
+    ], safe=False)
+
+
+
+@login_required
+def deduction_dashboard(request):
+    if not request.user.is_superuser:
+        return HttpResponse(status=403)
+
+    records = (
+        PayrollLineItem.objects
+        .select_related("component", "payroll_record__payroll_period")
+        .order_by(
+            "-payroll_record__payroll_period__year",
+            "-payroll_record__payroll_period__month"
+        )
+    )
+
+    return render(
+        request,
+        "payroll/admin/deduction_dashboard.html",
+        {"records": records}
+    )
+
+
+@login_required
+def deduction_breakdown_chart(request):
+    data = (
+        PayrollLineItem.objects
+        .filter(line_type="deduction")
+        .values(
+            "component__name",
+            "payroll_record__payroll_period__year",
+            "payroll_record__payroll_period__month"
+        )
+        .annotate(total=Sum("amount"))
+        .order_by(
+            "payroll_record__payroll_period__year",
+            "payroll_record__payroll_period__month"
+        )
+    )
+
+    return JsonResponse(list(data), safe=False)
+
+
+from django.contrib.admin.views.decorators import staff_member_required
+from django.db.models import Sum, Count
+from django.shortcuts import render
+from payroll.models import (
+    PayrollRecord,
+    PayrollPeriod,
+    PaymentBatch,
+    Payee
+)
+
+
+
+@login_required
+@staff_member_required
+def admin_payroll_dashboard(request):
+    stats = {
+        "payees": Payee.objects.count(),
+        "pending": PayrollRecord.objects.filter(status="pending").count(),
+        "approved": PayrollRecord.objects.filter(status="approved").count(),
+        "total_net": PayrollRecord.objects.aggregate(
+            total=Sum("net_pay")
+        )["total"] or 0,
+        "batches": PaymentBatch.objects.count(),
+    }
+
+    recent_payrolls = (
+        PayrollRecord.objects
+        .select_related("payee", "payroll_period")
+        .order_by("-created_at")[:8]
+    )
+
+    periods = PayrollPeriod.objects.order_by("-year", "-month")[:6]
+
+    return render(
+        request,
+        "payroll/admin/dashboard.html",
+        {
+            "stats": stats,
+            "recent_payrolls": recent_payrolls,
+            "periods": periods,
+        }
+    )
+
+

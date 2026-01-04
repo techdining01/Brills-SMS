@@ -101,7 +101,7 @@ def generate_pickup_code(request):
         pickup.save()
 
         messages.success(request, "Pickup code generated successfully")
-        return redirect("pickups:parent_pickup_history")
+        return redirect("pickup:parent_pickup_history")
     
 
     students = User.objects.filter(
@@ -156,7 +156,7 @@ def verify_pickup(request, reference):
         )
 
         messages.success(request, "Pickup verified successfully")
-        return redirect("pickups:verify_pickup_detail", pickup.reference[:8])
+        return redirect("pickup:verify_pickup_detail", pickup.reference[:8])
 
     return render(request, "pickups/admin/verify_pickup.html", {
         "pickup": pickup,
@@ -225,7 +225,7 @@ def pickup_scan(request):
 
         if not reference:
             messages.error(request, "Pickup reference is required")
-            return redirect("pickups:pickup_scan")
+            return redirect("pickup:pickup_scan")
 
         try:
             pickup = PickupAuthorization.objects.get(
@@ -233,10 +233,10 @@ def pickup_scan(request):
             )
         except PickupAuthorization.DoesNotExist:
             messages.error(request, "Invalid pickup reference")
-            return redirect("pickups:pickup_scan")
+            return redirect("pickup:pickup_scan")
 
         return redirect(
-            "pickups:verify_pickup_detail",
+            "pickup:verify_pickup_detail",
             reference=pickup.reference
         )
 
@@ -267,7 +267,7 @@ def force_expire_pickup(request, pickup_id):
     )
 
     messages.success(request, "Pickup force-expired successfully.")
-    return redirect("pickups:admin_dashboard")
+    return redirect("pickup:admin_dashboard")
 
 
 

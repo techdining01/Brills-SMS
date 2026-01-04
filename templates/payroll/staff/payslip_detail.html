@@ -1,3 +1,11 @@
+{% extends 'base.html' %}
+
+{% load static %}
+{% load humanize %}
+
+{% block content %}
+  
+
 <h2>Payslip — {{ payroll.month|date:"F Y" }}</h2>
 
 <table class="table">
@@ -10,3 +18,5 @@
 <a href="{% url 'payslip_pdf' payroll.id %}" class="btn btn-primary">
     Download PDF
 </a>
+
+{% endblock %}
