@@ -8,8 +8,6 @@ from .models import (
 from payroll.services.payroll_generation import bulk_generate_payroll
 
 
-
-
 class BankAccountInline(admin.TabularInline):
     model = BankAccount
     extra = 1
@@ -73,25 +71,6 @@ class PayslipItemInline(admin.TabularInline):
     )
 
 
-# @admin.register(PayrollRecord)
-# class PayrollRecordAdmin(admin.ModelAdmin):
-#     list_display = (
-#         "payee",
-#         "payroll_period",
-#         "gross_pay",
-#         "total_deductions",
-#         "net_pay",
-#         "status",
-#     )
-#     inlines = [PayslipItemInline]
-#     readonly_fields = (
-#         "payee",
-#         "payroll_period",
-#         "gross_pay",
-#         "total_deductions",
-#         "net_pay",
-#     )
-
 
 @admin.action(description="Generate payroll for selected period")
 def generate_payroll_for_period(modeladmin, request, queryset):
@@ -124,12 +103,6 @@ def generate_payroll_for_period(modeladmin, request, queryset):
         f"Failed: {len(result['failed'])}",
     )
 
-
-# @admin.register(PayrollPeriod)
-# class PayrollPeriodAdmin(admin.ModelAdmin):
-#     list_display = ("month", "year", "status")
-#     list_filter = ("status",)
-#     actions = [generate_payroll_for_period]
 
 
 import csv
@@ -166,48 +139,6 @@ def export_payroll_csv(modeladmin, request, queryset):
     return response
 
 
-# @admin.register(PayrollRecord)
-# class PayrollRecordAdmin(admin.ModelAdmin):
-#     list_display = (
-#         "payee",
-#         "payroll_period",
-#         "gross_pay",
-#         "total_deductions",
-#         "net_pay",
-#         "status",
-#     )
-#     list_filter = ("status", "payroll_period")
-#     actions = [export_payroll_csv]
-#     readonly_fields = (
-#         "payee",
-#         "payroll_period",
-#         "gross_pay",
-#         "total_deductions",
-#         "net_pay",
-#     )
-
-
-
-# @admin.register(PayrollPeriod)
-# class PayrollPeriodAdmin(admin.ModelAdmin):
-#     list_display = ("month", "year", "status")
-#     actions = ["generate_payroll"]
-
-#     def generate_payroll(self, request, queryset):
-#         for period in queryset:
-#             result = bulk_generate_payroll(
-#                 payroll_period=period,
-#                 generated_by=request.user
-#             )
-#             self.message_user(
-#                 request,
-#                 f"{period}: Created {result['created']} payroll records "
-#                 f"(skipped {result['skipped']})"
-#             )
-
-#     generate_payroll.short_description = "Bulk generate payroll"
-
-
 
 @admin.action(description="Export payment batch CSV")
 def export_payment_batch_csv(modeladmin, request, queryset):
@@ -239,6 +170,4 @@ def export_payment_batch_csv(modeladmin, request, queryset):
         ])
 
     return response
-
-
 

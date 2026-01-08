@@ -28,12 +28,15 @@ urlpatterns = [
         path("complete-profile/", views.complete_profile, name="complete_profile"),
 
 
-        # Users
-        path("users/", views.admin_users, name="users"),
+        # Usersusers
+        path("users/", views.admin_users_management, name="users"),
         path("users/approve/", views.bulk_approve_users, name="bulk_approve"),
-        path('admin/create-student/', views.create_student, name='create_student'),
         path('pending-approval/', views.pending_approval, name='pending_approval'),
         path('admin/approve-users/', views.approve_users, name='approve_users'),
         path('admin/reset-password/<int:user_id>/', views.admin_reset_password, name='admin_reset_password'),
+        path('create/admin_create_user', views.admin_create_user, name='admin_create_user'),
+       
+        #######################################################################
 
+       
     ]

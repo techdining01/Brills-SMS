@@ -1,7 +1,8 @@
 import re
 from django.urls import reverse
 import openpyxl
-from docx import Document
+# from docx import Document
+# from docxtpl import DocxTemplate
 from .models import Exam, Question, Choice
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -257,90 +258,90 @@ def upload_questions_excel(request, exam_id):
     return render(request, 'exams/teacher/upload_excel.html', {'exam': exam})
 
 
-@login_required
-@user_passes_test(teacher_required)
-def upload_questions_word(request, exam_id):
-    exam = get_object_or_404(Exam, id=exam_id, created_by=request.user)
+# @login_required
+# @user_passes_test(teacher_required)
+# def upload_questions_word(request, exam_id):
+#     exam = get_object_or_404(Exam, id=exam_id, created_by=request.user)
 
-    if request.method == 'POST':
-        file = request.FILES.get('file')
-        if not file or not file.name.endswith('.docx'):
-            messages.error(request, "Please upload a valid .docx file.")
-            return redirect('exams:question_list', exam.id)
+#     if request.method == 'POST':
+#         file = request.FILES.get('file')
+#         if not file or not file.name.endswith('.docx'):
+#             messages.error(request, "Please upload a valid .docx file.")
+#             return redirect('exams:question_list', exam.id)
 
-        doc = Document(file)
-        questions_text = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+#         doc = Document(file)
+#         questions_text = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
 
-        errors = []
-        created = 0
+#         errors = []
+#         created = 0
 
-        with transaction.atomic():
-            i = 0
-            while i < len(questions_text):
-                line = questions_text[i]
+#         with transaction.atomic():
+#             i = 0
+#             while i < len(questions_text):
+#                 line = questions_text[i]
 
-                # Match: 1. Question text [Type] [Marks: N]
-                m = re.match(r'^\d+\.\s+(.*?)\s+\[(objective|subjective)\]\s+\[Marks:\s*(\d+)\]$', line, re.I)
-                if not m:
-                    errors.append(f"Line {i+1} invalid format")
-                    i += 1
-                    continue
+#                 # Match: 1. Question text [Type] [Marks: N]
+#                 m = re.match(r'^\d+\.\s+(.*?)\s+\[(objective|subjective)\]\s+\[Marks:\s*(\d+)\]$', line, re.I)
+#                 if not m:
+#                     errors.append(f"Line {i+1} invalid format")
+#                     i += 1
+#                     continue
 
-                text, qtype, marks = m.groups()
-                qtype = qtype.lower()
-                marks = int(marks)
-                i += 1
+#                 text, qtype, marks = m.groups()
+#                 qtype = qtype.lower()
+#                 marks = int(marks)
+#                 i += 1
 
-                question = Question.objects.create(
-                    exam=exam,
-                    text=text,
-                    type=qtype,
-                    marks=marks
-                )
+#                 question = Question.objects.create(
+#                     exam=exam,
+#                     text=text,
+#                     type=qtype,
+#                     marks=marks
+#                 )
 
-                # Objective → next 4 lines = options A-D + Answer line
-                if qtype == 'objective':
-                    if i + 4 >= len(questions_text):
-                        errors.append(f"Question '{text}' incomplete options")
-                        break
+#                 # Objective → next 4 lines = options A-D + Answer line
+#                 if qtype == 'objective':
+#                     if i + 4 >= len(questions_text):
+#                         errors.append(f"Question '{text}' incomplete options")
+#                         break
 
-                    options = []
-                    for letter in ['A','B','C','D']:
-                        option_line = questions_text[i]
-                        if not option_line.startswith(letter+'.'):
-                            errors.append(f"Expected option {letter} for '{text}'")
-                            break
-                        options.append(option_line[2:].strip())
-                        i += 1
+#                     options = []
+#                     for letter in ['A','B','C','D']:
+#                         option_line = questions_text[i]
+#                         if not option_line.startswith(letter+'.'):
+#                             errors.append(f"Expected option {letter} for '{text}'")
+#                             break
+#                         options.append(option_line[2:].strip())
+#                         i += 1
 
-                    # Answer line
-                    answer_line = questions_text[i]
-                    m2 = re.match(r'^Answer:\s*([A-D])$', answer_line, re.I)
-                    if not m2:
-                        errors.append(f"Answer missing for '{text}'")
-                        i += 1
-                        continue
-                    correct = m2.group(1).upper()
-                    i += 1
+#                     # Answer line
+#                     answer_line = questions_text[i]
+#                     m2 = re.match(r'^Answer:\s*([A-D])$', answer_line, re.I)
+#                     if not m2:
+#                         errors.append(f"Answer missing for '{text}'")
+#                         i += 1
+#                         continue
+#                     correct = m2.group(1).upper()
+#                     i += 1
 
-                    # Save choices
-                    for letter, opt in zip(['A','B','C','D'], options):
-                        Choice.objects.create(
-                            question=question,
-                            text=opt,
-                            is_correct=(letter == correct)
-                        )
+#                     # Save choices
+#                     for letter, opt in zip(['A','B','C','D'], options):
+#                         Choice.objects.create(
+#                             question=question,
+#                             text=opt,
+#                             is_correct=(letter == correct)
+#                         )
 
-                created += 1
+#                 created += 1
 
-        if errors:
-            messages.warning(request, f"{created} questions uploaded, {len(errors)} errors.")
-        else:
-            messages.success(request, f"{created} questions uploaded successfully.")
+#         if errors:
+#             messages.warning(request, f"{created} questions uploaded, {len(errors)} errors.")
+#         else:
+#             messages.success(request, f"{created} questions uploaded successfully.")
 
-        return redirect('exams:question_list', exam.id)
+#         return redirect('exams:question_list', exam.id)
 
-    return render(request, 'exams/teacher/upload_word.html', {'exam': exam})
+#     return render(request, 'exams/teacher/upload_word.html', {'exam': exam})
 
 
 from django.utils import timezone

@@ -52,6 +52,8 @@ def select_ward(request):
 @login_required
 def product_list(request):
     ward_id = request.GET.get("ward")
+    if not ward_id:
+        return HttpResponse("You must have registered child/children whom you buy for, contact admin for more")
     ward = get_object_or_404(User, id=ward_id, role="STUDENT")
     cart = get_or_create_cart(request.user, ward)
 

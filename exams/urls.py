@@ -17,7 +17,7 @@ urlpatterns = [
     path('teacher/exams/<int:exam_id>/questions/', views.question_list, name='question_list'),
     path('teacher/exams/<int:exam_id>/questions/add/', views.add_question, name='add_question'),
     path('teacher/exams/<int:exam_id>/questions/upload-excel/',views.upload_questions_excel, name='upload_questions_excel'),
-    path('teacher/exams/<int:exam_id>/questions/upload-word/', views.upload_questions_word, name='upload_questions_word'),
+    # path('teacher/exams/<int:exam_id>/questions/upload-word/', views.upload_questions_word, name='upload_questions_word'),
     # Teacher subjective marking
     # path('teacher/exams/<int:exam_id>/mark/', views.subjective_marking, name='subjective_marking'),
 

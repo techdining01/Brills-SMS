@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h4>{{ period.name }}</h4>
+
+<table class="table">
+  <tr>
+    <th>Payee</th>
+    <th>Net Pay</th>
+    <th>Status</th>
+  </tr>
+  {% for r in records %}
+  <tr>
+    <td>{{ r.payee }}</td>
+    <td>{{ r.net_pay }}</td>
+    <td>{{ r.status }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

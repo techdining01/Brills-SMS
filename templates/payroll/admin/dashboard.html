@@ -4,7 +4,16 @@
 {% block content %}
 <div class="container-fluid py-4">
 
-  <h4 class="mb-3">Payroll Control Panel</h4>
+  <div class="d-flex justify-content-between align-item center mb-4">
+    <h4 class="mb-3">Payroll Control Panel</h4> 
+    <div>
+      <a href="#" class="btn btn-outline-primary btn-sm" >Generate Payroll</a>
+      <a href="#" class="btn btn-outline-info btn-sm" >Enrol payee</a>
+      <a href="#" class="btn btn-outline-warning btn-sm" >Deduction</a>
+      <a href="{% url 'loans:admin_loan_payroll_dashboard' %}" class="btn btn-outline-danger btn-sm" >Loan</a>
+    </div>
+   
+  </div>
 
   <!-- Stats -->
   <div class="row g-3 mb-4">
@@ -114,7 +123,6 @@
   </div>
 
 </div>
-
 <hr>
 <h2>Payroll Dashboard</h2>
 

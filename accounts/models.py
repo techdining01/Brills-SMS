@@ -71,6 +71,7 @@ class User(AbstractUser):
      # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+  
 
     def generate_unique_reg_no(self):
         year = timezone.now().year

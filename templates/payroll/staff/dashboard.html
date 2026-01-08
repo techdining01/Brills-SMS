@@ -6,7 +6,7 @@
 
   <h4 class="mb-1">Payroll Dashboard</h4>
   <p class="text-muted">
-    {{ payee.full_name }} • {{ payee.payee_type|title }}
+    {{ payee.get_full_name }} • {{ payee.payee_type|title }}
   </p>
 
   <!-- Summary cards -->
@@ -110,5 +110,54 @@
     </div>
   </div>
 
+
+<h3>My Payroll Dashboard</h3>
+
+<p>Name: {{ payee.user.get_full_name }}</p>
+<p>Salary: {{ payee.basic_salary }}</p>
+
+<a href="#">View Payslips</a> |
+<a href="#">My Loans</a>
+
+
+
 </div>
+
+<canvas id="salaryChart" height="120"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+fetch("{% url 'payroll:staff_salary_chart' %}")
+  .then(res => res.json())
+  .then(data => {
+    const labels = data.map(d => d.label);
+
+    new Chart(document.getElementById("salaryChart"), {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Gross Pay",
+            data: data.map(d => d.gross),
+            borderWidth: 2
+          },
+          {
+            label: "Deductions",
+            data: data.map(d => d.deductions),
+            borderWidth: 2
+          },
+          {
+            label: "Net Pay",
+            data: data.map(d => d.net),
+            borderWidth: 2
+          }
+        ]
+      }
+    });
+  });
+</script>
+
+  
 {% endblock %}

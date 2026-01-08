@@ -1,12 +1,5 @@
 from decimal import Decimal
 from payroll.models import (
-    SalaryStructure,
-    SalaryStructureItem,
-    PayrollRecord,
-    PayrollAuditLog,
-)
-from decimal import Decimal
-from payroll.models import (
     SalaryStructureItem,
     PayrollRecord,
     PayrollAuditLog,
@@ -17,98 +10,6 @@ from payroll.models import (
 class PayrollCalculationError(Exception):
     pass
 
-
-def calculate_payroll(
-    *,
-    payee,
-    payroll_period,
-    salary_structure,
-    generated_by
-):
-    """
-    Core salary calculation engine.
-    Pure logic + DB persistence.
-    """
-
-    if payroll_period.status != "draft":
-        raise PayrollCalculationError(
-            "Payroll period must be in draft state."
-        )
-
-    items = SalaryStructureItem.objects.select_related(
-        "component"
-    ).filter(salary_structure=salary_structure)
-
-    if not items.exists():
-        raise PayrollCalculationError(
-            "Salary structure has no components."
-        )
-
-    earnings = Decimal("0.00")
-    deductions = Decimal("0.00")
-
-    # First pass: fixed amounts
-    for item in items:
-        component = item.component
-
-        if item.amount:
-            if component.component_type == "earning":
-                earnings += item.amount
-            else:
-                deductions += item.amount
-
-    # Second pass: percentage-based components
-    for item in items:
-        component = item.component
-
-        if item.percentage:
-            value = (earnings * item.percentage) / Decimal("100")
-
-            if component.component_type == "earning":
-                earnings += value
-            else:
-                deductions += value
-
-    net_pay = earnings - deductions
-
-    if net_pay < 0:
-        raise PayrollCalculationError(
-            "Net pay cannot be negative."
-        )
-
-    payroll_record, created = PayrollRecord.objects.get_or_create(
-        payee=payee,
-        payroll_period=payroll_period,
-        defaults={
-            "gross_pay": earnings,
-            "total_deductions": deductions,
-            "net_pay": net_pay,
-            "generated_by": generated_by,
-        },
-    )
-
-    if not created:
-        raise PayrollCalculationError(
-            "Payroll already generated for this payee."
-        )
-
-    PayrollAuditLog.objects.create(
-        action="Payroll Generated",
-        performed_by=generated_by,
-        metadata={
-            "payee_id": payee.id,
-            "payroll_period": str(payroll_period),
-            "gross_pay": str(earnings),
-            "deductions": str(deductions),
-            "net_pay": str(net_pay),
-        },
-    )
-
-    return payroll_record
-
-
-class PayrollCalculationError(Exception):
-    pass
 
 
 def calculate_payroll(*, payee, payroll_period, generated_by):

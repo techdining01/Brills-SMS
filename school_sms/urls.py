@@ -16,20 +16,22 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from .views import landing_page, admin_mega_dashboard, about_page
+from .views import landing_page, admin_grand_dashboard, about_page
 from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
     path('', landing_page, name='landing_page'),
     path('about/', about_page, name= 'about'),
-    path("admin/mega-dashboard/", admin_mega_dashboard, name="admin_mega_dashboard"),
+    path("admin/mega-dashboard/", admin_grand_dashboard, name="admin_grand_dashboard"),
     path('exams/', include('exams.urls')),
     path('admin/', admin.site.urls),
     path('auth/', include('accounts.urls')), 
     path('brillspay/', include('brillspay.urls')),
     path('pickup/', include('pickup.urls')),
     path('payroll/', include('payroll.urls')),
+    path('loans/', include('loans.urls')),
+    # path('leaves/', include('leaves.urls')),
 
     # path('sms/', include('sms.urls')),
     # path('management/', include('management.urls')),

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h4>Payroll Periods</h4>
+
+<ul>
+  {% for p in periods %}
+    <li>
+      <a href="{% url 'payroll:period_detail' p.id %}">
+        {{ p.name }} ({{ p.start_date }} - {{ p.end_date }})
+      </a>
+    </li>
+  {% endfor %}
+</ul>
+{% endblock %}

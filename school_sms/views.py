@@ -29,7 +29,7 @@ def about_page(request):
 
 @login_required(login_url='accounts:login')
 @user_passes_test(is_admin)
-def admin_mega_dashboard(request):
+def admin_grand_dashboard(request):
     # ==========================
     # USERS
     # ==========================
@@ -91,4 +91,4 @@ def admin_mega_dashboard(request):
         }
     }
 
-    return render(request, "exams/admin/admin_mega_dashboard.html", context)
+    return render(request, "exams/admin/admin_grand_dashboard.html", context)

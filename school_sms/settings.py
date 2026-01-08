@@ -87,6 +87,8 @@ INSTALLED_APPS = [
     'brillspay.apps.BrillspayConfig',
     'pickup.apps.PickupConfig',
     'payroll.apps.PayrollConfig',
+    'loans.apps.LoansConfig',
+    'leaves.apps.LeavesConfig',
 ]
 
 

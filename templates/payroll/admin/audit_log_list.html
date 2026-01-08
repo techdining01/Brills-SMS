@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h4>Audit Logs</h4>
+
+<table class="table">
+  <tr>
+    <th>Actor</th>
+    <th>Action</th>
+    <th>Date</th>
+  </tr>
+  {% for log in logs %}
+  <tr>
+    <td>{{ log.actor }}</td>
+    <td>{{ log.action }}</td>
+    <td>{{ log.created_at }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

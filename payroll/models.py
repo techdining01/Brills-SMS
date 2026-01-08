@@ -8,6 +8,7 @@ User = settings.AUTH_USER_MODEL
 
 class Payee(models.Model):
     PAYEE_TYPES = (
+         ("admin", "Admin Staff"),
         ("teacher", "Teacher"),
         ("non_teacher", "Non-Teaching Staff"),
         ("contractor", "Contractor"),
@@ -254,38 +255,20 @@ class StaffProfile(models.Model):
 
     def __str__(self):
         return self.payee.full_name
+    
 
+class PayrollEnrollment(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    payee = models.OneToOneField(Payee, on_delete=models.CASCADE)
 
-class LeaveType(models.Model):
-    name = models.CharField(max_length=50)
-    description = models.TextField(blank=True, null=True)
-    is_paid = models.BooleanField(default=True)
-    default_days = models.PositiveIntegerField(default=0)
+    enrolled_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name="payroll_enrollments"
+    )
+    enrolled_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.name
+        return f"{self.user} → Payroll"
 
-
-class LeaveRequest(models.Model):
-    STATUS = (
-        ("pending", "Pending"),
-        ("approved", "Approved"),
-        ("rejected", "Rejected"),
-    )
-
-    staff = models.ForeignKey(StaffProfile, on_delete=models.CASCADE)
-    leave_type = models.ForeignKey(LeaveType, on_delete=models.PROTECT)
-    start_date = models.DateField()
-    end_date = models.DateField()
-    reason = models.TextField()
-    status = models.CharField(max_length=20, choices=STATUS, default="pending")
-    approved_by = models.ForeignKey(
-        User, on_delete=models.SET_NULL, null=True, blank=True
-    )
-
-
-    def __str__(self):
-        return f"{self.staff} - {self.leave_type} ({self.start_date} → {self.end_date})"
 
 
 class AuditLog(models.Model):
@@ -345,3 +328,4 @@ class PayrollLineItem(models.Model):
 
     def __str__(self):
         return f"{self.component.name} - {self.amount}"
+

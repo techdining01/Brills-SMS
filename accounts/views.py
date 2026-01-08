@@ -1,22 +1,20 @@
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from .forms import LoginForm, StudentCreateForm, TeacherCreateForm, ParentCreateForm
-from .models import User
 from django.core.mail import send_mail
 from django.conf import settings
-from django.contrib import messages
-from .models import User
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Q
-from django.views.decorators.csrf import csrf_exempt    
-from django.contrib import messages
-from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
-from django.contrib.auth import get_user_model
 from django.views.decorators.csrf import csrf_protect
+from django.contrib import messages
+from django.core.paginator import Paginator
+from .models import User
+
 
 
 User = get_user_model()
@@ -25,12 +23,9 @@ import logging
 logger = logging.getLogger("system")
 
 
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
-from django.views.decorators.csrf import csrf_protect
-from .models import User
+
+def is_admin(user):
+    return user.is_authenticated and (user.role in ['superadmin', 'admin'])
 
 
 @csrf_protect
@@ -103,9 +98,6 @@ def logout_view(request):
     return redirect("accounts:login")
 
 
-
-
-
 @login_required
 def complete_profile(request):
     user = request.user
@@ -137,7 +129,7 @@ def dashboard_redirect(request):
     if user.role == "TEACHER":
         return redirect("exams:teacher_dashboard")
     if user.role == "ADMIN":
-        return redirect("admin_mega_dashboard")
+        return redirect("admin_grand_dashboard")
     if user.role == 'PARENT':
         return redirect('pickup:parent_dashboard')
    
@@ -170,24 +162,12 @@ def post_login_router(request):
 
 
 @login_required
-def create_student(request):
+def admin_create_user(request):
     if request.user.role != User.Role.ADMIN:
-     return redirect('accounts:login')
+        return redirect('accounts:login')
+    return redirect('accounts:register')
 
-
-    form = StudentCreateForm(request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        student = form.save(commit=False)
-        student.set_password(form.cleaned_data['password1'])
-        student.save()
-        messages.success(request, 'Student created successfully')
-        if not student.is_approved:
-            messages.warning(request, 'Account created. Awaiting admin approval.')
-            return redirect('accounts:login')
-
-        return redirect('accounts:create_student')
-
-    return render(request, 'create_student.html', {'form': form})
+  
 
 
 @login_required
@@ -262,10 +242,11 @@ def admin_reset_password(request, user_id):
     return render(request, 'accounts/admin/reset_password.html', {'u': user})
 
 
+
 @staff_member_required
-def admin_users(request):
-    role = request.GET.get("role")
-    status = request.GET.get("status")
+def admin_users_management(request):
+    role = request.GET.get("role", "")
+    status = request.GET.get("status", "")
 
     users = User.objects.all().order_by("-date_joined")
 
@@ -277,8 +258,13 @@ def admin_users(request):
     elif status == "approved":
         users = users.filter(is_approved=True)
 
+    paginator = Paginator(users, 15)  
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
     context = {
-        "users": users,
+        "users": page_obj,
+        "page_obj": page_obj,
         "role": role,
         "status": status,
     }
@@ -299,5 +285,6 @@ def bulk_approve_users(request):
         })
 
     return JsonResponse({"success": False}, status=400)
+
 
 

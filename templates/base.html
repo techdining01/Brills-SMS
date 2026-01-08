@@ -1018,23 +1018,23 @@
 
                     <!-- Admin Dropdown -->
                     {% if user.role in 'ADMIN SUPERADMIN' %}
+                      
+                        <li><a class="dropdown-item" href="{% url 'admin_grand_dashboard' %}" data-bs-dismiss="navbarContent">
+                            Grand Dashboard
+                        </a></li>
+
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" 
+                            <a class="dropdown-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" 
                                 aria-expanded="false" data-bs-auto-close="outside">
-                            Admin
-                            </a>
+                            Brillspay
+                        </a>
+
                         <ul class="dropdown-menu">
+
                             <li><a class="dropdown-item" href="{% url 'brillspay:admin_dashboard' %}" data-bs-dismiss="navbarContent">
-                               Dashboard
+                              Dashboard
                             </a></li>
 
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" 
-                                    aria-expanded="false" data-bs-auto-close="outside">
-                              Brillspay
-                            </a>
-
-                        <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{% url 'brillspay:admin_product_list' %}">
                               Products
                             </a></li>
@@ -1057,7 +1057,7 @@
                                 Analytics
                             </a></li></ul></li>
 
-                            <li><a href="#" class="dropdown-item">
+                            <li><a href="{% url 'accounts:users' %}" class="dropdown-item">
                                 Users
                             </a></li>
                             
@@ -1073,8 +1073,7 @@
                                 Payroll
                             </a></li>
 
-                            </ul>
-                        </li>
+                           
                                         
                     {% elif user.role in 'TEACHER PARENT' %}
                     
@@ -1089,6 +1088,20 @@
                                 Dashboard
                             </a>
                         </li>
+
+                        {% if user.role == 'TEACHER' %}
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'payroll:staff_payroll_dashboard' %}" data-bs-dismiss="navbarContent">
+                                Payslip
+                            </a>
+                        </li>
+
+                        {% else %}
+
+                            
+
+                        {% endif %}
                         
                         <li>
                             <a class="nav-link position-relative" href="{% url 'about' %}" data-bs-dismiss="navbarContent">
@@ -1204,7 +1217,7 @@
     <!-- <div id="cart-portal"></div> -->
        
     <!-- Footer -->
-    <footer class="py-5">
+    <footer class="mt-3 py-5">
         <div class="container">
             <div class="row g-4">
                 <div class="col-lg-4 col-md-6">

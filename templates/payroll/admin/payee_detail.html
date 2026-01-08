@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h4>{{ payee.user.get_full_name }}</h4>
+
+<p>Staff Type: {{ payee.staff_type }}</p>
+<p>Basic Salary: {{ payee.basic_salary }}</p>
+
+<h5>Payroll Records</h5>
+<ul>
+  {% for r in records %}
+    <li>{{ r.period }} – {{ r.net_pay }}</li>
+  {% endfor %}
+</ul>
+{% endblock %}

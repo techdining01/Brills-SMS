@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h4>{{ record.payee.full_name }}</h4>
+
+<p>Gross: {{ record.gross_pay }}</p>
+<p>Deductions: {{ record.total_deductions }}</p>
+<p>Net: {{ record.net_pay }}</p>
+
+{% if not record.approval.bursar_approved_at %}
+<a href="{% url 'payroll:bursar_approve' record.id %}"
+   class="btn btn-warning">Bursar Approve</a>
+{% endif %}
+
+{% if record.approval.bursar_approved_at and not record.approval.admin_approved_at %}
+<a href="{% url 'payroll:admin_approve' record.id %}"
+   class="btn btn-success">Admin Approve</a>
+{% endif %}
+
+{% endblock %}

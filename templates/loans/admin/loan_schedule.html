@@ -1,0 +1,35 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+
+<h2>Loan Repayment Schedule</h2>
+
+<p>
+  <strong>Payee:</strong> {{ loan.payee.full_name }} <br>
+  <strong>Loan Amount:</strong> ₦{{ loan.amount }} <br>
+  <strong>Total Payable:</strong> ₦{{ total_payable }}
+</p>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th>Month</th>
+      <th>Payment</th>
+      <th>Remaining Balance</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in schedule %}
+    <tr>
+      <td>{{ row.month }}</td>
+      <td>₦{{ row.payment }}</td>
+      <td>₦{{ row.balance }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<a href="{% url 'admin_loans' %}" class="btn btn-secondary">
+  Back to Loans
+</a>
+
+{% endblock %}

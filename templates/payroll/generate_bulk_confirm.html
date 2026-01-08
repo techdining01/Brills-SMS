@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<h4>Generate Payroll</h4>
+<p>Payroll Period: {{ period }}</p>
+
+<form method="post">
+  {% csrf_token %}
+  <button class="btn btn-primary">
+    Generate Payroll
+  </button>
+</form>
+{% endblock %}

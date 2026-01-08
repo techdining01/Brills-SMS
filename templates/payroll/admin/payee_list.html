@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h4>Payees</h4>
+
+<ul>
+  {% for p in payees %}
+    <li>
+      <a href="{% url 'payroll:payee_detail' p.id %}">
+        {{ p.user.get_full_name }} – {{ p.staff_type }}
+      </a>
+    </li>
+  {% endfor %}
+</ul>
+{% endblock %}
