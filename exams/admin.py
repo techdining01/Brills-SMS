@@ -49,8 +49,8 @@ class ExamAdmin(admin.ModelAdmin):
 # =======================
 @admin.register(ExamAccess)
 class ExamAccessAdmin(admin.ModelAdmin):
-    list_display = ('student', 'exam', 'granted_by', 'via_payment', 'created_at')
-    list_filter = ('via_payment', 'created_at')
+    list_display = ('student', 'exam', 'granted_by', 'via_payment', 'granted_at')
+    list_filter = ('via_payment', 'granted_at')
     search_fields = ('student__username', 'exam__title', 'granted_by__username')
 
 

@@ -60,19 +60,21 @@ from django.contrib import messages
 
 from .models import PaymentTransaction
 from .services.payroll_generation import bulk_generate_payroll
-from .services.audit import log_action
 from .services.payroll_engine import calculate_payroll
 from .services.payment_batch_service import create_payment_batch
 from .services.paystack_transfers import initiate_transfer
 from .services.approval_service import approve_by_admin, approve_by_bursar
-
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
+from payroll.models import Payee, PayrollPeriod, PayrollRecord
+from django.http import HttpResponseForbidden
 
 
 User = get_user_model()
 
 
 def is_staff(user):
-    return User.role in ['ADMIN', 'TEACHER']
+    return user.role in ['ADMIN', 'TEACHER']
 
 
 def notify_salary_paid(payroll_record):
@@ -93,28 +95,70 @@ def send_sms(phone, message):
     pass
 
 
+@login_required
+def approve_payroll_period(request, period_id):
+    period = get_object_or_404(PayrollPeriod, id=period_id)
 
+    if request.user.role not in ["ADMIN", "BURSAR"]:
+        return HttpResponseForbidden()
+
+    if not period.is_generated:
+        messages.error(request, "Generate payroll before approval.")
+        return redirect("payroll:payroll_period_detail", period.pk)
+
+    period.is_approved = True
+    period.approved_by = request.user
+    period.approved_at = timezone.now()
+    period.save()
+
+    messages.success(request, "Payroll period approved.")
+    return redirect("payroll:payroll_period_detail", period.pk)
 
 
 @login_required
-def generate_payroll_bulk(request, period_id):
+def lock_payroll_period(request, period_id):
     period = get_object_or_404(PayrollPeriod, id=period_id)
 
-    if request.method == "POST":
+    if request.user.role != "ADMIN":
+        messages.error(request, "Only admin can lock payroll.")
+        return redirect("payroll:period_detail", period.pk)
+
+    if not period.is_paid:
+        messages.error(request, "Cannot lock unpaid payroll.")
+        return redirect("payroll:period_detail", period.pk)
+
+    period.is_locked = True
+    period.save()
+
+    messages.success(request, "Payroll period locked.")
+    return redirect("payroll:period_detail", period.pk)
+
+
+@login_required
+def generate_payroll_for_period(request, period_id):
+    period = get_object_or_404(PayrollPeriod, id=period_id)
+
+    if period.is_locked:
+        messages.error(request, "Payroll period is locked.")
+        return redirect("payroll:period_detail", period.pk)
+
+    try:
         result = bulk_generate_payroll(
             payroll_period=period,
             generated_by=request.user
         )
+        period.is_generated = True
+        period.save()
 
         messages.success(
             request,
             f"Payroll generated. Created: {result['created']}, Skipped: {result['skipped']}"
         )
-        return redirect("payroll:payroll_period_detail", period.id)
 
-    return render(request, "payroll/generate_bulk_confirm.html", {
-        "period": period
-    })
+    except Exception as e:
+        messages.error(request, str(e))
+
+    return redirect("payroll:payroll_period_detail", period.pk)
 
 
 
@@ -145,99 +189,296 @@ def admin_approve_payroll(request, record_id):
     return redirect("payroll:payroll_record_detail", record.id)
 
 
-
 @login_required
 def create_payment_batch_view(request, period_id):
     period = get_object_or_404(PayrollPeriod, id=period_id)
 
-    try:
-        batch = create_payment_batch(
-            payroll_period=period,
-            created_by=request.user
-        )
-        messages.success(request, "Payment batch created.")
-        return redirect("payroll:payment_batch_detail", batch.id)
+    if request.user.role not in ["ADMIN", "BURSAR"]:
+        messages.error(request, "Permission denied.")
+        return redirect("payroll:period_detail", period.pk)
 
-    except Exception as e:
-        messages.error(request, str(e))
-        return redirect("payroll:payroll_period_detail", period.id)
+    if not period.is_approved:
+        messages.error(request, "Payroll must be approved first.")
+        return redirect("payroll:period_detail", period.pk)
+
+    if period.is_paid:
+        messages.warning(request, "Payroll already paid.")
+        return redirect("payroll:period_detail", period.pk)
+
+    batch = create_payment_batch(
+        payroll_period=period,
+        created_by=request.user
+    )
+
+    messages.success(
+        request,
+        f"Payment batch created with {batch.transactions.count()} transfers."
+    )
+
+    return redirect("payroll:batch_detail", batch.id)
+
+
+@login_required
+def payment_batch_detail(request, batch_id):
+    batch = get_object_or_404(PaymentBatch, id=batch_id)
+
+    transactions = batch.transactions.select_related(
+        "payroll_record__payee"
+    )
+
+    has_pending = batch.transactions.filter(status="pending").exists()
+
+    return render(
+        request,
+        "payroll/admin/bash_detail.html",
+        {
+            "batch": batch,
+            "transactions": transactions,
+            "has_pending": has_pending,
+        }
+    )
 
 
 
 @login_required
-def run_paystack_transfer(request, transaction_id):
-    tx = get_object_or_404(PaymentTransaction, id=transaction_id)
+def execute_payment_batch(request, batch_id):
+    batch = get_object_or_404(PaymentBatch, id=batch_id)
 
-    initiate_transfer(tx)
+    if request.user.role not in ["ADMIN", "BURSAR"]:
+        messages.error(request, "Permission denied.")
+        return redirect("payroll:batch_detail", batch.id)
 
-    if tx.status == "success":
-        messages.success(request, "Transfer successful.")
-    else:
-        messages.error(request, "Transfer failed.")
+    success = 0
+    failed = 0
 
-    return redirect("payroll:payment_batch_detail", tx.batch.id)
+    for tx in batch.transactions.filter(status="pending"):
+        initiate_transfer(tx)
+        if tx.status == "success":
+            success += 1
+        else:
+            failed += 1
 
+    if failed == 0:
+        batch.payroll_period.is_paid = True
+        batch.payroll_period.save()
+
+    messages.success(
+        request,
+        f"Transfers completed. Success: {success}, Failed: {failed}"
+    )
+
+    return redirect("payroll:batch_detail", batch.id)
+
+
+@login_required
+def retry_failed_transactions(request, batch_id):
+    batch = get_object_or_404(PaymentBatch, id=batch_id)
+
+    if request.user.role not in ["ADMIN", "BURSAR"]:
+        messages.error(request, "Permission denied.")
+        return redirect("payroll:batch_detail", batch.id)
+
+    failed_txs = batch.transactions.filter(status="failed")
+    success = 0
+    failed = 0
+
+    for tx in failed_txs:
+        initiate_transfer(tx)
+        if tx.status == "success":
+            success += 1
+        else:
+            failed += 1
+
+    # Mark payroll period as paid if all now succeed
+    if batch.transactions.filter(status="pending").exists() == False and batch.transactions.filter(status="failed").exists() == False:
+        batch.payroll_period.is_paid = True
+        batch.payroll_period.save()
+
+    messages.success(
+        request,
+        f"Retry completed. Success: {success}, Still Failed: {failed}"
+    )
+    return redirect("payroll:batch_detail", batch.id)
 
 
 # =========================
-# ENTRY DASHBOARD
+# AUDIT LOGS
 # =========================
 @login_required
-def payroll_dashboard(request):
-    user = request.user
+def audit_log_list(request):
+    logs = AuditLog.objects.select_related("user").order_by("-created_at")
+    return render(request, "payroll/admin/audit_log_list.html", {"logs": logs})
 
-    if user.role in ["ADMIN", "BURSAR"]:
-        return redirect("payroll:admin_dashboard")
 
-    payee = get_object_or_404(Payee, user=user)
-    return render(request, "payroll/staff/dashboard.html", {
-        "payee": payee,
+
+@login_required
+def payroll_chart_data(request):
+    payee = request.user.payee
+
+    records = PayrollRecord.objects.filter(payee=payee).order_by("created_at")
+
+    return JsonResponse({
+        "labels": [r.payroll_period.name for r in records],
+        "net_pay": [float(r.net_pay) for r in records],
+        "deductions": [float(r.total_deductions) for r in records],
     })
 
 
-# =========================
-# ADMIN DASHBOARD
-# =========================
+
+def log_action(user, action, entity, entity_id=None, metadata=None):
+    AuditLog.objects.create(
+        user=user,
+        action=action,
+        entity=entity,
+        entity_id=entity_id,
+        metadata=metadata or {}
+    )
+
+
+@login_required
+def payroll_dashboard(request):
+    user = request.user
+      
+    # ADMIN / BURSAR
+    if user.role in ["ADMIN", "BURSAR"]:
+        # Latest payroll periods
+        periods = PayrollPeriod.objects.order_by("-year", "-month")[:6]
+
+        # Latest payment batches
+        batches = PaymentBatch.objects.order_by("-created_at")[:10]
+
+        context = {
+            "periods": periods,
+            "batches": batches,
+        }
+        return render(request, "payroll/admin/admin_dashboard.html", context)
+    
+    # STAFF (Teacher / Non-Teacher)
+    payee = Payee.objects.get(user=user)
+
+    context = {
+        "payee": payee,
+        "recent_payrolls": PayrollRecord.objects.filter(payee=payee)[:5],
+        "active_loans": Loan.objects.filter(
+            payee=payee,
+            status="approved"
+        ),
+    }
+    return render(request, "payroll/staff/dashboard.html", context)
+
+
 @login_required
 def admin_dashboard(request):
-    context = {
-        "payee_count": Payee.objects.count(),
-        "period_count": PayrollPeriod.objects.count(),
-        "pending_records": PayrollRecord.objects.filter(status="pending").count(),
-    }
-    return render(request, "payroll/admin/dashboard.html", context)
+    user = request.user
+    if user.role in ["ADMIN", "BURSAR"]:
+        # Latest payroll periods
+        periods = PayrollPeriod.objects.order_by("-year", "-month")[:6]
 
+        # Include transactions info
+        batches = []
+        for batch in PaymentBatch.objects.order_by("-created_at")[:10]:
+            tx_pending = batch.transactions.filter(status="pending").count()
+            tx_failed = batch.transactions.filter(status="failed").count()
+            batches.append({
+                "batch": batch,
+                "pending_count": tx_pending,
+                "failed_count": tx_failed,
+            })
+
+        context = {
+            "periods": periods,
+            "batches": batches,
+        }   
+        return render(request, "payroll/admin/admin_dashboard.html", context)
+    
+    # STAFF (Teacher / Non-Teacher)
+    payee = Payee.objects.get(user=user)
+
+    context = {
+        "payee": payee,
+        "recent_payrolls": PayrollRecord.objects.filter(payee=payee)[:5],
+        "active_loans": Loan.objects.filter(
+            payee=payee,
+            status="approved"
+        ),
+    }
+    return render(request, "payroll/staff/dashboard.html", context)
 
 # =========================
 # PAYROLL PERIODS
 # =========================
+from django.db import models 
+from django.db.models import Count
+from payroll.models import PayrollPeriod, PayrollRecord
+
 @login_required
-def period_list(request):
-    periods = PayrollPeriod.objects.all().order_by("-start_date")
-    return render(request, "payroll/admin/period_list.html", {"periods": periods})
+def create_payroll_period(request):
+    if request.user.role not in ["ADMIN", "BURSAR"]:
+        messages.error(request, "Permission denied.")
+        return redirect("payroll:period_list")
+
+    if request.method == "POST":
+        month = int(request.POST.get("month"))
+        year = int(request.POST.get("year"))
+
+        period, created = PayrollPeriod.objects.get_or_create(
+            month=month,
+            year=year
+        )
+
+        if not created:
+            messages.warning(request, "Payroll period already exists.")
+        else:
+            messages.success(request, "Payroll period created successfully.")
+
+        return redirect("payroll:period_detail", period.pk)
+
+    return render(request, "payroll/admin/period_create.html")
+
+
+
+@login_required
+def payroll_period_list(request):
+    periods = PayrollPeriod.objects.order_by("-year", "-month")
+
+    return render(
+        request,
+        "payroll/admin/period_list.html",
+        {"periods": periods}
+    )
 
 
 @login_required
-def period_detail(request, pk):
-    period = get_object_or_404(PayrollPeriod, pk=pk)
-    records = PayrollRecord.objects.filter(period=period)
-    return render(request, "payroll/admin/period_detail.html", {
+def payroll_period_detail(request, period_id):
+    period = get_object_or_404(PayrollPeriod, id=period_id)
+
+    records = PayrollRecord.objects.filter(
+        payroll_period=period
+    ).select_related("payee")
+
+    context = {
         "period": period,
         "records": records,
-    })
+    }
+
+    return render(
+        request,
+        "payroll/admin/period_detail.html",
+        context
+    )
 
 
 # =========================
 # PAYROLL RECORDS
 # =========================
 @login_required
-def record_list(request):
+def payroll_record_list(request):
     records = PayrollRecord.objects.select_related("payee", "period")
     return render(request, "payroll/admin/record_list.html", {"records": records})
 
 
 @login_required
-def record_detail(request, pk):
+def payroll_record_detail(request, pk):
     record = get_object_or_404(PayrollRecord, pk=pk)
     return render(request, "payroll/admin/record_detail.html", {"record": record})
 
@@ -259,51 +500,6 @@ def payee_detail(request, pk):
         "payee": payee,
         "records": records,
     })
-
-
-# =========================
-# PAYROLL BATCH
-# =========================
-@login_required
-def batch_detail(request, pk):
-    batch = get_object_or_404(PaymentBatch, pk=pk)
-    records = PayrollRecord.objects.filter(batch=batch)
-    return render(request, "payroll/admin/batch_detail.html", {
-        "batch": batch,
-        "records": records,
-    })
-
-
-# =========================
-# AUDIT LOGS
-# =========================
-@login_required
-def audit_log_list(request):
-    logs = AuditLog.objects.select_related("actor").order_by("-created_at")
-    return render(request, "payroll/admin/audit_log_list.html", {"logs": logs})
-
-
-
-# @login_required
-# def staff_loan_payroll_dashboard(request):
-#     payee = Payee.objects.filter(user=request.user).order_by('payee_type').first()
-
-#     return render(request, "payroll/staff/dashboard.html", {
-#         "payslips": PayrollRecord.objects.filter(payee=payee),
-#         "loans": Loan.objects.filter(payee=payee).prefetch_related("repayments"),
-#         "leaves": LeaveRequest.objects.filter(staff__payee=payee),
-#     })
-
-
-
-# @login_required
-# @user_passes_test(lambda u: u.role == "ADMIN")
-# def admin_loan_payroll_dashboard(request):
-#     return render(request, "payroll/admin/payroll_dashboard.html", {
-#         "periods": PayrollPeriod.objects.all(),
-#         "pending_loans": Loan.objects.filter(status="pending"),
-#         "batches": PaymentBatch.objects.all(),
-#     })
 
 
 
@@ -328,69 +524,6 @@ def notify_leave_status(leave):
     )
 
 
-@login_required
-def payment_batch_detail(request, batch_id):
-    batch = get_object_or_404(PaymentBatch, id=batch_id)
-
-    transactions = batch.transactions.select_related(
-        "payroll_record__payee"
-    )
-
-    return render(request, "payroll/admin/batch_detail.html", {
-        "batch": batch,
-        "transactions": transactions,
-    })
-
-
-@login_required
-def retry_payment(request, tx_id):
-    tx = get_object_or_404(
-        PaymentTransaction,
-        id=tx_id,
-        status="failed"
-    )
-
-    tx.status = "pending"
-    tx.save()
-
-    log_action(
-        user=request.user,
-        action="RETRY",
-        obj=tx,
-        description="Manual retry initiated"
-    )
-
-    return redirect("payroll:payment_batch_detail", tx.batch.id)
-
-
-
-@login_required
-def generate_payroll_view(request, period_id):
-    if not request.user.is_superuser:
-        raise PermissionDenied("You are not allowed to generate payroll")
-
-    period = get_object_or_404(PayrollPeriod, id=period_id)
-
-    if period.is_locked():
-        messages.error(request, "This payroll period is locked and cannot be regenerated.")
-        return redirect("payroll_period_list")
-
-    if request.method == "POST":
-        result = bulk_generate_payroll(
-            payroll_period=period,
-            generated_by=request.user
-        )
-
-        return render(
-            request,
-            "payroll/admin/generate_payroll_result.html",
-            {
-                "period": period,
-                "result": result,
-            }
-        )
-
-
 
 @login_required
 def staff_payslip_dashboard(request):
@@ -411,8 +544,6 @@ def staff_payslip_dashboard(request):
             "payee": payee,
         }
     )
-
-
 
 
 @login_required
@@ -615,68 +746,6 @@ def deduction_breakdown_chart(request):
 
 
 @login_required
-@staff_member_required
-def admin_payroll_dashboard(request):
-    stats = {
-        "payees": Payee.objects.count(),
-        "pending": PayrollRecord.objects.filter(status="pending").count(),
-        "approved": PayrollRecord.objects.filter(status="approved").count(),
-        "total_net": PayrollRecord.objects.aggregate(
-            total=Sum("net_pay")
-        )["total"] or 0,
-        "batches": PaymentBatch.objects.count(),
-    }
-
-    recent_payrolls = (
-        PayrollRecord.objects
-        .select_related("payee", "payroll_period")
-        .order_by("-created_at")[:8]
-    )
-
-    periods = PayrollPeriod.objects.order_by("-year", "-month")[:6]
-
-    return render(
-        request,
-        "payroll/admin/dashboard.html",
-        {
-            "stats": stats,
-            "recent_payrolls": recent_payrolls,
-            "periods": periods,
-        }
-    )
-
-
-
-@login_required
-def staff_payroll_dashboard(request):
-    # Get payee linked to logged-in user
-    payee = get_object_or_404(Payee, user=request.user)
-
-    payrolls = (
-        PayrollRecord.objects
-        .filter(payee=payee)
-        .select_related("payroll_period")
-        .order_by("-payroll_period__year", "-payroll_period__month")
-    )
-
-    total_paid = payrolls.filter(
-        paymenttransaction__status="SUCCESS"
-    ).aggregate(total=Sum("net_pay"))["total"] or 0
-
-    latest_payroll = payrolls.first()
-
-    context = {
-        "payee": payee,
-        "payrolls": payrolls[:6],
-        "total_paid": total_paid,
-        "latest": latest_payroll,
-    }
-
-    return render(request, "payroll/staff/dashboard.html", context)
-
-
-
-@login_required
 def staff_salary_history(request):
     records = PayrollRecord.objects.filter(
         payee__user=request.user
@@ -770,19 +839,6 @@ def enroll_user_to_payroll(request, user_id):
     return render(request, "payroll/staff/enroll.html", {"form": form, "user": user})
 
 
-
-
-# ======================================================================= #
-
-
-from django.contrib import admin, messages
-from django.shortcuts import get_object_or_404, redirect
-from django.urls import path
-from django.utils.crypto import get_random_string
-from accounts.models import User
-from payroll.models import Payee, StaffProfile, SalaryStructure, PayeeSalaryStructure
-
-
 def register_payroll(self, request, user_id):
     user = get_object_or_404(User, id=user_id)
 
@@ -803,7 +859,7 @@ def register_payroll(self, request, user_id):
         defaults={
             "full_name": user.get_full_name(),
             "payee_type": payee_type,
-            "reference_code": get_random_string(12).upper(),
+            "reference_code": f"{user.first_name[:3]}-{get_random_string(10).upper()}",
         },
     )
 
@@ -812,6 +868,7 @@ def register_payroll(self, request, user_id):
         defaults={
             "phone_number": user.phone_number or "",
             "date_of_employment": user.created_at.date(),
+            "is_confirmed": True,
         },
     )
 
@@ -819,91 +876,3 @@ def register_payroll(self, request, user_id):
     return redirect(f"/admin/users/user/{user.id}/change/")
 
 
-
-
-@login_required
-def create_payment_batch(request, period_id):
-    period = get_object_or_404(PayrollPeriod, id=period_id)
-
-    batch = PaymentBatch.objects.create(
-        payroll_period=period,
-        created_by=request.user
-    )
-
-    for record in PayrollRecord.objects.filter(payroll_period=period, status="approved"):
-        bank = record.payee.bank_accounts.filter(is_primary=True).first()
-
-        PaymentTransaction.objects.create(
-            payroll_record=record,
-            batch=batch,
-            amount=record.net_pay,
-            bank_name=bank.bank_name,
-            account_number=bank.account_number,
-            account_name=bank.account_name,
-        )
-
-    messages.success(request, "Payment batch created.")
-    return redirect("admin_batch_detail", batch.id)
-
-
-import requests
-
-PAYSTACK_BASE = "https://api.paystack.co"
-
-def paystack_transfer(amount, recipient_code):
-    headers = {
-        "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "source": "balance",
-        "amount": int(amount * 100),
-        "recipient": recipient_code,
-        "reason": "Salary Payment"
-    }
-
-    response = requests.post(
-        f"{PAYSTACK_BASE}/transfer",
-        json=payload,
-        headers=headers
-    )
-
-    return response.json()
-
-
-def execute_batch_payment(batch):
-    for tx in batch.transactions.all():
-        res = paystack_transfer(tx.amount, tx.recipient_code)
-
-        if res.get("status"):
-            tx.status = "success"
-        else:
-            tx.status = "failed"
-
-        tx.raw_response = res
-        tx.save()
-
-
-@login_required
-def payroll_chart_data(request):
-    payee = request.user.payee
-
-    records = PayrollRecord.objects.filter(payee=payee).order_by("created_at")
-
-    return JsonResponse({
-        "labels": [r.payroll_period.name for r in records],
-        "net_pay": [float(r.net_pay) for r in records],
-        "deductions": [float(r.total_deductions) for r in records],
-    })
-
-
-
-def log_action(user, action, entity, entity_id=None, metadata=None):
-    AuditLog.objects.create(
-        user=user,
-        action=action,
-        entity=entity,
-        entity_id=entity_id,
-        metadata=metadata or {}
-    )

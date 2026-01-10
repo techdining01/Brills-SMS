@@ -15,7 +15,7 @@
   <td>{{ loan.payee.full_name }}</td>
   <td>₦{{ loan.principal }}</td>
   <td>
-    <a href="{% url 'approve_loan' loan.id %}" class="btn btn-success btn-sm">
+    <a href="{% url 'loan:approve_loan' loan.id %}" class="btn btn-success btn-sm">
       Approve
     </a>
   </td>

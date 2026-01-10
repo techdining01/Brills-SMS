@@ -94,7 +94,7 @@ class ExamAccess(models.Model):
         related_name="exam_mercy_grants"
     )
     via_payment = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+    granted_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = ("student", "exam")

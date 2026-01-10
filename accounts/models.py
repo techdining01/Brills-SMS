@@ -16,6 +16,7 @@ class User(AbstractUser):
         TEACHER = "TEACHER", "Teacher"
         PARENT = "PARENT", "Parent"
         STUDENT = "STUDENT", "Student"
+        BURSAR = "BURSAR", "Bursar"
 
     base_role = Role.STUDENT
 

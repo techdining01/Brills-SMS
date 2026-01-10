@@ -9,3 +9,4 @@ def log_action(*, user, action, obj, description="", ip=None):
         description=description,
         ip_address=ip,
     )
+    return log_action

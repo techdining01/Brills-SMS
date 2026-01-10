@@ -2,24 +2,30 @@
 {% block content %}
 <div class="container py-4">
 
-<h4>Order #{{ order.reference }}</h4>
-<p>Parent: {{ order.buyer.get_full_name }}</p>
-<p>Ward: {{ order.ward.get_full_name }}</p>
+<div class="fw-semibold">
+    <h4>Order #{{ order.reference }}</h4>
+    <p>Parent: {{ order.buyer.get_full_name }}</p>
+    <p>Ward: {{ order.ward.get_full_name }}</p>
+</div>
 
-<table class="table">
-<tr><th>Date</th><th>Product</th><th>Price</th><th>Qty</th><th>Subtotal</th></tr>
-{% for item in order.items.all %}
-<tr>
-<td>{{ order.created_at}}</td>
-<td>{{ item.product_name }}</td>
-<td>{{ item.price }}</td>
-<td>{{ item.quantity }}</td>
-<td>₦{{ item.subtotal }}</td>
-</tr>
-{% endfor %}
-</table>
+<div class="card shadow-sm">
+    <div class="card-body table-responsive">
+        <table class="table table-hover align-middle">
+            <tr><th>Date</th><th>Product</th><th>Price</th><th>Qty</th><th>Subtotal</th></tr>
+            {% for item in order.items.all %}
+            <tr>
+            <td>{{ order.created_at}}</td>
+            <td>{{ item.product_name }}</td>
+            <td>{{ item.price }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>₦{{ item.subtotal }}</td>
+            </tr>
+            {% endfor %}
+            </table>
+    </div>
+</div><br>
 
-<h5>Total: ₦{{ order.total_amount }}</h5>
+<h5 class="fw-semibold">Total: ₦{{ order.total_amount }}</h5>
 
 </div>
 {% endblock %}

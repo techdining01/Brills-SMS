@@ -40,8 +40,8 @@ class SalaryStructureAdmin(admin.ModelAdmin):
 
 @admin.register(PayrollPeriod)
 class PayrollPeriodAdmin(admin.ModelAdmin):
-    list_display = ("month", "year", "status")
-    list_filter = ("status",)
+    list_display = ("month", "year", "is_paid")
+    list_filter = ("is_paid",)
 
 
 @admin.register(PayrollRecord)

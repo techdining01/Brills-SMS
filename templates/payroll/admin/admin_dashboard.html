@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="mb-4">Payroll Admin Dashboard</h1>
+
+<h3>Recent Payroll Periods</h3>
+<div class="card shadow-sm">
+  <div class="card-body table-responsive table-bordered">
+    <table class="table table-hover table-bordered align-middle">
+
+    <thead>
+        <tr>
+            <th>Month/Year</th>
+            <th>Generated</th>
+            <th>Approved</th>
+            <th>Paid</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for period in periods %}
+        <tr>
+            <td>{{ period.month }}/{{ period.year }}</td>
+            <td>{{ period.is_generated }}</td>
+            <td>{{ period.is_approved }}</td>
+            <td>{{ period.is_paid }}</td>
+            <td>
+                <a href="{% url 'payroll:payroll_period_detail' period.id %}" class="btn btn-info btn-sm">View</a>
+                {% if period.is_approved and not period.is_paid %}
+                    <a href="{% url 'payroll:create_payment_batch' period.id %}" class="btn btn-success btn-sm">
+                        Create Payment Batch
+                    </a>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+</div>
+
+<hr>
+
+<h3>Recent Payment Batches</h3>
+
+<div class="card shadow-sm">
+  <div class="card-body table-responsive table-bordered">
+    <table class="table table-hover table-bordered align-middle">
+    <thead>
+        <tr>
+            <th>Batch ID</th>
+            <th>Payroll Period</th>
+            <th>Created By</th>
+            <th>Transactions</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for b in batches %}
+        <tr>
+            <td>{{ b.batch.id }}</td>
+            <td>{{ b.batch.payroll_period.month }}/{{ b.batch.payroll_period.year }}</td>
+            <td>{{ b.batch.created_by.get_full_name }}</td>
+            <td>{{ b.batch.transactions.count }}</td>
+            <td>
+                {% if b.pending_count > 0 %}
+                    Pending
+                {% elif b.failed_count > 0 %}
+                    Partially Failed
+                {% else %}
+                    Completed
+                {% endif %}
+            </td>
+            <td>
+                <a href="{% url 'payroll:batch_detail' b.batch.id %}" class="btn btn-primary btn-sm">View</a>
+                {% if b.pending_count > 0 %}
+                    <a href="{% url 'payroll:execute_payment_batch' b.batch.id %}" class="btn btn-success btn-sm">Execute</a>
+                {% endif %}
+                {% if b.failed_count > 0 %}
+                    <a href="{% url 'payroll:retry_failed_transactions' b.batch.id %}" class="btn btn-warning btn-sm">Retry Failed</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+</div>
+{% endblock %}

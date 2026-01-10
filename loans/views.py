@@ -106,7 +106,7 @@ def apply_loan_deduction(payee, payroll):
 
 
 @staff_member_required
-def admin_loan_list(request):
+def admin_loans_list(request):
     loans = Loan.objects.select_related("payee").order_by("-requested_at")
 
     status = request.GET.get("status")

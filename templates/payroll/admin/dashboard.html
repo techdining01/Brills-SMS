@@ -2,7 +2,8 @@
 {% load humanize %}
 
 {% block content %}
-<div class="container-fluid py-4">
+
+<div class="container-fluid py-4" >
 
   <div class="d-flex justify-content-between align-item center mb-4">
     <h4 class="mb-3">Payroll Control Panel</h4> 
@@ -60,39 +61,42 @@
       <strong>Recent Payroll Records</strong>
     </div>
 
-    <table class="table table-hover mb-0">
-      <thead>
-        <tr>
-          <th>Staff</th>
-          <th>Period</th>
-          <th>Net Pay</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for p in recent_payrolls %}
-        <tr>
-          <td>{{ p.payee.full_name }}</td>
-          <td>{{ p.payroll_period }}</td>
-          <td>₦{{ p.net_pay|intcomma }}</td>
-          <td>
-            {% if p.status == "approved" %}
-              <span class="badge bg-success">Approved</span>
-            {% else %}
-              <span class="badge bg-warning">Pending</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="4" class="text-center text-muted py-3">
-            No records yet
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+    <div class="card shadow-sm">
+      <div class="card-body table-responsive">
+          <table class="table table-striped table-hover align-middle">
+            <thead>
+              <tr>
+                <th>Staff</th>
+                <th>Period</th>
+                <th>Net Pay</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in recent_payrolls %}
+              <tr>
+                <td>{{ p.payee.full_name }}</td>
+                <td>{{ p.payroll_period }}</td>
+                <td>₦{{ p.net_pay|intcomma }}</td>
+                <td>
+                  {% if p.status == "approved" %}
+                    <span class="badge bg-success">Approved</span>
+                  {% else %}
+                    <span class="badge bg-warning">Pending</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="4" class="text-center text-muted py-3">
+                  No records yet
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
   <!-- Payroll periods -->
   <div class="card shadow-sm">
@@ -146,4 +150,5 @@ fetch("{% url 'payroll:monthly_payroll_chart' %}")
     });
   });
 </script>
+
 {% endblock %}

@@ -24,7 +24,8 @@
   <td>{{ batch.status }}</td>
   <td>
     {% if batch.status == 'DRAFT' %}
-      <a href="{% url 'approve_batch' batch.id %}" class="btn btn-success">Approve</a>
+      <a href="{% url 'approve_batch' batch.id %}" class="btn btn-success">
+        Approve</a>
     {% endif %}
   </td>
 </tr>

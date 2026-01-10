@@ -1,55 +1,62 @@
 from decimal import Decimal
-from payroll.models import PayrollRecord, StaffProfile, PayrollLineItem
 from django.db import transaction
 from  ..models import AuditLog
 from loans.models import LoanRepayment, Loan
+from payroll.models import PayrollRecord, Payee, PayrollGenerationLog, PayrollLineItem
 
 
 
-def bulk_generate_payroll(*, payroll_period, generated_by=None):
-    """
-    Generate payroll records for all active staff for a given period.
-    Safe to re-run. Skips existing records.
-    """
+def bulk_generate_payroll(payroll_period, generated_by):
+    if payroll_period.is_locked:
+        raise ValueError("Payroll period is locked")
 
-    if payroll_period.is_locked():
-        raise ValueError("Cannot generate payroll for a locked period")
+    payees = Payee.objects.filter(is_active=True)
 
-    created = 0
-    skipped = 0
-
-    staff_qs = StaffProfile.objects.filter(is_active=True)
-
-    for staff in staff_qs:
-        exists = PayrollRecord.objects.filter(
-            payee=staff,
-            payroll_period=payroll_period
-        ).exists()
-
-        if exists:
-            skipped += 1
-            continue
-
-        gross = staff.monthly_salary
-        deductions = Decimal("0.00")   # leave, tax, pension come later
-        net = gross - deductions
-
-        PayrollRecord.objects.create(
-            payee=staff,
-            payroll_period=payroll_period,
-            gross_pay=gross,
-            total_deductions=deductions,
-            net_pay=net,
-        )
-
-        created += 1
-
-    return {
-        "created": created,
-        "skipped": skipped,
-        "total_staff": staff_qs.count()
+    results = {
+        "success": 0,
+        "failed": 0,
     }
 
+    for payee in payees:
+        # Skip if already generated
+        if PayrollRecord.objects.filter(
+            payee=payee,
+            payroll_period=payroll_period
+        ).exists():
+            continue
+
+        try:
+            generate_payroll_for_payee(
+                payee=payee,
+                payroll_period=payroll_period,
+                generated_by=generated_by
+            )
+
+            PayrollGenerationLog.objects.create(
+                payroll_period=payroll_period,
+                payee=payee,
+                status="success"
+            )
+
+            results["success"] += 1
+
+        except Exception as e:
+            PayrollGenerationLog.objects.create(
+                payroll_period=payroll_period,
+                payee=payee,
+                status="failed",
+                error_message=str(e)
+            )
+
+            results["failed"] += 1
+
+            # IMPORTANT: continue processing others
+            continue
+
+    payroll_period.is_generated = True
+    payroll_period.save()
+
+    return results
 
 
 
@@ -116,7 +123,7 @@ def generate_payroll_for_payee(payee, payroll_period, generated_by):
             amount=deduction,
             metadata={
                 "type": "loan",
-                "loan_id": loan.id,
+                "loan_id": loan.pk,
             },
         )
 
@@ -148,7 +155,7 @@ def generate_payroll_for_payee(payee, payroll_period, generated_by):
         user=generated_by,
         action="CREATE",
         object_type="Payroll",
-        object_id=str(payroll.id),
+        object_id=str(payroll.pk),
         description=f"Generated payroll for {payee.full_name}",
     )
 

@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from decimal import Decimal
+
 
 
 User = settings.AUTH_USER_MODEL
@@ -37,9 +39,15 @@ class BankAccount(models.Model):
 
     def save(self, *args, **kwargs):
         if self.is_primary:
-            BankAccount.objects.filter(
-                payee=self.payee, is_primary=True
-            ).exclude(id=self.id).update(is_primary=False)
+            qs = BankAccount.objects.filter(
+                payee=self.payee,
+                is_primary=True
+            )
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+
+            qs.update(is_primary=False)
+
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -90,51 +98,105 @@ class SalaryStructureItem(models.Model):
     
 
 class PayrollPeriod(models.Model):
-    STATUS = (
-        ("draft", "Draft"),
-        ("locked", "Locked"),
-        ("processed", "Processed"),
-    )
-
     month = models.PositiveIntegerField()
     year = models.PositiveIntegerField()
-    status = models.CharField(max_length=20, choices=STATUS, default="draft")
-    created_at = models.DateTimeField(auto_now_add=True)
+
+    is_generated = models.BooleanField(default=False)
+    is_approved = models.BooleanField(default=False)
+    is_paid = models.BooleanField(default=False)
+    is_locked = models.BooleanField(default=False)
+
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="approved_periods"
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         unique_together = ("month", "year")
 
-    def is_locked(self):
-        return self.status in ("locked", "processed")
-
+  
     def __str__(self):
         return f"{self.month}/{self.year}"
 
 
+
+
 class PayrollRecord(models.Model):
     STATUS = (
-        ("pending", "Pending"),
+        ("generated", "Generated"),
         ("approved", "Approved"),
     )
 
-    payee = models.ForeignKey(Payee, on_delete=models.CASCADE)
-    payroll_period = models.ForeignKey(PayrollPeriod, on_delete=models.CASCADE)
-    gross_pay = models.DecimalField(max_digits=12, decimal_places=2)
-    total_deductions = models.DecimalField(max_digits=12, decimal_places=2)
-    net_pay = models.DecimalField(max_digits=12, decimal_places=2)
-    generated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    status = models.CharField(max_length=20, choices=STATUS, default="pending")
+    payee = models.ForeignKey(
+        "payroll.Payee",
+        on_delete=models.CASCADE,
+        related_name="payroll_records"
+    )
+    payroll_period = models.ForeignKey(
+        "payroll.PayrollPeriod",
+        on_delete=models.CASCADE,
+        related_name="records"
+    )
+
+    gross_pay = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00")
+    )
+    total_deductions = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00")
+    )
+    net_pay = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00")
+    )
+
+    generated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="generated_payrolls"
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS,
+        default="generated"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = ("payee", "payroll_period")
+        ordering = ["-created_at"]
 
     def __str__(self):
         return f"{self.payee} - {self.payroll_period}"
+
+    # =========================
+    # PAYMENT STATE (TRUTH SOURCE)
+    # =========================
+    def is_fully_paid(self):
     
-    
+        return self.successful_transactions.filter(status="success").exists()
+
+
+    # =========================
+    # SAFETY LOCK
+    # =========================
     def save(self, *args, **kwargs):
-        if self.payroll_period.is_locked():
+        """
+        Prevent modification once payroll period is locked.
+        Allows initial creation only.
+        """
+        if self.pk and self.payroll_period.is_locked:
             raise ValueError("Cannot modify payroll for a locked period.")
         super().save(*args, **kwargs)
 
@@ -208,7 +270,20 @@ class PaymentBatch(models.Model):
     is_processed = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"Batch {self.id} - {self.payroll_period}"
+        return f"Batch {self.pk} - {self.payroll_period}"
+    
+
+
+class PayrollGenerationLog(models.Model):
+    payroll_period = models.ForeignKey(PayrollPeriod, on_delete=models.CASCADE)
+    payee = models.ForeignKey(Payee, on_delete=models.CASCADE)
+    status = models.CharField(
+        max_length=20,
+        choices=[("success", "Success"), ("failed", "Failed")]
+    )
+    error_message = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
 
 
 class PaymentTransaction(models.Model):
@@ -219,7 +294,7 @@ class PaymentTransaction(models.Model):
     )
 
     payroll_record = models.OneToOneField(
-        PayrollRecord, on_delete=models.PROTECT
+        PayrollRecord, on_delete=models.PROTECT, related_name="successful_transactions"
     )
     batch = models.ForeignKey(
         PaymentBatch, on_delete=models.PROTECT, related_name="transactions"
