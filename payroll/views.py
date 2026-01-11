@@ -22,6 +22,8 @@ from django.utils import timezone
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.crypto import get_random_string
 
+from school_sms.settings import SCHOOL_ADDRESS, SCHOOL_NAME
+
 from .models import Payee, PayeeSalaryStructure, PayrollEnrollment
 from .forms import PayrollEnrollmentForm
 from django.contrib.admin.views.decorators import staff_member_required
@@ -32,7 +34,7 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.db.models import Sum
 from payroll.models import PayrollRecord
-from loans.models import Loan
+from loans.models import LoanApplication
 from leaves.models import LeaveRequest
 
 from django.contrib.auth.decorators import login_required
@@ -68,7 +70,16 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from payroll.models import Payee, PayrollPeriod, PayrollRecord
 from django.http import HttpResponseForbidden
+from django.core.paginator import Paginator
+from django.db.models import Sum
 
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+from decimal import Decimal
 
 User = get_user_model()
 
@@ -359,7 +370,7 @@ def payroll_dashboard(request):
     context = {
         "payee": payee,
         "recent_payrolls": PayrollRecord.objects.filter(payee=payee)[:5],
-        "active_loans": Loan.objects.filter(
+        "active_loans": LoanApplication.objects.filter(
             payee=payee,
             status="approved"
         ),
@@ -397,7 +408,7 @@ def admin_dashboard(request):
     context = {
         "payee": payee,
         "recent_payrolls": PayrollRecord.objects.filter(payee=payee)[:5],
-        "active_loans": Loan.objects.filter(
+        "active_loans": LoanApplication.objects.filter(
             payee=payee,
             status="approved"
         ),
@@ -667,85 +678,6 @@ def approve_bank_account(request, account_id):
 
 
 @login_required
-def monthly_payroll_chart(request):
-    if not request.user.is_superuser:
-        return HttpResponse(status=403)
-
-    data = (
-        PayrollRecord.objects
-        .values("payroll_period__month", "payroll_period__year")
-        .annotate(total=Sum("net_pay"))
-        .order_by("payroll_period__year", "payroll_period__month")
-    )
-
-    return JsonResponse(list(data), safe=False)
-
-
-@login_required
-def monthly_deductions_chart(request):
-    if not request.user.is_superuser:
-        return JsonResponse([], safe=False)
-
-    data = (
-        PayrollRecord.objects
-        .filter(paymenttransaction__status="SUCCESS")
-        .values("payroll_period__year", "payroll_period__month")
-        .annotate(total=Sum("total_deductions"))
-        .order_by("payroll_period__year", "payroll_period__month")
-    )
-
-    return JsonResponse([
-        {
-            "month": f'{d["payroll_period__year"]}-{str(d["payroll_period__month"]).zfill(2)}',
-            "total": float(d["total"]),
-        }
-        for d in data
-    ], safe=False)
-
-
-
-@login_required
-def deduction_dashboard(request):
-    if not request.user.is_superuser:
-        return HttpResponse(status=403)
-
-    records = (
-        PayrollLineItem.objects
-        .select_related("component", "payroll_record__payroll_period")
-        .order_by(
-            "-payroll_record__payroll_period__year",
-            "-payroll_record__payroll_period__month"
-        )
-    )
-
-    return render(
-        request,
-        "payroll/admin/deduction_dashboard.html",
-        {"records": records}
-    )
-
-
-@login_required
-def deduction_breakdown_chart(request):
-    data = (
-        PayrollLineItem.objects
-        .filter(line_type="deduction")
-        .values(
-            "component__name",
-            "payroll_record__payroll_period__year",
-            "payroll_record__payroll_period__month"
-        )
-        .annotate(total=Sum("amount"))
-        .order_by(
-            "payroll_record__payroll_period__year",
-            "payroll_record__payroll_period__month"
-        )
-    )
-
-    return JsonResponse(list(data), safe=False)
-
-
-@login_required
 def staff_salary_history(request):
     records = PayrollRecord.objects.filter(
         payee__user=request.user
@@ -761,7 +693,7 @@ def staff_salary_history(request):
 def salary_detail(request, pk):
     payee = get_object_or_404(Payee, pk=pk)
 
-    loans = Loan.objects.filter(payee=payee).order_by("-created_at")
+    loans = LoanApplication.objects.filter(payee=payee).order_by("-created_at")
     payrolls = PayrollRecord.objects.filter(payee=payee).order_by("-created_at")
 
     context = {
@@ -874,5 +806,273 @@ def register_payroll(self, request, user_id):
 
     messages.success(request, "User successfully registered to payroll.")
     return redirect(f"/admin/users/user/{user.id}/change/")
+
+
+
+@login_required
+def admin_finance_dashboard(request):
+    if request.user.role not in ["ADMIN", "BURSAR"]:
+        return redirect("payroll:dashboard")
+
+    # ======================
+    # OVERVIEW METRICS
+    # ======================
+    payroll_totals = PayrollRecord.objects.aggregate(
+        gross=Sum("gross_pay"),
+        deductions=Sum("total_deductions"),
+        net=Sum("net_pay"),
+    )
+
+    loan_totals = LoanApplication.objects.aggregate(
+        total_loans=Sum("principal_amount"),
+        outstanding=Sum("outstanding_balance"),
+    )
+
+    # ======================
+    # PAGINATED TABLES
+    # ======================
+    period_page = Paginator(
+        PayrollPeriod.objects.order_by("-year", "-month"), 6
+    ).get_page(request.GET.get("period_page"))
+
+    record_page = Paginator(
+        PayrollRecord.objects.select_related("payee", "payroll_period")
+        .order_by("-created_at"),
+        10
+    ).get_page(request.GET.get("record_page"))
+
+    batch_page = Paginator(
+        PaymentBatch.objects.order_by("-created_at"),
+        5
+    ).get_page(request.GET.get("batch_page"))
+
+    loan_page = Paginator(
+        LoanApplication.objects.select_related("payee").order_by("-created_at"),
+        10
+    ).get_page(request.GET.get("loan_page"))
+
+    audit_page = Paginator(
+        AuditLog.objects.order_by("-created_at"),
+        10
+    ).get_page(request.GET.get("audit_page"))
+
+    context = {
+        "payroll_totals": payroll_totals,
+        "loan_totals": loan_totals,
+
+        "periods": period_page,
+        "records": record_page,
+        "batches": batch_page,
+        "loans": loan_page,
+        "audits": audit_page,
+    }
+
+    return render(request, "finance/admin_finance_dashboard.html", context)
+
+
+
+
+def export_payroll_report_pdf(request, period_id):
+    period = get_object_or_404(PayrollPeriod, id=period_id)
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="payroll_{period}.pdf"'
+
+    doc = SimpleDocTemplate(response, pagesize=A4)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    # Header
+    elements.append(Paragraph(f"<b>{SCHOOL_NAME}</b>", styles["Title"]))
+    elements.append(Paragraph(settings.SCHOOL_ADDRESS, styles["Normal"]))
+    elements.append(Paragraph(f"Payroll Report – {period}", styles["Heading2"]))
+
+    data = [
+        ["Staff", "Gross", "Deductions", "Net", "Outstanding Loan", "Leave Left"]
+    ]
+
+    records = PayrollRecord.objects.filter(payroll_period=period).select_related("payee")
+
+    for r in records:
+        loan_balance = (
+            LoanApplication.objects.filter(payee=r.payee, outstanding_balance__gt=0)
+            .aggregate(total=models.Sum("outstanding_balance"))["total"]
+            or Decimal("0.00")
+        )
+
+        leave_left = LeaveBalance.objects.filter(
+            payee=r.payee,
+            year=period.year
+        ).first()
+
+        data.append([
+            r.payee.full_name,
+            f"{r.gross_pay:.2f}",
+            f"{r.total_deductions:.2f}",
+            f"{r.net_pay:.2f}",
+            f"{loan_balance:.2f}",
+            leave_left.remaining_days if leave_left else "0",
+        ])
+
+    table = Table(data, repeatRows=1)
+    table.setStyle(TableStyle([
+        ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+        ("BACKGROUND", (0,0), (-1,0), colors.lightgrey),
+        ("ALIGN", (1,1), (-1,-1), "RIGHT"),
+    ]))
+
+    elements.append(table)
+    doc.build(elements)
+
+    return response
+
+
+
+import qrcode
+from io import BytesIO
+from reportlab.platypus import Image
+from reportlab.lib.units import inch
+
+def export_payslip_pdf(request, record_id):
+    record = get_object_or_404(PayrollRecord, id=record_id)
+    school = SchoolProfile.objects.first()
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="payslip_{record.id}.pdf"'
+
+    doc = SimpleDocTemplate(response, pagesize=A4)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    # Header
+    elements.append(Paragraph(f"<b>{school.name}</b>", styles["Title"]))
+    elements.append(Paragraph(school.address, styles["Normal"]))
+    elements.append(Paragraph("Payslip", styles["Heading2"]))
+
+    # Loan
+    loan_balance = (
+        Loan.objects.filter(payee=record.payee, outstanding_balance__gt=0)
+        .aggregate(total=models.Sum("outstanding_balance"))["total"]
+        or Decimal("0.00")
+    )
+
+    leave_left = LeaveBalance.objects.filter(
+        payee=record.payee,
+        year=record.payroll_period.year
+    ).first()
+
+    # Payslip details
+    elements.append(Paragraph(f"Name: {record.payee.full_name}", styles["Normal"]))
+    elements.append(Paragraph(f"Period: {record.payroll_period}", styles["Normal"]))
+    elements.append(Paragraph(f"Gross Pay: ₦{record.gross_pay}", styles["Normal"]))
+    elements.append(Paragraph(f"Deductions: ₦{record.total_deductions}", styles["Normal"]))
+    elements.append(Paragraph(f"Net Pay: ₦{record.net_pay}", styles["Normal"]))
+    elements.append(Paragraph(f"Outstanding Loan: ₦{loan_balance}", styles["Normal"]))
+    elements.append(Paragraph(
+        f"Leave Remaining: {leave_left.remaining_days if leave_left else 0} days",
+        styles["Normal"]
+    ))
+
+    # 🔐 QR Code
+    qr_data = f"""
+    PAYEE:{record.payee.full_name}
+    PERIOD:{record.payroll_period}
+    NET:{record.net_pay}
+    LOAN:{loan_balance}
+    LEAVE:{leave_left.remaining_days if leave_left else 0}
+    RECORD:{record.id}
+    """
+
+    qr = qrcode.make(qr_data)
+    buffer = BytesIO()
+    qr.save(buffer)
+    buffer.seek(0)
+
+    qr_img = Image(buffer, 2*inch, 2*inch)
+    elements.append(qr_img)
+
+    doc.build(elements)
+    return response
+
+
+
+
+@login_required
+def monthly_payroll_chart(request):
+    if not request.user.is_superuser:
+        return HttpResponse(status=403)
+
+    data = (
+        PayrollRecord.objects
+        .values("payroll_period__month", "payroll_period__year")
+        .annotate(total=Sum("net_pay"))
+        .order_by("payroll_period__year", "payroll_period__month")
+    )
+
+    return JsonResponse(list(data), safe=False)
+
+
+@login_required
+def monthly_deductions_chart(request):
+    if not request.user.is_superuser:
+        return JsonResponse([], safe=False)
+
+    data = (
+        PayrollRecord.objects
+        .filter(paymenttransaction__status="SUCCESS")
+        .values("payroll_period__year", "payroll_period__month")
+        .annotate(total=Sum("total_deductions"))
+        .order_by("payroll_period__year", "payroll_period__month")
+    )
+
+    return JsonResponse([
+        {
+            "month": f'{d["payroll_period__year"]}-{str(d["payroll_period__month"]).zfill(2)}',
+            "total": float(d["total"]),
+        }
+        for d in data
+    ], safe=False)
+
+
+
+@login_required
+def deduction_dashboard(request):
+    if not request.user.is_superuser:
+        return HttpResponse(status=403)
+
+    records = (
+        PayrollLineItem.objects
+        .select_related("component", "payroll_record__payroll_period")
+        .order_by(
+            "-payroll_record__payroll_period__year",
+            "-payroll_record__payroll_period__month"
+        )
+    )
+
+    return render(
+        request,
+        "payroll/admin/deduction_dashboard.html",
+        {"records": records}
+    )
+
+
+@login_required
+def deduction_breakdown_chart(request):
+    data = (
+        PayrollLineItem.objects
+        .filter(line_type="deduction")
+        .values(
+            "component__name",
+            "payroll_record__payroll_period__year",
+            "payroll_record__payroll_period__month"
+        )
+        .annotate(total=Sum("amount"))
+        .order_by(
+            "payroll_record__payroll_period__year",
+            "payroll_record__payroll_period__month"
+        )
+    )
+
+    return JsonResponse(list(data), safe=False)
 
 

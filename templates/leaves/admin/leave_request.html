@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container">
+  <h3 class="mb-4">Request Leave</h3>
+
+  <form method="post" class="card p-4 shadow-sm">
+    {% csrf_token %}
+
+    <div class="mb-3">
+      <label class="form-label">Leave Type</label>
+      <select name="leave_type" class="form-select" required>
+        <option value="">-- Select leave type --</option>
+        {% for t in types %}
+          <option value="{{ t.id }}">
+            {{ t.name }} {% if not t.is_paid %}(Unpaid){% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="row mb-3">
+      <div class="col">
+        <label class="form-label">Start Date</label>
+        <input type="date" name="start_date" class="form-control" required>
+      </div>
+      <div class="col">
+        <label class="form-label">End Date</label>
+        <input type="date" name="end_date" class="form-control" required>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Reason</label>
+      <textarea
+        name="reason"
+        rows="4"
+        class="form-control"
+        placeholder="Explain the reason for your leave"
+        required
+      ></textarea>
+    </div>
+
+    <div class="d-flex justify-content-between">
+      <a href="{% url 'leave:staff_dashboard' %}" class="btn btn-secondary">
+        Cancel
+      </a>
+      <button type="submit" class="btn btn-primary">
+        Submit Request
+      </button>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

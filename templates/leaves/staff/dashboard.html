@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h2>My Dashboard</h2>
+
+<h4>Leave Balance</h4>
+<strong>{{ leave_balance }} days remaining</strong>
+
+<h4>My Leave Requests</h4>
+{% for leave in leaves %}
+  {{ leave.start_date }} → {{ leave.end_date }} ({{ leave.status }})
+{% empty %}No leave requests{% endfor %}
+
+<a href="{% url 'dashboard:leave_calendar' %}">📅 Leave Calendar</a>
+
+{% endblock content %}

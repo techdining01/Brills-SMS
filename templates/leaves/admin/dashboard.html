@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+
+{% block content %}  
+
+<h2>Admin / Bursar Dashboard</h2>
+
+<section>
+  <h4>Pending Payroll Periods</h4>
+  {% for p in pending_periods %}
+    <a href="{% url 'payroll:period_detail' p.id %}">
+      {{ p.month }}/{{ p.year }}
+    </a><br>
+  {% empty %}No pending payroll{% endfor %}
+</section>
+
+<section>
+  <h4>Pending Loan Requests</h4>
+  {% for loan in pending_loans %}
+    {{ loan.payee }} - ₦{{ loan.amount|intcomma }}
+  {% empty %}No pending loans{% endfor %}
+</section>
+
+<section>
+  <h4>Pending Leave Requests</h4>
+  {% for leave in pending_leaves %}
+        {{ leave.payee }} ({{ leave.start_date }} → {{ leave.end_date }})
+    <button class="btn btn-success btn-sm approve-btn" data-id="{{ leave.id }}">
+        Approve
+    </button>    
+    <button class="btn btn-danger btn-sm reject-btn" data-id="{{ leave.id }}">
+        reject
+    </button>    
+    <a href="{% url 'leaves:reject_leave' leave.id %}">Reject</a>
+  {% empty %}
+    No pending leave{% endfor %}
+</section>
+
+<a href="{% url 'leaves:leave_calendar' %}">📅 Leave Calendar</a>
+
+<canvas id="leaveChart"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+document.querySelectorAll(".approve-btn").forEach(btn => {
+  btn.onclick = () => {
+    fetch(`/leave/ajax/${btn.dataset.id}/approve/`, {
+      method: "POST",
+      headers: { "X-CSRFToken": "{{ csrf_token }}" }
+    }).then(() => location.reload())
+  }
+})
+
+document.querySelectorAll(".reject-btn").forEach(btn => {
+  btn.onclick = () => {
+    fetch(`/leave/ajax/${btn.dataset.id}/reject/`, {
+      method: "POST",
+      headers: { "X-CSRFToken": "{{ csrf_token }}" }
+    }).then(() => location.reload())
+  }
+})
+
+
+new Chart(document.getElementById("leaveChart"), {
+  type: "bar",
+  data: {
+    labels: {{ data.keys|safe }},
+    datasets: [{
+      label: "Leave Days Used",
+      data: {{ data.values|safe }},
+    }]
+  }
+});
+</script>
+
+{% endblock %}

@@ -1,7 +1,7 @@
 from decimal import Decimal
 from django.db import transaction
 from  ..models import AuditLog
-from loans.models import LoanRepayment, Loan
+from loans.models import LoanRepayment, LoanApplication
 from payroll.models import PayrollRecord, Payee, PayrollGenerationLog, PayrollLineItem
 
 
@@ -101,47 +101,36 @@ def generate_payroll_for_payee(payee, payroll_period, generated_by):
     # ===============================
     # LOAN DEDUCTION
     # ===============================
-    active_loans = Loan.objects.filter(
+    active_loans = LoanApplication.objects.filter(
         payee=payee,
         status="approved",
         outstanding_balance__gt=0,
     )
 
     for loan in active_loans:
-        deduction = min(
-            loan.monthly_deduction,
-            loan.outstanding_balance
-        )
-
+        deduction = min(loan.monthly_deduction, loan.outstanding_balance)
         deductions += deduction
 
-        # Payslip line
         PayrollLineItem.objects.create(
             payroll_record=payroll,
             component=None,
             line_type="deduction",
             amount=deduction,
-            metadata={
-                "type": "loan",
-                "loan_id": loan.pk,
-            },
+            metadata={"type": "loan", "loan_id": loan.id},
         )
 
-        # Loan repayment record
         loan.outstanding_balance -= deduction
-
         LoanRepayment.objects.create(
             loan=loan,
             payroll_record=payroll,
             amount=deduction,
-            balance_after=loan.outstanding_balance,
+            balance_after=loan.outstanding_balance
         )
 
-        # AUTO COMPLETE
         if loan.outstanding_balance <= 0:
             loan.status = "completed"
-
         loan.save()
+
 
     # ===============================
     # FINALIZE PAYROLL

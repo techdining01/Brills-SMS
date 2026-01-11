@@ -11,6 +11,7 @@ urlpatterns = [
     # Admin
     # path("admin/", views.admin_dashboard, name="admin_dashboard"),
 
+    path( "admin/dashboard/", views.admin_finance_dashboard, name="admin_dashboard",),
     path("admin/records/", views.payroll_record_list, name="payroll_record_list"),
     path("admin/records/<int:pk>/", views.payroll_record_detail, name="payroll_record_detail"),
 

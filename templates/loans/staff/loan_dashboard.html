@@ -1,63 +1,59 @@
-
 {% extends "base.html" %}
 {% block content %}
+<h3>My Loans</h3>
 
-<div class="container">
-  <h4 class="mb-4">My Loans</h4>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Type</th>
+            <th>Principal</th>
+            <th>Total</th>
+            <th>Outstanding</th>
+            <th>Status</th>
+            <th>Progress</th>
+            <th>Applied At</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for loan in loans %}
+        <tr>
+            <td>{{ loan.loan_type.name }}</td>
+            <td>{{ loan.principal_amount }}</td>
+            <td>{{ loan.total_amount }}</td>
+            <td>{{ loan.outstanding_balance }}</td>
+            <td>{{ loan.status }}</td>
+            <td>
+                <div class="progress">
+                    <div class="progress-bar" role="progressbar" style="width: {{ loan.progress }}%;" aria-valuenow="{{ loan.progress }}" aria-valuemin="0" aria-valuemax="100">{{ loan.progress }}%</div>
+                </div>
+            </td>
+            <td>{{ loan.applied_at }}</td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="7">No loans applied</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
 
-  {% for loan in loans %}
-  <div class="card mb-4 shadow-sm">
-    <div class="card-body">
+<nav aria-label="Page navigation">
+  <ul class="pagination">
+    {% if loans.has_previous %}
+      <li class="page-item"><a class="page-link" href="?page={{ loans.previous_page_number }}">Previous</a></li>
+    {% else %}
+      <li class="page-item disabled"><span class="page-link">Previous</span></li>
+    {% endif %}
 
-      <h6 class="fw-bold">{{ loan.purpose }}</h6>
+    {% for num in loans.paginator.page_range %}
+      <li class="page-item {% if loans.number == num %}active{% endif %}">
+        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+      </li>
+    {% endfor %}
 
-      <p class="mb-1">
-        Amount: ₦{{ loan.amount }} <br>
-        Outstanding: ₦{{ loan.outstanding_balance }} <br>
-        Status:
-        <span class="badge bg-{% if loan.status == 'completed' %}success{% else %}warning{% endif %}">
-          {{ loan.status|title }}
-        </span>
-      </p>
-
-      {% with paid=loan.amount|floatformat:2|add:"-"|add:loan.outstanding_balance %}
-      {% widthratio paid loan.amount 100 as percent %}
-      <div class="progress mb-3" style="height: 8px;">
-        <div
-          class="progress-bar bg-success"
-          style="width: {{ percent }}%">
-        </div>
-      </div>
-      {% endwith %}
-
-      <small class="text-muted">Repayment History</small>
-
-      <table class="table table-sm mt-2">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Amount</th>
-            <th>Balance After</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for r in loan.repayments.all %}
-          <tr>
-            <td>{{ r.created_at|date:"M Y" }}</td>
-            <td>₦{{ r.amount }}</td>
-            <td>₦{{ r.balance_after }}</td>
-          </tr>
-          {% empty %}
-          <tr><td colspan="3" class="text-muted">No repayments yet</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-
-    </div>
-  </div>
-  {% empty %}
-  <p class="text-muted">You have no loans.</p>
-  {% endfor %}
-</div>
-
+    {% if loans.has_next %}
+      <li class="page-item"><a class="page-link" href="?page={{ loans.next_page_number }}">Next</a></li>
+    {% else %}
+      <li class="page-item disabled"><span class="page-link">Next</span></li>
+    {% endif %}
+  </ul>
+</nav>
 {% endblock %}

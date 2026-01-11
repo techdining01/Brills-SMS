@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="mb-4">Finance Control Center</h2>
+
+<!-- ================= OVERVIEW ================= -->
+<div class="row mb-4">
+  <div class="col-md-4">
+    <div class="card p-3">
+      <h6>Total Payroll Net</h6>
+      <h4>₦{{ payroll_totals.net|default:"0.00" }}</h4>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card p-3">
+      <h6>Total Loans Issued</h6>
+      <h4>₦{{ loan_totals.total_loans|default:"0.00" }}</h4>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card p-3">
+      <h6>Outstanding Loans</h6>
+      <h4 class="text-danger">
+        ₦{{ loan_totals.outstanding|default:"0.00" }}
+      </h4>
+    </div>
+  </div>
+</div>
+
+<!-- ================= TABS ================= -->
+<ul class="nav nav-tabs" role="tablist">
+  <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#periods">Payroll Periods</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#records">Payroll Records</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#batches">Payment Batches</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#loans">Loans</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#audits">Audit Logs</a></li>
+</ul>
+
+<div class="tab-content mt-3">
+
+<!-- ================= PERIODS ================= -->
+<div class="tab-pane fade show active" id="periods">
+  <table class="table table-sm">
+    <tr><th>Period</th><th>Status</th></tr>
+    {% for p in periods %}
+      <tr>
+        <td>{{ p.month }}/{{ p.year }}</td>
+        <td>
+          {% if p.is_paid %}Paid
+          {% elif p.is_approved %}Approved
+          {% elif p.is_generated %}Generated
+          {% else %}Draft{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<!-- ================= RECORDS ================= -->
+<div class="tab-pane fade" id="records">
+  <table class="table table-sm">
+    <tr><th>Payee</th><th>Net Pay</th><th>Period</th></tr>
+    {% for r in records %}
+      <tr>
+        <td>{{ r.payee }}</td>
+        <td>₦{{ r.net_pay }}</td>
+        <td>{{ r.payroll_period }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<!-- ================= BATCHES ================= -->
+<div class="tab-pane fade" id="batches">
+  <table class="table table-sm">
+    <tr><th>Batch Ref</th><th>Status</th><th>Date</th></tr>
+    {% for b in batches %}
+      <tr>
+        <td>{{ b.reference }}</td>
+        <td>{{ b.status }}</td>
+        <td>{{ b.created_at }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<!-- ================= LOANS ================= -->
+<div class="tab-pane fade" id="loans">
+  <table class="table table-sm">
+    <tr><th>Payee</th><th>Principal</th><th>Outstanding</th><th>Status</th></tr>
+    {% for l in loans %}
+      <tr>
+        <td>{{ l.payee }}</td>
+        <td>₦{{ l.principal_amount }}</td>
+        <td>₦{{ l.outstanding_balance }}</td>
+        <td>{{ l.status }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<!-- ================= AUDIT ================= -->
+<div class="tab-pane fade" id="audits">
+  <table class="table table-sm">
+    <tr><th>User</th><th>Action</th><th>Object</th><th>Date</th></tr>
+    {% for a in audits %}
+      <tr>
+        <td>{{ a.user }}</td>
+        <td>{{ a.action }}</td>
+        <td>{{ a.object_type }}</td>
+        <td>{{ a.created_at }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+</div>
+
+</div>
+{% endblock %}

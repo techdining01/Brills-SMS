@@ -1,0 +1,29 @@
+<h2>Leave Calendar ({{ leaves.0.start_date.year }})</h2>
+
+<table>
+<tr>
+  <th>Staff</th>
+  <th>From</th>
+  <th>To</th>
+  <th>Status</th>
+  {% if user.role in "ADMIN,BURSAR" %}
+    <th>Action</th>
+  {% endif %}
+</tr>
+
+{% for leave in leaves %}
+<tr>
+  <td>{{ leave.payee }}</td>
+  <td>{{ leave.start_date }}</td>
+  <td>{{ leave.end_date }}</td>
+  <td>{{ leave.status }}</td>
+
+  {% if user.role in "ADMIN,BURSAR" and leave.status == "pending" %}
+    <td>
+      <a href="{% url 'dashboard:approve_leave' leave.id %}">Approve</a>
+      <a href="{% url 'dashboard:reject_leave' leave.id %}">Reject</a>
+    </td>
+  {% endif %}
+</tr>
+{% endfor %}
+</table>
