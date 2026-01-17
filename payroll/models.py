@@ -2,7 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 from decimal import Decimal
-
+from uuid import uuid4
 
 
 User = settings.AUTH_USER_MODEL
@@ -10,7 +10,7 @@ User = settings.AUTH_USER_MODEL
 
 class Payee(models.Model):
     PAYEE_TYPES = (
-         ("admin", "Admin Staff"),
+        ("admin", "Admin Staff"),
         ("teacher", "Teacher"),
         ("non_teacher", "Non-Teaching Staff"),
         ("contractor", "Contractor"),
@@ -21,13 +21,42 @@ class Payee(models.Model):
         User, on_delete=models.SET_NULL, null=True, blank=True
     )
     payee_type = models.CharField(max_length=20, choices=PAYEE_TYPES)
-    full_name = models.CharField(max_length=255)
     reference_code = models.CharField(max_length=50, unique=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.full_name} ({self.payee_type})"
+        return f"{self.user.get_full_name()} ({self.payee_type})" 
+    
+    def get_id(self):
+        if self.user.role in self.PAYEE_TYPES:
+            reference_code = f"PAYEE-{self.user.id}/{uuid4().hex[:5].upper()}"
+            return reference_code
+    
+    def has_primary_bank(self):
+        return self.bank_accounts.filter(is_primary=True).exists()
+
+    def has_salary_structure(self):
+        return hasattr(self, "salary_assignment")
+
+    def is_payroll_ready(self):
+        return all([
+            self.is_active,
+            self.has_primary_bank(),
+            self.has_salary_structure(),
+        ])
+
+    def save(self, *args, **kwargs):
+        if not self.reference_code:
+            self.reference_code = self.get_id()
+
+        super().save(*args, **kwargs)
+
+
+class PayeeOnboarding(models.Model):
+    payee = models.OneToOneField(Payee, on_delete=models.CASCADE)
+    step = models.PositiveSmallIntegerField(default=1)
+    completed = models.BooleanField(default=False)
 
 
 class BankAccount(models.Model):
@@ -52,7 +81,7 @@ class BankAccount(models.Model):
 
     def __str__(self):
         return f"{self.bank_name} - {self.account_number}"
-
+    
 
 class SalaryComponent(models.Model):
     COMPONENT_TYPES = (
@@ -120,8 +149,6 @@ class PayrollPeriod(models.Model):
   
     def __str__(self):
         return f"{self.month}/{self.year}"
-
-
 
 
 class PayrollRecord(models.Model):
@@ -329,7 +356,7 @@ class StaffProfile(models.Model):
     is_confirmed = models.BooleanField(default=False)
 
     def __str__(self):
-        return self.payee.full_name
+        return self.payee.user.get_full_name()
     
 
 class PayrollEnrollment(models.Model):

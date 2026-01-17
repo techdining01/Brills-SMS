@@ -26,10 +26,5 @@ def calculate_leave_balance(payee, year=None):
         start_date__year=year
     )
 
-    data = {}
-    for l in approved:
-        day = l.start_date.strftime("%m-%Y")
-        data[day] = data.get(day, 0) + l.days
-
     used_days = sum(l.days for l in approved)
     return max(ANNUAL_LEAVE_DAYS - used_days, 0)

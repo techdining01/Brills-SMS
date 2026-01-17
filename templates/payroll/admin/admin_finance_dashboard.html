@@ -1,8 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
-
-<h2 class="mb-4">Finance Control Center</h2>
-
+<div class="container mt-4 d-flex justify-content-between align-items-center">
+    <h2 class="mb-4">Finance Control Center</h2> 
+  <div>
+  <a class="btn btn-sm btn-outline-primary" href="{% url 'payroll:payee_list' %}">
+    Payee +
+  </a>
+ </div>
+</div>
 <!-- ================= OVERVIEW ================= -->
 <div class="row mb-4">
   <div class="col-md-4">
@@ -42,7 +47,7 @@
 
 <!-- ================= PERIODS ================= -->
 <div class="tab-pane fade show active" id="periods">
-  <table class="table table-sm">
+  <table class="table table-sm table-responsive">
     <tr><th>Period</th><th>Status</th></tr>
     {% for p in periods %}
       <tr>
@@ -60,7 +65,7 @@
 
 <!-- ================= RECORDS ================= -->
 <div class="tab-pane fade" id="records">
-  <table class="table table-sm">
+  <table class="table table-sm table-responsive">
     <tr><th>Payee</th><th>Net Pay</th><th>Period</th></tr>
     {% for r in records %}
       <tr>
@@ -74,7 +79,7 @@
 
 <!-- ================= BATCHES ================= -->
 <div class="tab-pane fade" id="batches">
-  <table class="table table-sm">
+  <table class="table table-sm table-responsive">
     <tr><th>Batch Ref</th><th>Status</th><th>Date</th></tr>
     {% for b in batches %}
       <tr>
@@ -88,7 +93,7 @@
 
 <!-- ================= LOANS ================= -->
 <div class="tab-pane fade" id="loans">
-  <table class="table table-sm">
+  <table class="table table-sm table-responsive">
     <tr><th>Payee</th><th>Principal</th><th>Outstanding</th><th>Status</th></tr>
     {% for l in loans %}
       <tr>
@@ -103,7 +108,7 @@
 
 <!-- ================= AUDIT ================= -->
 <div class="tab-pane fade" id="audits">
-  <table class="table table-sm">
+  <table class="table table-sm table-responsive">
     <tr><th>User</th><th>Action</th><th>Object</th><th>Date</th></tr>
     {% for a in audits %}
       <tr>

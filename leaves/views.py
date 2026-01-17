@@ -167,7 +167,7 @@ def approve_leave(request, leave_id):
             request,
             f"Insufficient leave balance. Remaining: {balance['remaining']} days"
         )
-        return redirect("leave:admin_dashboard")
+        return redirect("leaves:admin_dashboard")
 
     leave.status = "approved"
     leave.reviewed_by = request.user
@@ -175,7 +175,7 @@ def approve_leave(request, leave_id):
     leave.save()
 
     messages.success(request, "Leave approved successfully.")
-    return redirect("leave:admin_dashboard")
+    return redirect("leaves:admin_dashboard")
 
 
 
@@ -189,7 +189,7 @@ def reject_leave(request, leave_id):
     leave.save()
 
     messages.success(request, "Leave rejected.")
-    return redirect("leave:admin_dashboard")
+    return redirect("leaves:admin_dashboard")
 
 
 @login_required
@@ -201,7 +201,7 @@ def leave_history(request):
 
     page = Paginator(qs, 10).get_page(request.GET.get("page"))
 
-    return render(request, "leave/leave_history.html", {"page": page})
+    return render(request, "leaves/leave_history.html", {"page": page})
 
 
 
@@ -211,12 +211,12 @@ def leave_heatmap(request):
 
     data = {}
     for l in leaves:
-        day = l.start_date.strftime("%Y-%m")
+        day = l.start_date.strftime("%m-%Y")
         data[day] = data.get(day, 0) + l.days
 
     return render(
         request,
-        "leave/leave_heatmap.html",
+        "leaves/leave_heatmap.html",
         {"data": data}
     )
 

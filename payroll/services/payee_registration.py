@@ -16,3 +16,5 @@ def register_user_to_payroll(*, user, payee_type, created_by):
     )
 
     return payee
+
+

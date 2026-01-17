@@ -1,27 +1,36 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h3>My Payroll Dashboard</h3>
+<div class="d-flex justify-content-between align-item-center">
+  <h3>My Payroll Dashboard</h3>
+  <div class="mb-4">
+    <a class="btn btn-sm btn-outline-primary" href="{% url 'payroll:staff_create_bank_account' payee.id %}">
+      Bank Acct +
+    </a>
+  </div>
+</div>
+
+
 
 <div class="card p-3 mb-3">
   <h6>Profile</h6>
-  <p><strong>Name:</strong> {{ payee.full_name }}</p>
-  <p><strong>Staff Type:</strong> {{ payee.staff_type }}</p>
+  <p><strong>Name:</strong> {{ payee.user.get_full_name }}</p>
+  <p><strong>Staff Type:</strong> {{ payee.payee_type }}</p>
 </div>
 
 <div class="card p-3 mb-3">
   <h6>My Payroll Records</h6>
-  <a href="{% url 'payroll:staff_payroll_list' %}">View All Payrolls</a>
+  <a href="{% url 'payroll:salary_history' %}">View All Payrolls</a>
 </div>
 
 <div class="card p-3 mb-3">
   <h6>Loans</h6>
-  <a href="{% url 'loans:loan_dashboard' %}">Loan Dashboard</a>
+  <a href="{% url 'loans:staff_loan_dashboard' %}">Loan Dashboard</a>
 </div>
 
 <div class="card p-3">
   <h6>Payslips</h6>
-  <a href="{% url 'payroll:payslip_list' %}">Download Payslips</a>
+  <a href="{% url 'payroll:export_payslip_pdf' payee.id %}">Download Payslips</a>
 </div>
 
 {% endblock %}

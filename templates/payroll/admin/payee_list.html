@@ -1,12 +1,20 @@
 {% extends "base.html" %}
 {% block content %}
-<h4>Payees</h4>
+
+<div class="container mt-4 d-flex justify-content-between align-items-center">
+    <h2 class="mb-4">Payees</h2> 
+  <div>
+  <a class="btn btn-sm btn-outline-primary" href="{% url 'payroll:create_payee' %}">
+    Payee +
+  </a>
+ </div>
+</div>
 
 <ul>
   {% for p in payees %}
     <li>
       <a href="{% url 'payroll:payee_detail' p.id %}">
-        {{ p.user.get_full_name }} – {{ p.staff_type }}
+        {{ p.user.get_full_name }} – {{ p.payee_type }}
       </a>
     </li>
   {% endfor %}

@@ -42,7 +42,7 @@
                 {% for u in users %}
                 <tr>
                     <td><input type="checkbox" name="users" value="{{ u.id }}"></td>
-                    <td>{{ u.get_full_name }}</td>
+                    <td>{{ u.username }}</td>
                     <td><span class="badge bg-secondary">{{ u.get_role_display }}</span></td>
                     <td>{{ u.email }}</td>
                     <td>{{ u.date_joined|date:"M d, Y" }}</td>

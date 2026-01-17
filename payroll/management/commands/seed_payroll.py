@@ -3,10 +3,7 @@ from decimal import Decimal
 from django.contrib.auth import get_user_model
 from payroll.models import PayrollPeriod, StaffProfile, Payee
 from payroll.services.payroll_generation import bulk_generate_payroll
-from loans.models import Loan
-
-
-
+from loans.models import LoanApplication
 
 
 
@@ -39,8 +36,8 @@ class Command(BaseCommand):
             }
         )
 
-        # Loan
-        Loan.objects.get_or_create(
+        # LoanApplication
+        LoanApplication.objects.get_or_create(
             payee=staff,
             defaults={
                 "amount": Decimal("500000"),

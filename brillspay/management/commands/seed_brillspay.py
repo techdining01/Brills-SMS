@@ -20,12 +20,12 @@ class Command(BaseCommand):
             # Create Categories
             # -------------------------
             category_map = {}
-            for name in categories:
+            for class_name in categories:
                 category, _ = ProductCategory.objects.get_or_create(
-                    name=name,
-                    defaults={"slug": name.lower()}
+                    class_name=class_name,
+                    defaults={"slug": class_name.lower()}
                 )
-                category_map[name] = category
+                category_map[class_name] = category
 
             # -------------------------
             # Create Products per Class
@@ -57,7 +57,6 @@ class Command(BaseCommand):
                 for p in products:
                     Product.objects.get_or_create(
                         name=p["name"],
-                        SchoolClass=class_obj,
                         category=cat,
                         defaults={
                             "price": p["price"],

@@ -1,9 +1,9 @@
 from decimal import Decimal
 from django.db import transaction
+from django.shortcuts import redirect
 from  ..models import AuditLog
 from loans.models import LoanRepayment, LoanApplication
 from payroll.models import PayrollRecord, Payee, PayrollGenerationLog, PayrollLineItem
-
 
 
 def bulk_generate_payroll(payroll_period, generated_by):
@@ -130,7 +130,6 @@ def generate_payroll_for_payee(payee, payroll_period, generated_by):
         if loan.outstanding_balance <= 0:
             loan.status = "completed"
         loan.save()
-
 
     # ===============================
     # FINALIZE PAYROLL

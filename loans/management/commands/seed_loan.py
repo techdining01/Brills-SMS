@@ -1,6 +1,5 @@
-# loans/management/commands/seed_loans.py
 from django.core.management.base import BaseCommand
-from loans.models import Loan
+from loans.models import LoanApplication
 from payroll.models import Payee, PayrollPeriod
 from decimal import Decimal
 
@@ -9,7 +8,7 @@ class Command(BaseCommand):
         period = PayrollPeriod.objects.first()
 
         for payee in Payee.objects.all()[:5]:
-            Loan.objects.get_or_create(
+            LoanApplication.objects.get_or_create(
                 payee=payee,
                 principal_amount=Decimal("50000"),
                 defaults={

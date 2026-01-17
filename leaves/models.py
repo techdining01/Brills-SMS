@@ -50,7 +50,7 @@ class LeaveRequest(models.Model):
             status="approved",
             start_date__lte=self.end_date,
             end_date__gte=self.start_date,
-        ).exclude(id=self.id)
+        ).exclude(id=self.pk)
 
         if overlaps.exists():
             raise ValidationError("Overlapping approved leave exists.")

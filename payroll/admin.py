@@ -1,8 +1,13 @@
+from atexit import register
+from re import search
+from turtle import mode
 from django.contrib import admin
+
+from accounts import forms, models
 from .models import (
-    Payee, BankAccount, SalaryComponent,
-    SalaryStructure, SalaryStructureItem,
-    PayrollPeriod, PayrollRecord, PayrollAuditLog, PayslipItem
+    Payee, BankAccount, PayeeSalaryStructure, PaymentTransaction, SalaryComponent,
+    SalaryStructure, SalaryStructureItem, PaymentBatch, PayrollEnrollment,
+    PayrollPeriod, PayrollRecord, PayrollAuditLog, PayslipItem, StaffProfile, TransferRecipient
 )
 
 from payroll.services.payroll_generation import bulk_generate_payroll
@@ -15,9 +20,9 @@ class BankAccountInline(admin.TabularInline):
 
 @admin.register(Payee)
 class PayeeAdmin(admin.ModelAdmin):
-    list_display = ("full_name", "payee_type", "reference_code", "is_active")
-    list_filter = ("payee_type", "is_active")
-    search_fields = ("full_name", "reference_code")
+    list_display = ("user", "payee_type", "reference_code", "is_active")
+    list_filter = ("user__first_name", "payee_type", "is_active")
+    search_fields = ("reference_code",)
     inlines = [BankAccountInline]
 
 
@@ -127,7 +132,7 @@ def export_payroll_csv(modeladmin, request, queryset):
 
     for record in queryset.select_related("payee", "payroll_period"):
         writer.writerow([
-            record.payee.full_name,
+            record.payee.user.get_full_name(),
             record.payee.payee_type,
             str(record.payroll_period),
             record.gross_pay,
@@ -171,3 +176,63 @@ def export_payment_batch_csv(modeladmin, request, queryset):
 
     return response
 
+@admin.register(StaffProfile)
+class StaffProfileAdmin(admin.ModelAdmin):
+    list_display = ("payee", "phone_number", "address", 
+                    "date_of_employment", "is_confirmed")
+    search_fields = ("payee__first_name", "phone_number", "address")
+    list_filter = ("is_confirmed",)
+
+
+admin.site.register(BankAccount)
+admin.site.add_action(generate_payroll_for_period)
+admin.site.add_action(export_payroll_csv)
+admin.site.add_action(export_payment_batch_csv)
+   
+
+@admin.register(PaymentTransaction)
+class PaymentTransactionAdmin(admin.ModelAdmin):
+    list_display = (
+        "payroll_record",
+        "amount",
+        "status",
+        "batch",
+        "bank_name",
+        "account_number",
+        "account_name", 
+        "failure_reason",
+        "created_at",
+    )
+    list_filter = ("status", "batch")
+    search_fields = ("payroll_record__payee__first_name",)
+
+
+@admin.register(PayeeSalaryStructure)
+class PayeeSalaryStructureAdmin(admin.ModelAdmin):
+    list_display = ("payee","salary_structure", "assigned_at","assigned_by")
+    search_fields = ("payee__first_name", "salary_structure__name")
+    list_filter = ("salary_structure",)
+
+
+
+@admin.register(TransferRecipient)
+class TransferRecipientAdmin(admin.ModelAdmin):
+    list_display = ("payee", "recipient_code", "bank_name", "account_number", "created_at")
+    search_fields = ("payee__first_name", "recipient_code", "bank_name", "account_number")
+    list_filter = ("bank_name",)
+
+
+@admin.register(PayrollEnrollment)
+class PayrollEnrollmentAdmin(admin.ModelAdmin):
+    list_display = ("user", "payee", "enrolled_by", "enrolled_at")
+    search_fields = ("user__first_name", "enrolled_by")
+
+
+@admin.register(PaymentBatch)
+class PaymentBatchAdmin(admin.ModelAdmin):
+    list_display = ("payroll_period", "created_by", "created_at", "is_processed")
+    search_list = ("payroll_period__month", "payroll_period__year", "payroll_period__is_generated",
+                   "payroll_period__is_approved", "payroll_period__is_paid", "is_processed",
+                    "approved_by" )
+
+ 
