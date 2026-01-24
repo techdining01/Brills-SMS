@@ -137,15 +137,15 @@ def create_payment_batch_view(request, period_id):
 
     if request.user.role not in ["ADMIN", "BURSAR"]:
         messages.error(request, "Permission denied.")
-        return redirect("payroll:period_detail", period.pk)
+        return redirect("payroll:payroll_period_detail", period.pk)
 
     if not period.is_approved:
         messages.error(request, "Payroll must be approved first.")
-        return redirect("payroll:period_detail", period.pk)
+        return redirect("payroll:payroll_period_detail", period.pk)
 
     if period.is_paid:
         messages.warning(request, "Payroll already paid.")
-        return redirect("payroll:period_detail", period.pk)
+        return redirect("payroll:payroll_period_detail", period.pk)
 
     batch = create_payment_batch(
         payroll_period=period,
@@ -278,6 +278,10 @@ def log_action(user, action, entity, entity_id=None, metadata=None):
     )
 
 
+#  Using Batch Payment ended but version 2 (other method beneath)
+# ================================================================
+
+
 # @login_required
 # def payroll_dashboard(request):
 #     user = request.user
@@ -336,7 +340,7 @@ def staff_payroll_dashboard(request):
 def create_payroll_period(request):
     if request.user.role not in ["ADMIN", "BURSAR"]:
         messages.error(request, "Permission denied.")
-        return redirect("payroll:period_list")
+        return redirect("payroll:payroll_period_list")
 
     if request.method == "POST":
         month = int(request.POST.get("month"))
@@ -352,7 +356,7 @@ def create_payroll_period(request):
         else:
             messages.success(request, "Payroll period created successfully.")
 
-        return redirect("payroll:period_detail", period.pk)
+        return redirect("payroll:payroll_period_detail", period.pk)
 
     return render(request, "payroll/admin/period_create.html")
 
@@ -459,7 +463,10 @@ def generate_payroll_for_period(request, period_id):
 # =========================
 @login_required
 def payroll_record_list(request):
-    records = PayrollRecord.objects.select_related("payee", "period")
+    records = PayrollRecord.objects.select_related("payee", "payroll_period")
+
+    page = Paginator(records, 6)
+    
     return render(request, "payroll/admin/record_list.html", {"records": records})
 
 
@@ -879,7 +886,7 @@ def admin_finance_dashboard(request):
     )
 
     loan_totals = LoanApplication.objects.aggregate(
-        total_loans=Sum("principal_amount"),
+        total_loans=Sum("loan_amount"),
         outstanding=Sum("outstanding_balance"),
     )
 

@@ -71,6 +71,8 @@
             </td>
             <td>
               <a href="{% url 'exams:question_list' exam.id %}" class="btn btn-sm btn-outline-primary">Questions</a>
+              <a href="{% url 'exams:edit_exam' exam.id %}" class="btn btn-sm btn-outline-warning">Update</a>
+              <a href="{% url 'exams:exam_detail' exam.id %}" class="btn btn-sm btn-outline-danger">Delete</a>
               <a href="{% url 'exams:add_question' exam.id %}" class="btn btn-sm btn-outline-secondary">Bulk Upload</a>
               <a href="{% url 'exams:teacher_grading_dashboard' %}" class="btn btn-sm btn-outline-success">Mark</a>
             </td>

@@ -3,7 +3,7 @@
 <div class="container mt-4">
   <h5>My Exam Results</h5>
 
-  <table class="table table-striped">
+  <table class="table table-striped table-bordered table-hover table-responsive shadow-sm">
     <thead>
       <tr>
         <th>Exam</th>
@@ -16,9 +16,9 @@
       {% for r in results %}
       <tr>
         <td>{{ r.exam.title }}</td>
-        <td>{{ r.obtained }}</td>
+        <td>{{ r.total_score }}</td>
         <td>{{ r.total }}</td>
-        <td>{{ r.obtained/r.total|floatformat:2 }}%</td>
+        <td>{{ r.total_score|floatformat:2 }}/{{ r.total|floatformat:2 }}%</td>
       </tr>
       {% endfor %}
     </tbody>

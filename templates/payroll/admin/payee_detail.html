@@ -1,54 +1,43 @@
 {% extends "base.html" %}
 {% block content %}
-<h4>{{ payee.user.get_full_name }}</h4>
-
-<p>Staff Type: {{ payee.payee_type }}</p>
-<p>Basic Salary: {{ payee.basic_salary }}</p>
-
-<h5>Payroll Records</h5>
-<ul>
-  {% for r in records %}
-    <li>{{ r.period }} – {{ r.net_pay }}</li>
-  {% endfor %}
-</ul>
-
-
-<hr>
-
-<!-- New Payee Detail Section -->
 
 <div class="card">
   <div class="card-header">
     <strong>Payroll Readiness</strong>
   </div>
 
-  <ul class="list-group list-group-flush">
-    <li class="list-group-item">
-      Bank Account:
-      {% if payee.has_primary_bank %}
-        <span class="badge bg-success">OK</span>
-      {% else %}
-        <span class="badge bg-danger">Missing</span>
-      {% endif %}
-    </li>
+  <h4>{{ payee.user.get_full_name }}</h4>
+  <p>Staff Type: {{ payee.payee_type }}</p>
+    <ul class="list-group list-group-flush">
+      {% for r in records %}
+      <li>{{ r.period }} – {{ r.net_pay }}</li>
+      {% endfor %}
+      <li class="list-group-item">
+        Bank Account:
+        {% if payee.has_primary_bank %}
+          <span class="badge bg-success">OK</span>
+        {% else %}
+          <span class="badge bg-danger">Missing</span>
+        {% endif %}
+      </li>
 
-    <li class="list-group-item">
-      Salary Structure:
-      {% if payee.has_salary_structure %}
-        <span class="badge bg-success">OK</span>
-      {% else %}
-        <span class="badge bg-danger">Missing</span>
-      {% endif %}
-    </li>
+      <li class="list-group-item">
+        Salary Structure:
+        {% if payee.has_salary_structure %}
+          <span class="badge bg-success">OK</span>
+        {% else %}
+          <span class="badge bg-danger">Missing</span>
+        {% endif %}
+      </li>
 
-    <li class="list-group-item">
-      Status:
-      {% if payee.is_payroll_ready %}
-        <span class="badge bg-success">Payroll Ready</span>
-      {% else %}
-        <span class="badge bg-warning">Not Ready</span>
-      {% endif %}
-    </li>
-  </ul>
+      <li class="list-group-item">
+        Status:
+        {% if payee.is_payroll_ready %}
+          <span class="badge bg-success">Payroll Ready</span>
+        {% else %}
+          <span class="badge bg-warning">Not Ready</span>
+        {% endif %}
+      </li>
+    </ul>
 </div>
 {% endblock %}

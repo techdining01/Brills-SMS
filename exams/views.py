@@ -83,6 +83,22 @@ from reportlab.graphics.barcode import qr
 from reportlab.graphics.shapes import Drawing
 
 
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.utils import timezone
+from .models import Exam
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from .models import Exam
+from .forms import ExamForm
+
+from django.shortcuts import render, redirect, get_object_or_404
+from .models import SchoolClass, Subject
+from django import forms
+
+
 
 import logging
 logger = logging.getLogger("system")
@@ -112,6 +128,74 @@ def create_exam(request):
         return redirect('exams:question_list', exam_id=exam.id)
 
     return render(request, 'exams/teacher/create_exam.html', { 'classes': classes})
+
+
+@login_required
+def exam_detail(request, exam_id):
+    exam = get_object_or_404(Exam, id=exam_id)
+
+    can_edit = (
+        request.user == exam.created_by
+        or request.user.is_superuser
+    )
+
+    has_started = timezone.now() >= exam.start_time
+
+    return render(request, "exams/teacher/exam_detail.html", {
+        "exam": exam,
+        "can_edit": can_edit,
+        "has_started": has_started,
+    })
+
+
+
+
+@login_required
+def edit_exam(request, exam_id):
+    exam = get_object_or_404(Exam, id=exam_id)
+
+    if request.user != exam.created_by and not request.user.is_superuser:
+        messages.error(request, "You are not allowed to edit this exam.")
+        return redirect("exams:exam_detail", exam_id=exam.id)
+
+    if timezone.now() >= exam.start_time:
+        messages.error(request, "This exam has already started and cannot be edited.")
+        return redirect("exams:exam_detail", exam_id=exam.id)
+
+    if request.method == "POST":
+        form = ExamForm(request.POST, instance=exam)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Exam updated successfully.")
+            return redirect("exams:exam_detail", exam_id=exam.id)
+    else:
+        form = ExamForm(instance=exam)
+
+    return render(request, "exams/teacher/edit_exam.html", {
+        "form": form,
+        "exam": exam,
+    })
+
+
+
+@login_required
+def delete_exam(request, exam_id):
+    exam = get_object_or_404(Exam, id=exam_id)
+
+    if request.user != exam.created_by and not request.user.is_superuser:
+        messages.error(request, "You are not allowed to delete this exam.")
+        return redirect("exams:exam_detail", exam_id=exam.id)
+
+    if request.method == "POST":
+        exam.delete()
+        messages.success(request, "Exam deleted successfully.")
+        return redirect("exams:exam_list")  # change if needed
+
+    return render(request, "exams/teacher/delete_exam.html", {
+        "exam": exam
+    })
+
+
 
 @login_required
 @user_passes_test(teacher_required)
@@ -258,90 +342,90 @@ def upload_questions_excel(request, exam_id):
     return render(request, 'exams/teacher/upload_excel.html', {'exam': exam})
 
 
-# @login_required
-# @user_passes_test(teacher_required)
-# def upload_questions_word(request, exam_id):
-#     exam = get_object_or_404(Exam, id=exam_id, created_by=request.user)
+@login_required
+@user_passes_test(teacher_required)
+def upload_questions_word(request, exam_id):
+    exam = get_object_or_404(Exam, id=exam_id, created_by=request.user)
 
-#     if request.method == 'POST':
-#         file = request.FILES.get('file')
-#         if not file or not file.name.endswith('.docx'):
-#             messages.error(request, "Please upload a valid .docx file.")
-#             return redirect('exams:question_list', exam.id)
+    if request.method == 'POST':
+        file = request.FILES.get('file')
+        if not file or not file.name.endswith('.docx'):
+            messages.error(request, "Please upload a valid .docx file.")
+            return redirect('exams:question_list', exam.id)
 
-#         doc = Document(file)
-#         questions_text = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+        doc = Document(file)
+        questions_text = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
 
-#         errors = []
-#         created = 0
+        errors = []
+        created = 0
 
-#         with transaction.atomic():
-#             i = 0
-#             while i < len(questions_text):
-#                 line = questions_text[i]
+        with transaction.atomic():
+            i = 0
+            while i < len(questions_text):
+                line = questions_text[i]
 
-#                 # Match: 1. Question text [Type] [Marks: N]
-#                 m = re.match(r'^\d+\.\s+(.*?)\s+\[(objective|subjective)\]\s+\[Marks:\s*(\d+)\]$', line, re.I)
-#                 if not m:
-#                     errors.append(f"Line {i+1} invalid format")
-#                     i += 1
-#                     continue
+                # Match: 1. Question text [Type] [Marks: N]
+                m = re.match(r'^\d+\.\s+(.*?)\s+\[(objective|subjective)\]\s+\[Marks:\s*(\d+)\]$', line, re.I)
+                if not m:
+                    errors.append(f"Line {i+1} invalid format")
+                    i += 1
+                    continue
 
-#                 text, qtype, marks = m.groups()
-#                 qtype = qtype.lower()
-#                 marks = int(marks)
-#                 i += 1
+                text, qtype, marks = m.groups()
+                qtype = qtype.lower()
+                marks = int(marks)
+                i += 1
 
-#                 question = Question.objects.create(
-#                     exam=exam,
-#                     text=text,
-#                     type=qtype,
-#                     marks=marks
-#                 )
+                question = Question.objects.create(
+                    exam=exam,
+                    text=text,
+                    type=qtype,
+                    marks=marks
+                )
 
-#                 # Objective → next 4 lines = options A-D + Answer line
-#                 if qtype == 'objective':
-#                     if i + 4 >= len(questions_text):
-#                         errors.append(f"Question '{text}' incomplete options")
-#                         break
+                # Objective → next 4 lines = options A-D + Answer line
+                if qtype == 'objective':
+                    if i + 4 >= len(questions_text):
+                        errors.append(f"Question '{text}' incomplete options")
+                        break
 
-#                     options = []
-#                     for letter in ['A','B','C','D']:
-#                         option_line = questions_text[i]
-#                         if not option_line.startswith(letter+'.'):
-#                             errors.append(f"Expected option {letter} for '{text}'")
-#                             break
-#                         options.append(option_line[2:].strip())
-#                         i += 1
+                    options = []
+                    for letter in ['A','B','C','D']:
+                        option_line = questions_text[i]
+                        if not option_line.startswith(letter+'.'):
+                            errors.append(f"Expected option {letter} for '{text}'")
+                            break
+                        options.append(option_line[2:].strip())
+                        i += 1
 
-#                     # Answer line
-#                     answer_line = questions_text[i]
-#                     m2 = re.match(r'^Answer:\s*([A-D])$', answer_line, re.I)
-#                     if not m2:
-#                         errors.append(f"Answer missing for '{text}'")
-#                         i += 1
-#                         continue
-#                     correct = m2.group(1).upper()
-#                     i += 1
+                    # Answer line
+                    answer_line = questions_text[i]
+                    m2 = re.match(r'^Answer:\s*([A-D])$', answer_line, re.I)
+                    if not m2:
+                        errors.append(f"Answer missing for '{text}'")
+                        i += 1
+                        continue
+                    correct = m2.group(1).upper()
+                    i += 1
 
-#                     # Save choices
-#                     for letter, opt in zip(['A','B','C','D'], options):
-#                         Choice.objects.create(
-#                             question=question,
-#                             text=opt,
-#                             is_correct=(letter == correct)
-#                         )
+                    # Save choices
+                    for letter, opt in zip(['A','B','C','D'], options):
+                        Choice.objects.create(
+                            question=question,
+                            text=opt,
+                            is_correct=(letter == correct)
+                        )
 
-#                 created += 1
+                created += 1
 
-#         if errors:
-#             messages.warning(request, f"{created} questions uploaded, {len(errors)} errors.")
-#         else:
-#             messages.success(request, f"{created} questions uploaded successfully.")
+        if errors:
+            messages.warning(request, f"{created} questions uploaded, {len(errors)} errors.")
+        else:
+            messages.success(request, f"{created} questions uploaded successfully.")
 
-#         return redirect('exams:question_list', exam.id)
+        return redirect('exams:question_list', exam.id)
 
-#     return render(request, 'exams/teacher/upload_word.html', {'exam': exam})
+    return render(request, 'exams/teacher/upload_word.html', {'exam': exam})
 
 
 from django.utils import timezone
@@ -420,20 +504,20 @@ def student_dashboard(request):
     })
 
 
-@login_required
-def parent_dashboard(request):
-    parent = request.user
-    wards = parent.children.all()
+# @login_required
+# def parent_dashboard(request):
+#     parent = request.user
+#     wards = parent.children.all()
 
-    attempts = ExamAttempt.objects.filter(
-        student__in=wards,
-        status='submitted'
-    )
+#     attempts = ExamAttempt.objects.filter(
+#         student__in=wards,
+#         status='submitted'
+#     )
 
-    return render(request, "exams/parent/dashboard.html", {
-        "wards": wards,
-        "attempts": attempts
-    })
+#     return render(request, "exams/parent/dashboard.html", {
+#         "wards": wards,
+#         "attempts": attempts
+#     })
 
 
 @staff_member_required
@@ -739,7 +823,7 @@ def admin_bulk_exam_results_pdf(request, exam_id):
 
         if y < 80:
             p.showPage()
-            draw_watermark(p, settings.SCHOOL_NAME)
+            draw_watermark(p, {{SCHOOL_NAME}})
             draw_status_stamp(p, status)  # for all students
             y = height - 80
 
@@ -1065,7 +1149,7 @@ def student_results(request):
         total_marks = 0
         obtained = 0
 
-        for ans in attempt.studentanswer_set.all():
+        for ans in attempt.answers.all():
             if ans.question.type == 'objective':
                 if ans.selected_choice and ans.selected_choice.is_correct:
                     obtained += ans.question.marks
@@ -1682,35 +1766,82 @@ def admin_dashboard(request):
 def is_admin(user):
     return user.is_authenticated and user.role == User.Role.ADMIN
 
+# ======================== Class and Subject Management Views ======================= #
 
 
-# @login_required(login_url="accounts:login")
-# @user_passes_test(is_admin)
-# def admin_analytics_chart(request):
-#     today = timezone.now().date()
-#     last_30 = today - timedelta(days=30)
 
-#     revenue = (
-#         PaymentTransaction.objects
-#         .filter(status="success", created_at__date__gte=last_30)
-#         .extra(select={'day': "date(created_at)"})
-#         .values('day')
-#         .annotate(total=Sum('amount'))
-#         .order_by('day')
-#     )
 
-#     orders = Order.objects.values('status').annotate(count=Count('id'))
 
-#     exam_stats = Exam.objects.annotate(
-#         attempts=Count('examattempt')
-#     ).values('title', 'attempts')
 
-#     user_roles = User.objects.values('role').annotate(count=Count('id'))
+# ================== Classes ==================
+def class_list(request):
+    classes = SchoolClass.objects.all()
+    return render(request, 'exams/class_list.html', {'classes': classes})
 
-#     return JsonResponse({
-#         "revenue": list(revenue),
-#         "orders": list(orders),
-#         "exams": list(exam_stats),
-#         "users": list(user_roles),
-#     })
 
+def class_add(request):
+    if request.method == 'POST':
+        form = ClassForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('class_list')
+    else:
+        form = ClassForm()
+    return render(request, 'exams/class_form.html', {'form': form})
+
+
+def class_edit(request, pk):
+    cls = get_object_or_404(SchoolClass, pk=pk)
+    if request.method == 'POST':
+        form = ClassForm(request.POST, instance=cls)
+        if form.is_valid():
+            form.save()
+            return redirect('class_list')
+    else:
+        form = ClassForm(instance=cls)
+    return render(request, 'exams/class_form.html', {'form': form})
+
+
+def class_delete(request, pk):
+    cls = get_object_or_404(SchoolClass, pk=pk)
+    if request.method == 'POST':
+        cls.delete()
+        return redirect('class_list')
+    return render(request, 'exams/class_confirm_delete.html', {'object': cls})
+
+
+# ================== Subjects ==================
+def subject_list(request):
+    subjects = Subject.objects.select_related('school_class').all()
+    return render(request, 'exams/subject_list.html', {'subjects': subjects})
+
+
+def subject_add(request):
+    if request.method == 'POST':
+        form = SubjectForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('subject_list')
+    else:
+        form = SubjectForm()
+    return render(request, 'exams/subject_form.html', {'form': form})
+
+
+def subject_edit(request, pk):
+    subject = get_object_or_404(Subject, pk=pk)
+    if request.method == 'POST':
+        form = SubjectForm(request.POST, instance=subject)
+        if form.is_valid():
+            form.save()
+            return redirect('subject_list')
+    else:
+        form = SubjectForm(instance=subject)
+    return render(request, 'exams/subject_form.html', {'form': form})
+
+
+def subject_delete(request, pk):
+    subject = get_object_or_404(Subject, pk=pk)
+    if request.method == 'POST':
+        subject.delete()
+        return redirect('subject_list')
+    return render(request, 'exams/subject_confirm_delete.html', {'object': subject})

@@ -18,7 +18,7 @@ class User(AbstractUser):
         STUDENT = "STUDENT", "Student"
         BURSAR = "BURSAR", "Bursar"
 
-    base_role = Role.STUDENT
+    base_role = Role.PARENT
 
     role = models.CharField(
         max_length=50,
@@ -78,7 +78,7 @@ class User(AbstractUser):
         year = timezone.now().year
         random_part = get_random_string(length=5).upper()
 
-        if self.role in [User.Role.ADMIN, User.Role.TEACHER]:
+        if self.role == User.Role.ADMIN or self.role == User.Role.TEACHER:
             return f"TBS/STF/{year}/{random_part}"
 
         if self.role == User.Role.STUDENT:

@@ -5,7 +5,6 @@ app_name = 'exams'
 
 urlpatterns = [
    
-    # exams/urls.py
     path('', views.cbt_exam, name='cbt'),
     path('student/exams/', views.exam_list, name='exam_list'),
     path('student/exams/<int:exam_id>/start/', views.start_exam, name='start_exam'),
@@ -13,11 +12,14 @@ urlpatterns = [
     path('student/exams/<int:attempt_id>/submit/', views.submit_exam, name='submit_exam'),
     
     path('teacher/exams/create/', views.create_exam, name='create_exam'),
+    path("exam/<int:exam_id>/", views.exam_detail, name="exam_detail"),
+    path("exam/<int:exam_id>/edit/", views.edit_exam, name="edit_exam"),
+    path("exam/<int:exam_id>/delete/", views.delete_exam, name="delete_exam"),
     path('teacher/exams/', views.teacher_exam_list, name='teacher_exam_list'),
     path('teacher/exams/<int:exam_id>/questions/', views.question_list, name='question_list'),
     path('teacher/exams/<int:exam_id>/questions/add/', views.add_question, name='add_question'),
     path('teacher/exams/<int:exam_id>/questions/upload-excel/',views.upload_questions_excel, name='upload_questions_excel'),
-    # path('teacher/exams/<int:exam_id>/questions/upload-word/', views.upload_questions_word, name='upload_questions_word'),
+    path('teacher/exams/<int:exam_id>/questions/upload-word/', views.upload_questions_word, name='upload_questions_word'),
     # Teacher subjective marking
     # path('teacher/exams/<int:exam_id>/mark/', views.subjective_marking, name='subjective_marking'),
 
@@ -43,7 +45,7 @@ urlpatterns = [
     path('notifications/mark-read/<int:pk>/', views.mark_notification_read, name='mark_notification_read'),
 
     # Broadcast
-    path('teacher/broadcast/', views.send_broadcast, name='send_broadcast'),
+    # path('teacher/broadcast/', views.send_broadcast, name='send_broadcast'),
 
     # exams/urls.py
     path('admin/exams/', views.admin_exam_list, name='admin_exam_list'),
@@ -77,5 +79,21 @@ urlpatterns = [
 
 ]
 
+
+
+
+urlpatterns += [
+    # Classes
+    path('classes/', views.class_list, name='class_list'),
+    path('classes/add/', views.class_add, name='class_add'),
+    path('classes/<int:pk>/edit/', views.class_edit, name='class_edit'),
+    path('classes/<int:pk>/delete/', views.class_delete, name='class_delete'),
+
+    # Subjects
+    path('subjects/', views.subject_list, name='subject_list'),
+    path('subjects/add/', views.subject_add, name='subject_add'),
+    path('subjects/<int:pk>/edit/', views.subject_edit, name='subject_edit'),
+    path('subjects/<int:pk>/delete/', views.subject_delete, name='subject_delete'),
+]
 
 

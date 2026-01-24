@@ -1,10 +1,14 @@
 {% extends "base.html" %}
+{% load humanize %}
 {% block content %}
-<h4>{{ record.payee.full_name }}</h4>
 
-<p>Gross: {{ record.gross_pay }}</p>
-<p>Deductions: {{ record.total_deductions }}</p>
-<p>Net: {{ record.net_pay }}</p>
+<div class=" card container mt-5" style="max-width: 500px;">
+   <h4 class="card-header">{{ record.payee.user.get_full_name }}</h4>
+   <div class="card-body p-4 shadow-sm mt-3 mb-2">
+      <p>Gross: ₦{{ record.gross_pay| intcomma }}</p>
+      <p>Deductions: ₦{{ record.total_deductions| intcomma }}</p>
+      <p>Net: ₦{{ record.net_pay| intcomma }}</p>
+
 
 {% if not record.approval.bursar_approved_at %}
 <a href="{% url 'payroll:bursar_approve' record.id %}"
@@ -17,3 +21,5 @@
 {% endif %}
 
 {% endblock %}
+</div>
+</div>   

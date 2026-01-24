@@ -10,11 +10,9 @@ class Command(BaseCommand):
         for payee in Payee.objects.all()[:5]:
             LoanApplication.objects.get_or_create(
                 payee=payee,
-                principal_amount=Decimal("50000"),
+                loan_amount=Decimal("50000"),
                 defaults={
-                    "interest_rate": 5,
-                    "total_payable": Decimal("52500"),
-                    "monthly_deduction": Decimal("8750"),
-                    "start_period": period,
+                    "tenure_months": 5,
+                    "loan_type": "personal",
                 }
             )

@@ -986,8 +986,6 @@
         }
     }
 
-
-
 </style>
 
 </head>
@@ -1071,11 +1069,37 @@
                             <li><a class="dropdown-item" href="{% url 'exams:admin_dashboard' %}" data-bs-dismiss="navbarContent">
                                 Exams
                             </a></li>
+                                     
 
+                        <li class="nav-item dropdown">
+                            <a class="dropdown-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" 
+                                aria-expanded="false" data-bs-auto-close="outside">
+                            Payroll
+                        </a>
+
+                        <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{% url 'payroll:admin_dashboard' %}" data-bs-dismiss="navbarContent">
-                                Payroll
+                            Dashboard
                             </a></li>
 
+                            <li><a class="dropdown-item" href="{% url 'payroll:create_payee' %}">
+                            Add Payee
+                            </a></li>
+
+                            <li><a class="dropdown-item" href="{% url 'payroll:payroll_record_list' %}">
+                                Add Record
+                            </a></li>
+
+                            <li><a class="dropdown-item" href="{% url 'payroll:create_payroll_period' %}">
+                            Periodic Payment
+                            </a></li>
+
+                            <li><a class="dropdown-item" href="{% url 'payroll:monthly_payroll_chart' %}">
+                                Chart
+                            </a></li>
+                            
+                        </ul></li>
+                  
                            
                                         
                     {% elif user.role in 'TEACHER PARENT' %}

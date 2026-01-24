@@ -63,7 +63,7 @@ def register_view(request):
             "Registration successful. Await admin approval before login."
         )
         return redirect("accounts:login")
-
+    
     return render(request, "accounts/register.html")
 
 

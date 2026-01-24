@@ -1,15 +1,24 @@
 from django import forms
-from payroll.models import LeaveRequest
-from django import forms
-from .models import Payee, StaffProfile, SalaryStructure
+from .models import LoanApplication
 
-class LeaveRequestForm(forms.ModelForm):
+class LoanApplicationForm(forms.ModelForm):
     class Meta:
-        model = LeaveRequest
-        fields = ["leave_type", "start_date", "end_date", "reason"]
-        widgets = {
-            "start_date": forms.DateInput(attrs={"type": "date"}),
-            "end_date": forms.DateInput(attrs={"type": "date"}),
-            "reason": forms.Textarea(attrs={"rows": 3}),
-        }
+        model = LoanApplication
 
+        fields = ["loan_type", "loan_amount", "tenure_months"]
+
+        widgets = {
+            "loan_type": forms.Select(attrs={
+                "class": "form-control",
+                "placeholder": "Enter loan type"
+            }),
+            "loan_amount": forms.NumberInput(attrs={
+                "class": "form-control",
+                "placeholder": "Loan Amount"
+            }),
+          
+            "tenure_months": forms.NumberInput(attrs={
+                "class": "form-control",
+                "placeholder": "Duration in months"
+            }),
+        }

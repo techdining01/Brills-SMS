@@ -12,4 +12,7 @@ urlpatterns = [
 
     # Staff
     path("dashboard/", views.staff_loan_dashboard, name="staff_loan_dashboard"),
+    path("apply/", views.apply_for_loan, name="apply_loan"),
+    path("my-loans/", views.loan_list, name="loan_list"),
+
 ]

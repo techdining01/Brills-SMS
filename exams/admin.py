@@ -11,7 +11,7 @@ from .models import (
 # =======================
 @admin.register(SchoolClass)
 class SchoolClassAdmin(admin.ModelAdmin):
-    list_display = ('name', 'level', 'arm', 'academic_year', 'teacher', 'assistant_teacher', 'is_active')
+    list_display = ('name', 'level', 'academic_year', 'teacher', 'assistant_teacher', 'is_active')
     list_filter = ('level', 'is_active')
     search_fields = ('name', 'teacher', 'assistant_teacher')
     ordering = ('name', 'academic_year')
@@ -22,11 +22,10 @@ class SchoolClassAdmin(admin.ModelAdmin):
 # =======================
 @admin.register(Subject)
 class SubjectAdmin(admin.ModelAdmin):
-    list_display = ('code', 'name', 'category', 'department', 'is_active', 'created_by', 'created_at')
-    list_filter = ('category', 'is_active', 'department')
-    search_fields = ('code', 'name', 'department', 'created_by__username')
+    list_display = ('name', 'department', 'is_active', 'created_by', 'created_at')
+    list_filter = ('is_active', 'department')
+    search_fields = ('name', 'department', 'created_by__username')
     filter_horizontal = ('classes',)
-
 
 # =======================
 # Exam Admin

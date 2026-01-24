@@ -19,8 +19,8 @@ def is_admin(user):
 
 
 def landing_page(request):
-    if request.user.is_authenticated:
-        return redirect('accounts:dashboard_redirect')
+    # if request.user.is_authenticated:
+    #     return redirect('accounts:dashboard_redirect')
     return render(request, 'exams/landing.html')
 
 

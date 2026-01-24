@@ -1,21 +1,36 @@
 {% extends "base.html" %}
+{% load humanize %}
 {% block content %}
-<h3>Loan Detail</h3>
-<p><strong>Payee:</strong> {{ loan.payee.full_name }}</p>
-<p><strong>Loan Type:</strong> {{ loan.loan_type.name }}</p>
-<p><strong>Principal:</strong> {{ loan.principal_amount }}</p>
-<p><strong>Interest:</strong> {{ loan.interest_amount }}</p>
-<p><strong>Total:</strong> {{ loan.total_amount }}</p>
-<p><strong>Monthly Deduction:</strong> {{ loan.monthly_deduction }}</p>
-<p><strong>Status:</strong> {{ loan.status }}</p>
 
-{% if loan.status == "pending" %}
-    <a href="{% url 'loans:approve_loan' loan.id %}" class="btn btn-success">Approve</a>
-    <a href="{% url 'loans:reject_loan' loan.id %}" class="btn btn-danger">Reject</a>
-{% endif %}
+<div class="card d-flex">
+    
+    <div style="margin-left: 20px;">
 
-<h4>Repayments</h4>
-<table class="table table-sm table-bordered">
+    <div class="d-flex justify-content-between align-content-center mb-2 mt-4">
+        <h3>Loan Detail</h3>
+
+        <a href="{% url 'loans:admin_loan_list' %}" class="btn btn-success">Loan List</a>
+        {% if loan.status == "pending" %}
+        <a href="{% url 'loans:approve_loan' loan.id %}" class="btn btn-success">Approve</a>
+        <a href="{% url 'loans:reject_loan' loan.id %}" class="btn btn-danger">Reject</a>
+        {% endif %}
+
+    </div>
+
+    <div>
+        <p><strong>Payee:</strong> {{ loan.payee.user.get_full_name }}</p>
+        <p><strong>Loan Type:</strong> {{ loan.loan_type }}</p>
+        <p><strong>Amount:</strong> ₦{{ loan.loan_amount |intcomma }}</p>
+        <p><strong>Monthly Deduction:</strong> ₦{{ loan.monthly_deduction |intcomma }}</p>
+        <p><strong>Status:</strong> {{ loan.status }}</p>
+    </div>
+
+</div>
+</div>
+
+<div class="card-body table-responsive mt-4">
+    <h4>Repayments</h4>
+    <table class="table table-sm table-bordered">
     <thead>
         <tr>
             <th>Amount</th>
@@ -27,8 +42,8 @@
     <tbody>
     {% for r in repayments %}
         <tr>
-            <td>{{ r.amount }}</td>
-            <td>{{ r.balance_after }}</td>
+            <td>₦{{ r.amount }}</td>
+            <td>₦{{ r.balance_after }}</td>
             <td>{{ r.payroll_record }}</td>
             <td>{{ r.created_at }}</td>
         </tr>
@@ -37,4 +52,6 @@
     {% endfor %}
     </tbody>
 </table>
+</div>
+
 {% endblock %}

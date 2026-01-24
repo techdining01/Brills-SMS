@@ -41,7 +41,7 @@
         <tbody>
           {% for loan in loans %}
           <tr>
-            <td>₦{{ loan.amount|intcomma }}</td>
+            <td>₦{{ loan.loan_amount|intcomma }}</td>
             <td>₦{{ loan.outstanding_balance|intcomma }}</td>
             <td>{{ loan.status|title }}</td>
             <td>{{ loan.created_at|date:"M d, Y" }}</td>
@@ -72,7 +72,7 @@
         <tbody>
           {% for p in payrolls %}
           <tr>
-            <td>{{ p.run_date|date:"F Y" }}</td>
+            <td>{{ p.created_at|date:"F Y" }}</td>
             <td>₦{{ p.gross_salary|intcomma }}</td>
             <td>₦{{ p.total_deductions|intcomma }}</td>
             <td class="fw-bold">₦{{ p.net_salary|intcomma }}</td>

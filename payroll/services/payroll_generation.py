@@ -149,5 +149,3 @@ def generate_payroll_for_payee(payee, payroll_period, generated_by):
 
     return payroll
 
-
-

@@ -19,6 +19,7 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         parents = User.objects.filter(role="PARENT")
         students = User.objects.filter(role="STUDENT")
+        admin = User.objects.filter(role="ADMIN").first()
 
         if not parents.exists() or not students.exists():
             self.stderr.write("❌ Seed parents and students first")
@@ -46,7 +47,7 @@ class Command(BaseCommand):
             # create fake verification logs
             PickupVerificationLog.objects.create(
                 pickup=pickup,
-                verified_by=None,
+                verified_by=admin,
                 status=random.choice(["SUCCESS", "EXPIRED", "USED"])
             )
 

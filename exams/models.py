@@ -12,21 +12,29 @@ class SchoolClass(models.Model):
         ('junior_secondary', 'Junior Secondary'),
         ('senior_secondary', 'Senior Secondary'),
     ]
-    
+
+
     name = models.CharField(max_length=100, unique=True)
     level = models.CharField(
         max_length=20, choices=LEVEL_CHOICES, 
         default='Kindergarten'
     )
-    arm = models.CharField(
-        max_length=10, blank=True, 
-        null=True, help_text="e.g., A, B, C or Science, Arts"
-    )
-    academic_year = models.DateField(auto_now_add=True)
+   
+    academic_year = models.TextField(blank=False)
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
-    teacher = models.TextField(default='superadmin')
-    assistant_teacher = models.TextField(default='superadmin')
+    teacher = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="teacher_classes"
+    )
+    assistant_teacher = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="assistant_teacher_classes"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
@@ -34,37 +42,24 @@ class SchoolClass(models.Model):
         ordering = ['name', 'academic_year']
     
     def __str__(self):
-        if self.arm:
-            return f"{self.name} {self.arm}"
         return self.name
 
 
 class Subject(models.Model):
-    SUBJECT_CATEGORY_CHOICES = [
-        ('core', 'Core Subject'),
-        ('elective', 'Elective'),
-        ('language', 'Language'),
-        ('arts', 'Arts'),
-        ('sports', 'Sports'),
-        ('vocational', 'Vocational'),
-    ]
-    
 
-    code = models.CharField(max_length=20, blank=True)
     name = models.CharField(max_length=100)
     classes = models.ManyToManyField(SchoolClass, related_name='subjects', blank=True)    
     description = models.TextField(blank=True)
-    category = models.CharField(max_length=20, choices=SUBJECT_CATEGORY_CHOICES, default='core')
     department = models.CharField(max_length=100, blank=True)
     is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_subjects')
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
-        ordering = ['code', 'name']
+        ordering = ['name']
     
     def __str__(self):
-        return f"{self.code} - {self.name} ({self.get_category_display()})"
+        return f"{self.name}"
 
 
 class Exam(models.Model):
@@ -98,31 +93,6 @@ class ExamAccess(models.Model):
 
     class Meta:
         unique_together = ("student", "exam")
-
-
-# class ExamAccessOverride(models.Model):
-#     student = models.ForeignKey(
-#         settings.AUTH_USER_MODEL,
-#         on_delete=models.CASCADE,
-#         limit_choices_to={"role": "STUDENT"}
-#     )
-#     exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
-#     granted_by = models.ForeignKey(
-#         settings.AUTH_USER_MODEL,
-#         on_delete=models.SET_NULL,
-#         null=True,
-#         related_name="granted_exam_access"
-#     )
-#     reason = models.CharField(max_length=255, blank=True)
-#     is_active = models.BooleanField(default=True)
-#     created_at = models.DateTimeField(auto_now_add=True)
-
-#     class Meta:
-#         unique_together = ("student", "exam")
-
-#     def __str__(self):
-#         return f"{self.student} → {self.exam} (Override)"
-
 
 
 class Question(models.Model):
