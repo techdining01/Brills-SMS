@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block content %}
+
+<div class="container mt-4">
+    <h4>Payroll Period: {{ period.month }}/{{ period.year }}</h4>
+
+    <div class="row mt-3">
+        <div class="col-md-4">
+            <ul class="list-group">
+                <li class="list-group-item">
+                    Generated:
+                    <strong>{{ period.is_generated|yesno:"Yes,No" }}</strong>
+                </li>
+                <li class="list-group-item">
+                    Approved:
+                    <strong>{{ period.is_approved|yesno:"Yes,No" }}</strong>
+                </li>
+                <li class="list-group-item">
+                    Paid:
+                    <strong>{{ period.is_paid|yesno:"Yes,No" }}</strong>
+                </li>
+                <li class="list-group-item">
+                     Locked:
+                    <strong>{{ period.is_locked|yesno:"Yes,No" }}</strong>
+                </li>
+            </ul>
+        </div>
+
+        <div class="col-md-8">
+            {% if user.role in "ADMIN BURSAR" %}
+                {% if not period.is_generated %}
+                    <a href="{% url 'payroll:generate_payroll_for_period' period.id %}"
+                       class="btn btn-success mb-2">
+                        Generate Payroll
+                    </a>
+                {% endif %}
+
+                {% if period.is_generated and not period.is_approved %}
+                    <a href="{% url 'payroll:approve_payroll_period' period.id %}"
+                       class="btn btn-warning mb-2">
+                        Approve Payroll
+                    </a>
+                {% endif %}
+
+                {% if period.is_approved and not period.is_paid %}
+                    <a href="{% url 'payroll:create_payment_batch' period.id %}"
+                       class="btn btn-primary mb-2">
+                        Run Paystack Payment
+                    </a>
+                {% endif %}
+
+                {% if period.is_paid and not period.is_locked %}
+                    <a href="{% url 'payroll:lock_period' period.id %}"
+                       class="btn btn-dark mb-2">
+                        Lock Period
+                    </a>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <hr>
+
+    <h5>Payroll Records</h5>
+
+    <div class="card-body table-responsive">
+        <table class="table table-sm table-striped">
+            <thead>
+                <tr>
+                    <th>Staff</th>
+                    <th>Gross</th>
+                    <th>Deductions</th>
+                    <th>Net</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for record in records %}
+                <tr>
+                    <td>{{ record.payee.user.get_full_name }}</td>
+                    <td>₦{{ record.gross_pay|intcomma }}</td>
+                    <td>₦{{ record.total_deductions|intcomma }}</td>
+                    <td><strong>₦{{ record.net_pay|intcomma }}</strong></td>
+                    <td>
+                        {% if record.paymenttransaction %}
+                            <span class="badge bg-success">Paid</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">Pending</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted">
+                        No payroll records yet
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% load static %}
+{% block content %}
+
+
+
+<div class="container mt-4">
+    <h2>Payment Batch #{{ batch.id }}</h2>
+    <p>Payroll Period: {{ batch.payroll_period.month }}/{{ batch.payroll_period.year }}</p>
+    <p>Created by: {{ batch.created_by.get_full_name }} on {{ batch.created_at }}</p>
+
+<div class="mb-3">
+    {% if has_pending %}
+    <form method="post" action="{% url 'payroll:execute_payment_batch' batch.id %}">
+        {% csrf_token %}
+        <button class="btn btn-success">
+            Execute Pending Transfers
+        </button>
+    </form>
+    {% else %}
+        <span class="badge bg-success">All payments completed</span>
+    {% endif %}
+
+</div>
+
+
+<div class="card shadow-sm">
+  <div class="card-body table-responsive table-bordered">
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr>
+              <th>#</th>
+              <th>Payee</th>
+              <th>Amount (₦)</th>
+              <th>Bank Name</th>
+              <th>Account Number</th>
+              <th>Status</th>
+              <th>Paystack Ref</th>
+              <th>Failure Reason</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tx in transactions %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ tx.payroll_record.payee.full_name }}</td>
+                <td>{{ tx.amount }}</td>
+                <td>{{ tx.bank_name }}</td>
+                <td>{{ tx.account_number }}</td>
+                <td>
+                    {% if tx.status == "success" %}
+                        <span class="badge bg-success">Success</span>
+                    {% elif tx.status == "failed" %}
+                        <span class="badge bg-danger">Failed</span>
+                    {% else %}
+                        <span class="badge bg-warning">Pending</span>
+                    {% endif %}
+                </td>
+                <td>{{ tx.paystack_reference }}</td>
+                <td>{{ tx.failure_reason }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-center">No transactions in this batch.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+  </div>
+
+</div> 
+{% endblock %}

@@ -1,36 +1,19 @@
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
+from django.utils import timezone
+from django.contrib import messages
+from django.http import JsonResponse
+from datetime import timedelta
 
+from django.http import HttpResponse
+from django.contrib import messages
+from .forms import LeaveTypeForm
+from payroll.models import Payee, PayrollPeriod
 from loans.models import LoanApplication
 from .models import LeaveRequest, LeaveType
-from payroll.models import Payee
-from django.utils import timezone
-from django.contrib import messages
-from leaves.services import has_overlapping_leave
-from datetime import timedelta
-from django.http import JsonResponse
-from payroll.models import PayrollPeriod
-from django.utils import timezone
-from django.contrib import messages
-from leaves.services import calculate_leave_balance
-
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
-from django.core.paginator import Paginator
-from django.contrib import messages
-
-from leaves.models import LeaveRequest
-
-
-# dashboard/views.py
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect
-from django.core.paginator import Paginator
-from payroll.models import PayrollPeriod
-from loans.models import Loan
-from leave.models import LeaveRequest
+from .forms import LeaveRequestForm
+from .services import has_overlapping_leave, calculate_leave_balance
 
 
 
@@ -38,11 +21,16 @@ from leave.models import LeaveRequest
 @login_required
 def admin_dashboard(request):
     pending_periods = PayrollPeriod.objects.filter(
-        is_generated=True, is_approved=False
+        is_generated=True, is_approved_by_admin=False
     ).order_by("-year", "-month")
 
-    pending_loans = Loan.objects.filter(status="pending").order_by("-created_at")
+    pending_loans = LoanApplication.objects.filter(status="pending").order_by("-applied_at")
     pending_leaves = LeaveRequest.objects.filter(status="pending").order_by("-start_date")
+
+    from django.db.models import Count
+    # Analytics data for the chart
+    leave_usage = LeaveRequest.objects.filter(status='approved').values('leave_type__name').annotate(count=Count('id'))
+    chart_data = {item['leave_type__name']: item['count'] for item in leave_usage}
 
     context = {
         "pending_periods": Paginator(pending_periods, 5).get_page(
@@ -54,14 +42,15 @@ def admin_dashboard(request):
         "pending_leaves": Paginator(pending_leaves, 5).get_page(
             request.GET.get("p_leaves")
         ),
+        "data": chart_data,
     }
-    return render(request, "dashboard/admin_dashboard.html", context)
+    return render(request, "leaves/admin/dashboard.html", context)
 
 
 
 @login_required
 def staff_dashboard(request):
-    payee = request.user.payee
+    payee = get_object_or_404(Payee, user=request.user)
 
     leaves = LeaveRequest.objects.filter(payee=payee).order_by("-start_date")
     balance = calculate_leave_balance(payee)
@@ -72,7 +61,7 @@ def staff_dashboard(request):
             request.GET.get("page")
         ),
     }
-    return render(request, "dashboard/staff_dashboard.html", context)
+    return render(request, "leaves/staff/dashboard.html", context)
 
 
 
@@ -89,7 +78,7 @@ def leave_balance_view(request):
 
     return render(
         request,
-        "leave/staff/leave_balance.html",
+        "leaves/staff/leave_balance.html",
         {"balances": balances, "year": year}
     )
 
@@ -97,29 +86,30 @@ def leave_balance_view(request):
 
 @login_required
 def request_leave(request):
-    payee = request.user.payee
-
-    if request.method == "POST":
-        start = request.POST["start_date"]
-        end = request.POST["end_date"]
-
-        if has_overlapping_leave(payee, start, end):
-            messages.error(request, "You already have a leave in this period.")
-            return redirect("leaves:request")
-
-        LeaveRequest.objects.create(
-            payee=payee,
-            leave_type_id=request.POST["leave_type"],
-            start_date=start,
-            end_date=end,
-            reason=request.POST["reason"],
-        )
-
-        messages.success(request, "Leave request submitted.")
+    try:
+        payee = Payee.objects.get(user=request.user)
+    except Payee.DoesNotExist:
+        messages.error(request, "Payee profile not found. Please complete your profile.")
         return redirect("leaves:staff_dashboard")
 
-    return render(request, "leaves/staff/leave_request.html")
+    if request.method == "POST":
+        form = LeaveRequestForm(request.POST)
+        form.instance.payee = payee  # Assign BEFORE validation for model clean()
+        if form.is_valid():
+            start = form.cleaned_data["start_date"]
+            end = form.cleaned_data["end_date"]
 
+            if has_overlapping_leave(payee, start, end):
+                messages.error(request, "You already have a leave in this period.")
+                return redirect("leaves:request_leave")
+
+            form.save()
+            messages.success(request, "Leave request submitted.")
+            return redirect("leaves:staff_dashboard")
+    else:
+        form = LeaveRequestForm()
+
+    return render(request, "leaves/staff/leave_request.html", {"form": form})
 
 
 
@@ -128,28 +118,6 @@ def dashboard_router(request):
     if request.user.role in ["ADMIN", "BURSAR"]:
         return redirect("dashboard:admin_dashboard")
     return redirect("dashboard:staff_dashboard")
-
-
-
-# @login_required
-# def admin_leave_dashboard(request):
-#     if request.user.role not in ["ADMIN", "BURSAR"]:
-#         messages.error(request, "Permission denied")
-#         return redirect("dashboard")
-
-#     qs = LeaveRequest.objects.select_related(
-#         "payee", "leave_type"
-#     ).order_by("-created_at")
-
-#     paginator = Paginator(qs, 15)
-#     page = request.GET.get("page")
-#     leaves = paginator.get_page(page)
-
-#     return render(
-#         request,
-#         "leave/admin/admin_leave_dashboard.html",
-#         {"leaves": leaves},
-#     )
 
 
 
@@ -212,7 +180,7 @@ def leave_heatmap(request):
     data = {}
     for l in leaves:
         day = l.start_date.strftime("%m-%Y")
-        data[day] = data.get(day, 0) + l.days
+        data[day] = data.get(day, 0) + l.duration()
 
     return render(
         request,
@@ -257,8 +225,7 @@ def leave_calendar(request):
     )
 
 
-import csv
-from django.http import HttpResponse
+
 
 @login_required
 def export_leave_csv(request):
@@ -270,8 +237,23 @@ def export_leave_csv(request):
 
     for l in LeaveRequest.objects.all():
         writer.writerow([
-            l.payee, l.start_date, l.end_date, l.days, l.status
+            l.payee, l.start_date, l.end_date, l.duration(), l.status
         ])
 
     return response
 
+
+def add_leave_type(request):
+    if request.user.role not in ["ADMIN", "BURSAR"]:
+        messages.error(request, "Permission denied")
+        return redirect("accounts:dashboard_redirect")
+   
+    if request.method == "POST":
+        form = LeaveTypeForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Leave type created successfully.")
+            return redirect("leaves:add_leave_type")
+    else:
+        form = LeaveTypeForm()
+    return render(request, "leaves/admin/add_leave_type.html", {"form": form})

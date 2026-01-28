@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h3>Welcome back, {{ user.get_full_name }}!</h3>
+    <p class="text-muted">Manage your payroll and payment details seamlessly.</p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+    {% if user.role == "admin" or user.is_superuser %}
+    <div class="card">
+        <h3>Quick Actions</h3>
+        <p>Start a new payroll cycle.</p>
+        <a href="{% url 'payroll:generate_payroll' %}" class="btn">Run Payroll</a>
+    </div>
+    <div class="card">
+        <h3>Structures</h3>
+        <p>Manage salary components.</p>
+        <a href="{% url 'payroll:create_salary_structure' %}" class="btn btn-outline">Manage</a>
+    </div>
+    {% else %}
+    <div class="card">
+        <h3>My Payslips</h3>
+        <p>View your latest payslips.</p>
+        <a href="#" class="btn">View History</a>
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <h3>Profile Status</h3>
+        <p>
+            {% if user.payee_profile.is_payroll_ready %}
+            <span style="color: #4ade80;">Ready for Payroll</span>
+            {% else %}
+            <span style="color: #f87171;">Incomplete Profile</span>
+            <br><small class="text-muted">Please update your bank details.</small>
+            {% endif %}
+        </p>
+    </div>
+</div>
+{% endblock %}

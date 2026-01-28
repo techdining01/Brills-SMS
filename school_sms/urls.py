@@ -31,7 +31,7 @@ urlpatterns = [
     path('pickup/', include('pickup.urls')),
     path('payroll/', include('payroll.urls')),
     path('loans/', include('loans.urls')),
-    # path('leaves/', include('leaves.urls')),
+    path('leaves/', include('leaves.urls')),
     # path('sms/', include('sms.urls')),
     # path('management/', include('management.urls')),
 ]

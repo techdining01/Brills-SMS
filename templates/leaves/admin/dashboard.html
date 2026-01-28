@@ -1,78 +1,256 @@
 {% extends 'base.html' %}
 {% load humanize %}
 
+{% block title %}Management Dashboard{% endblock %}
 
-{% block content %}  
+{% block extra_css %}
+<style>
+  .glass-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 24px;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
+    padding: 2rem;
+    transition: transform 0.3s ease;
+  }
 
-<h2>Admin / Bursar Dashboard</h2>
+  .section-header {
+    border-left: 4px solid var(--primary);
+    padding-left: 1rem;
+    margin-bottom: 2rem;
+  }
 
-<section>
-  <h4>Pending Payroll Periods</h4>
-  {% for p in pending_periods %}
-    <a href="{% url 'payroll:period_detail' p.id %}">
-      {{ p.month }}/{{ p.year }}
-    </a><br>
-  {% empty %}No pending payroll{% endfor %}
-</section>
+  .badge-status {
+    padding: 0.4rem 0.8rem;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
 
-<section>
-  <h4>Pending Loan Requests</h4>
-  {% for loan in pending_loans %}
-    {{ loan.payee }} - ₦{{ loan.amount|intcomma }}
-  {% empty %}No pending loans{% endfor %}
-</section>
+  .table-premium thead th {
+    background: rgba(248, 250, 252, 0.5);
+    color: var(--secondary);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    padding: 1rem;
+    border: none;
+  }
 
-<section>
-  <h4>Pending Leave Requests</h4>
-  {% for leave in pending_leaves %}
-        {{ leave.payee }} ({{ leave.start_date }} → {{ leave.end_date }})
-    <button class="btn btn-success btn-sm approve-btn" data-id="{{ leave.id }}">
-        Approve
-    </button>    
-    <button class="btn btn-danger btn-sm reject-btn" data-id="{{ leave.id }}">
-        reject
-    </button>    
-    <a href="{% url 'leaves:reject_leave' leave.id %}">Reject</a>
-  {% empty %}
-    No pending leave{% endfor %}
-</section>
+  .table-premium tbody td {
+    padding: 1.25rem 1rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+  }
 
-<a href="{% url 'leaves:leave_calendar' %}">📅 Leave Calendar</a>
+  .action-btn {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+  }
+</style>
+{% endblock %}
 
-<canvas id="leaveChart"></canvas>
+{% block content %}
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-5" data-aos="fade-down">
+    <div>
+      <h1 class="h2 fw-bold text-dark mb-1">Management Overview</h1>
+      <p class="text-muted small">Pending approvals for Payroll, Loans, and Leaves</p>
+    </div>
+
+    <div>
+      <a href="{% url 'leaves:add_leave_type' %}" class="btn btn-primary rounded-pill px-4 shadow">
+        <i class="bi bi-calendar3 me-2"></i>Add Leave Type
+      </a>
+
+      <a href="{% url 'leaves:leave_calendar' %}" class="btn btn-primary rounded-pill px-4 shadow">
+        <i class="bi bi-calendar3 me-2"></i>Full Calendar
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-5">
+    <!-- Payroll Section -->
+    <div class="col-lg-12" data-aos="fade-up">
+      <div class="section-header">
+        <h3 class="h5 fw-bold text-dark mb-0">Pending Payroll Periods</h3>
+      </div>
+      <div class="glass-card">
+        <div class="table-responsive">
+          <table class="table table-premium align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Period</th>
+                <th>Status</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in pending_periods %}
+              <tr>
+                <td>
+                  <div class="fw-bold text-dark">{{ p.month|date:"F" }} {{ p.year }}</div>
+                  <small class="text-muted">Generated on {{ p.created_at|date:"M d, Y" }}</small>
+                </td>
+                <td><span class="badge-status bg-info-subtle text-info">Awaiting Approval</span></td>
+                <td class="text-end">
+                  <a href="{% url 'payroll:payroll_detail' p.id %}"
+                    class="btn btn-sm btn-dark rounded-pill px-4">Review</a>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="3" class="text-center py-4 text-muted small">No pending payroll periods.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loans Section -->
+    <div class="col-lg-6" data-aos="fade-up" data-aos-delay="100">
+      <div class="section-header">
+        <h3 class="h5 fw-bold text-dark mb-0">Loan Requests</h3>
+      </div>
+      <div class="glass-card">
+        <div class="table-responsive">
+          <table class="table table-premium align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Staff</th>
+                <th>Amount</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for loan in pending_loans %}
+              <tr>
+                <td>
+                  <div class="fw-bold text-dark">{{ loan.payee.user.get_full_name }}</div>
+                  <small class="text-muted">{{ loan.created_at|date:"M d" }}</small>
+                </td>
+                <td><span class="fw-bold text-primary">₦{{ loan.amount|intcomma }}</span></td>
+                <td class="text-end">
+                  <button class="btn btn-sm btn-outline-primary rounded-pill px-3">View</button>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="3" class="text-center py-4 text-muted small">No pending loan requests.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Leaves Section -->
+    <div class="col-lg-6" data-aos="fade-up" data-aos-delay="200">
+      <div class="section-header">
+        <h3 class="h5 fw-bold text-dark mb-0">Leave Applications</h3>
+      </div>
+      <div class="glass-card">
+        <div class="table-responsive">
+          <table class="table table-premium align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Staff</th>
+                <th>Dates</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for leave in pending_leaves %}
+              <tr>
+                <td>
+                  <div class="fw-bold text-dark">{{ leave.payee.user.get_full_name }}</div>
+                  <small class="text-muted">{{ leave.leave_type.name }}</small>
+                </td>
+                <td>
+                  <small class="text-dark d-block fw-medium">{{ leave.start_date|date:"M d" }} —
+                    {{leave.end_date|date:"M d" }}</small>
+                  <small class="text-primary fw-bold">{{ leave.duration }}d</small>
+                </td>
+                <td class="text-end">
+                  <div class="d-flex justify-content-end gap-2">
+                    <a href="{% url 'leaves:approve_leave' leave.id %}"
+                      class="action-btn bg-success-subtle text-success" title="Approve">
+                      <i class="bi bi-check-lg"></i>
+                    </a>
+                    <a href="{% url 'leaves:reject_leave' leave.id %}" class="action-btn bg-danger-subtle text-danger"
+                      title="Reject">
+                      <i class="bi bi-x-lg"></i>
+                    </a>
+                  </div>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="3" class="text-center py-4 text-muted small">No pending leave applications.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Analytics Chart -->
+  <div class="glass-card mb-5" data-aos="fade-up" data-aos-delay="300">
+    <h3 class="h5 fw-bold text-dark mb-4">Leave Utilization Overview</h3>
+    <div style="height: 300px;">
+      <canvas id="leaveChart"></canvas>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script>
-document.querySelectorAll(".approve-btn").forEach(btn => {
-  btn.onclick = () => {
-    fetch(`/leave/ajax/${btn.dataset.id}/approve/`, {
-      method: "POST",
-      headers: { "X-CSRFToken": "{{ csrf_token }}" }
-    }).then(() => location.reload())
+  const ctx = document.getElementById('leaveChart');
+  if (ctx) {
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: [{% for k in data.keys %}"{{ k }}"{% if not forloop.last %}, {% endif %} {% endfor %}],
+  datasets: [{
+    label: 'Leave Days Used',
+    data: [{% for v in data.values %}{{ v }}{% if not forloop.last %}, {% endif %} {% endfor %}],
+  backgroundColor: 'rgba(37, 99, 235, 0.6)',
+    borderColor: 'rgba(37, 99, 235, 1)',
+      borderWidth: 1,
+        borderRadius: 8
+                }]
+            },
+  options: {
+    responsive: true,
+      maintainAspectRatio: false,
+        plugins: {
+      legend: { display: false }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+          grid: { color: 'rgba(0,0,0,0.05)' }
+      },
+      x: {
+        grid: { display: false }
+      }
+    }
   }
-})
-
-document.querySelectorAll(".reject-btn").forEach(btn => {
-  btn.onclick = () => {
-    fetch(`/leave/ajax/${btn.dataset.id}/reject/`, {
-      method: "POST",
-      headers: { "X-CSRFToken": "{{ csrf_token }}" }
-    }).then(() => location.reload())
-  }
-})
-
-
-new Chart(document.getElementById("leaveChart"), {
-  type: "bar",
-  data: {
-    labels: {{ data.keys|safe }},
-    datasets: [{
-      label: "Leave Days Used",
-      data: {{ data.values|safe }},
-    }]
-  }
-});
+        });
+    }
 </script>
-
 {% endblock %}

@@ -1,1122 +1,517 @@
-import re
-from urllib import request
-from uuid import uuid4
-from django.shortcuts import render, get_object_or_404
-from django.http import HttpResponse
-from django.core.mail import send_mail
-from django.http import JsonResponse
-from django.db.models import Sum
-from payroll.models import ( 
-    PaymentTransaction, PayrollRecord, Payee,
-    StaffProfile, BankAccount, AuditLog, PaymentBatch,
-    PayrollAuditLog, PayrollLineItem,  PayrollPeriod, PaymentBatch,
-    Payee )
-from leaves.forms import LeaveRequestForm
-from django.contrib.auth import get_user_model
-from django.shortcuts import render, get_object_or_404, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-from django.core.exceptions import PermissionDenied
-from payroll.models import PayrollPeriod
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from django.utils import timezone
+from django.db import transaction, models
+from django.db.models import Sum, Q
+from django.http import HttpResponse, JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+import json
+from .forms import SalaryComponentForm 
 
-from django.shortcuts import get_object_or_404, redirect, render
-from django.utils.crypto import get_random_string
-
-from school_sms.context_processors import school_name
-from school_sms.settings import SCHOOL_ADDRESS, SCHOOL_NAME
-
-from .models import Payee, PayeeSalaryStructure, PayrollEnrollment, SalaryStructure
-from django.contrib.admin.views.decorators import staff_member_required
-from django.db.models import Sum, Count
-from django.shortcuts import render
-
-from django.conf import settings
-from django.http import JsonResponse
-from django.db.models import Sum
-from payroll.models import PayrollRecord
-from loans.models import LoanApplication
-from leaves.models import LeaveRequest, LeaveType
-
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-
-from payroll.models import PayrollPeriod, PayrollRecord
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect, get_object_or_404
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, get_object_or_404, redirect
-from payroll.models import (
-    PayrollPeriod,
-    PayrollRecord,
-    Payee,
-    AuditLog,
-    PaymentBatch
+from .models import (
+    Payee, BankAccount, PayrollPeriod, PayrollRecord,
+    PayrollLineItem, PaymentTransaction,
+    AuditLog, SalaryComponent
 )
-
-from payroll.models import PayrollPeriod
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect, get_object_or_404
-from django.contrib import messages
-
-from .models import PaymentTransaction
-from .services.payroll_generation import bulk_generate_payroll
-from .services.payroll_engine import calculate_payroll
-from .services.payment_batch_service import create_payment_batch
-from .services.paystack_transfers import initiate_transfer
-from .services.approval_service import approve_by_admin, approve_by_bursar
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render
-from payroll.models import Payee, PayrollPeriod, PayrollRecord
-from django.http import HttpResponseForbidden
-from django.core.paginator import Paginator
-from django.db.models import Sum
-
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib import colors
-from django.http import HttpResponse
-from django.shortcuts import get_object_or_404
+from django.conf import settings
+from .forms import PayeeForm, BankAccountForm, SalaryStructureForm, SalaryItemFormSet, PayrollGenerationForm
+from .admin_forms import AdminPayeeCreationForm
+from .utils import get_loan_deduction
+from .paystack_service import process_payroll_payments, retry_failed_payment, PaystackService
 from decimal import Decimal
-import qrcode
-from io import BytesIO
-from reportlab.platypus import Image
-from reportlab.lib.units import inch
-from django.db import models 
-from payroll.models import PayrollPeriod, PayrollRecord
-
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.core.paginator import Paginator
-
-from payroll.models import PayeeSalaryStructure, StaffProfile
-from .forms import BankAccountForm
-
-User = get_user_model()
-
-
-def is_staff(user):
-    return user.role in ['ADMIN', 'TEACHER']
 
 
 @login_required
-def bursar_approve_payroll(request, record_id):
-    record = get_object_or_404(PayrollRecord, id=record_id)
-
-    try:
-        approve_by_bursar(record, request.user)
-        messages.success(request, "Payroll approved by Bursar.")
-    except Exception as e:
-        messages.error(request, str(e))
-
-    return redirect("payroll:payroll_record_detail", record.id)
-
-
-@login_required
-def admin_approve_payroll(request, record_id):
-    record = get_object_or_404(PayrollRecord, id=record_id)
-
-    try:
-        approve_by_admin(record, request.user)
-        messages.success(request, "Payroll approved by Admin.")
-    except Exception as e:
-        messages.error(request, str(e))
-
-    return redirect("payroll:payroll_record_detail", record.id)
-
-
-@login_required
-def create_payment_batch_view(request, period_id):
-    period = get_object_or_404(PayrollPeriod, id=period_id)
-
-    if request.user.role not in ["ADMIN", "BURSAR"]:
-        messages.error(request, "Permission denied.")
-        return redirect("payroll:payroll_period_detail", period.pk)
-
-    if not period.is_approved:
-        messages.error(request, "Payroll must be approved first.")
-        return redirect("payroll:payroll_period_detail", period.pk)
-
-    if period.is_paid:
-        messages.warning(request, "Payroll already paid.")
-        return redirect("payroll:payroll_period_detail", period.pk)
-
-    batch = create_payment_batch(
-        payroll_period=period,
-        created_by=request.user
-    )
-
-    messages.success(
-        request,
-        f"Payment batch created with {batch.transactions.count()} transfers."
-    )
-
-    return redirect("payroll:batch_detail", batch.id)
-
-
-
-@login_required
-def payment_batch_detail(request, batch_id):
-    batch = get_object_or_404(PaymentBatch, id=batch_id)
-
-    transactions = batch.transactions.select_related(
-        "payroll_record__payee"
-    )
-
-    has_pending = batch.transactions.filter(status="pending").exists()
-
-    return render(
-        request,
-        "payroll/admin/bash_detail.html",
-        {
-            "batch": batch,
-            "transactions": transactions,
-            "has_pending": has_pending,
-        }
-    )
-
-
-
-@login_required
-def execute_payment_batch(request, batch_id):
-    batch = get_object_or_404(PaymentBatch, id=batch_id)
-
-    if request.user.role not in ["ADMIN", "BURSAR"]:
-        messages.error(request, "Permission denied.")
-        return redirect("payroll:batch_detail", batch.id)
-
-    success = 0
-    failed = 0
-
-    for tx in batch.transactions.filter(status="pending"):
-        initiate_transfer(tx)
-        if tx.status == "success":
-            success += 1
-        else:
-            failed += 1
-
-    if failed == 0:
-        batch.payroll_period.is_paid = True
-        batch.payroll_period.save()
-
-    messages.success(
-        request,
-        f"Transfers completed. Success: {success}, Failed: {failed}"
-    )
-
-    return redirect("payroll:batch_detail", batch.id)
-
-
-@login_required
-def retry_failed_transactions(request, batch_id):
-    batch = get_object_or_404(PaymentBatch, id=batch_id)
-
-    if request.user.role not in ["ADMIN", "BURSAR"]:
-        messages.error(request, "Permission denied.")
-        return redirect("payroll:batch_detail", batch.id)
-
-    failed_txs = batch.transactions.filter(status="failed")
-    success = 0
-    failed = 0
-
-    for tx in failed_txs:
-        initiate_transfer(tx)
-        if tx.status == "success":
-            success += 1
-        else:
-            failed += 1
-
-    # Mark payroll period as paid if all now succeed
-    if batch.transactions.filter(status="pending").exists() == False and batch.transactions.filter(status="failed").exists() == False:
-        batch.payroll_period.is_paid = True
-        batch.payroll_period.save()
-
-    messages.success(
-        request,
-        f"Retry completed. Success: {success}, Still Failed: {failed}"
-    )
-    return redirect("payroll:batch_detail", batch.id)
-
-
-# =========================
-# AUDIT LOGS
-# =========================
-@login_required
-def audit_log_list(request):
-    logs = AuditLog.objects.select_related("user").order_by("-created_at")
-    return render(request, "payroll/admin/audit_log_list.html", {"logs": logs})
-
-
-
-@login_required
-def payroll_chart_data(request):
-    payee = request.user.payee
-
-    records = PayrollRecord.objects.filter(payee=payee).order_by("created_at")
-
-    return JsonResponse({
-        "labels": [r.payroll_period.name for r in records],
-        "net_pay": [float(r.net_pay) for r in records],
-        "deductions": [float(r.total_deductions) for r in records],
-    })
-
-
-
-def log_action(user, action, entity, entity_id=None, metadata=None):
-    AuditLog.objects.create(
-        user=user,
-        action=action,
-        entity=entity,
-        entity_id=entity_id,
-        metadata=metadata or {}
-    )
-
-
-#  Using Batch Payment ended but version 2 (other method beneath)
-# ================================================================
-
-
-# @login_required
-# def payroll_dashboard(request):
-#     user = request.user
-      
-#     # ADMIN / BURSAR
-#     if user.role in ["ADMIN", "BURSAR"]:
-#         # Latest payroll periods
-#         periods = PayrollPeriod.objects.order_by("-year", "-month")[:6]
-
-#         # Latest payment batches
-#         batches = PaymentBatch.objects.order_by("-created_at")[:10]
-
-#         context = {
-#             "periods": periods,
-#             "batches": batches,
-#         }
-#         return render(request, "payroll/admin/admin_dashboard.html", context)
-    
-#     # STAFF (Teacher / Non-Teacher)
-#     payee = Payee.objects.get(user=user)
-
-#     context = {
-#         "payee": payee,
-#         "recent_payrolls": PayrollRecord.objects.filter(payee=payee)[:5],
-#         "active_loans": LoanApplication.objects.filter(
-#             payee=payee,
-#             status="approved"
-#         ),
-#     }
-#     return render(request, "payroll/staff/dashboard.html", context)
-
-
-@login_required
-def staff_payroll_dashboard(request):
-    user = request.user
-    
-    # STAFF (Teacher / Non-Teacher)
-    payee = Payee.objects.get(user=user)
-
-    context = {
-        "payee": payee,
-        "recent_payrolls": PayrollRecord.objects.filter(payee=payee)[:5],
-        "active_loans": LoanApplication.objects.filter(
-            payee=payee,
-            status="approved"
-        ),
-    }
-    return render(request, "payroll/staff/dashboard.html", context)
-
-# =========================
-# PAYROLL PERIODS
-# =========================
-
-
-@login_required
-def create_payroll_period(request):
-    if request.user.role not in ["ADMIN", "BURSAR"]:
-        messages.error(request, "Permission denied.")
-        return redirect("payroll:payroll_period_list")
-
-    if request.method == "POST":
-        month = int(request.POST.get("month"))
-        year = int(request.POST.get("year"))
-
-        period, created = PayrollPeriod.objects.get_or_create(
-            month=month,
-            year=year
-        )
-
-        if not created:
-            messages.warning(request, "Payroll period already exists.")
-        else:
-            messages.success(request, "Payroll period created successfully.")
-
-        return redirect("payroll:payroll_period_detail", period.pk)
-
-    return render(request, "payroll/admin/period_create.html")
-
-
-
-@login_required
-def payroll_period_list(request):
-    periods = PayrollPeriod.objects.order_by("-year", "-month")
-
-    return render(
-        request,
-        "payroll/admin/period_list.html",
-        {"periods": periods}
-    )
-
-
-@login_required
-def payroll_period_detail(request, period_id):
-    period = get_object_or_404(PayrollPeriod, id=period_id)
-
-    records = PayrollRecord.objects.filter(
-        payroll_period=period
-    ).select_related("payee")
-
-    context = {
-        "period": period,
-        "records": records,
-    }
-
-    return render(
-        request,
-        "payroll/admin/period_detail.html",
-        context
-    )
-
-@login_required
-def approve_payroll_period(request, period_id):
-    period = get_object_or_404(PayrollPeriod, id=period_id)
-
-    if request.user.role not in ["ADMIN", "BURSAR"]:
-        return HttpResponseForbidden()
-
-    if not period.is_generated:
-        messages.error(request, "Generate payroll before approval.")
-        return redirect("payroll:payroll_period_detail", period.pk)
-
-    period.is_approved = True
-    period.approved_by = request.user
-    period.approved_at = timezone.now()
-    period.save()
-
-    messages.success(request, "Payroll period approved.")
-    return redirect("payroll:payroll_period_detail", period.pk)
-
-
-@login_required
-def lock_payroll_period(request, period_id):
-    period = get_object_or_404(PayrollPeriod, id=period_id)
-
-    if request.user.role != "ADMIN":
-        messages.error(request, "Only admin can lock payroll.")
-        return redirect("payroll:period_detail", period.pk)
-
-    if not period.is_paid:
-        messages.error(request, "Cannot lock unpaid payroll.")
-        return redirect("payroll:period_detail", period.pk)
-
-    period.is_locked = True
-    period.save()
-
-    messages.success(request, "Payroll period locked.")
-    return redirect("payroll:period_detail", period.pk)
-
-
-@login_required
-def generate_payroll_for_period(request, period_id):
-    period = get_object_or_404(PayrollPeriod, id=period_id)
-
-    if period.is_locked:
-        messages.error(request, "Payroll period is locked.")
-        return redirect("payroll:period_detail", period.pk)
-
-    try:
-        result = bulk_generate_payroll(
-            payroll_period=period,
-            generated_by=request.user
-        )
-        period.is_generated = True
-        period.save()
-
-        messages.success(
-            request,
-            f"Payroll generated. Created: {result['created']}, Skipped: {result['skipped']}"
-        )
-
-    except Exception as e:
-        messages.error(request, str(e))
-
-    return redirect("payroll:payroll_period_detail", period.pk)
-
-
-# =========================
-# PAYROLL RECORDS
-# =========================
-@login_required
-def payroll_record_list(request):
-    records = PayrollRecord.objects.select_related("payee", "payroll_period")
-
-    page = Paginator(records, 6)
-    
-    return render(request, "payroll/admin/record_list.html", {"records": records})
-
-
-@login_required
-def payroll_record_detail(request, pk):
-    record = get_object_or_404(PayrollRecord, pk=pk)
-    return render(request, "payroll/admin/record_detail.html", {"record": record})
-
-
-# =========================
-# PAYEES
-# =========================
-@login_required
-def payee_list(request):
-    payees = Payee.objects.select_related("user")
-    return render(request, "payroll/admin/payee_list.html", {"payees": payees})
-
-
-@login_required
-def payee_detail(request, pk):
-    payee = get_object_or_404(Payee, pk=pk)
-    records = PayrollRecord.objects.filter(payee=payee)
-    return render(request, "payroll/admin/payee_detail.html", {
-        "payee": payee,
-        "records": records,
-    })
-
-
-
-def payroll_summary(period):
-    qs = PayrollRecord.objects.filter(payroll_period=period)
-    return {
-        "gross": qs.aggregate(Sum("gross_pay"))["gross_pay__sum"] or 0,
-        "net": qs.aggregate(Sum("net_pay"))["net_pay__sum"] or 0,
-        "deductions": qs.aggregate(
-            Sum("total_deductions")
-        )["total_deductions__sum"] or 0,
-    }
-
-
-# def notify_leave_status(leave):
-#     send_mail(
-#         "Leave Request Update",
-#         f"Your leave request is {leave.status}.",
-#         "no-reply@school.com",
-#         [leave.staff.payee.linked_user.email],
-#     )
-
-
-
-@login_required
-def staff_payslip_dashboard(request):
-
-    payee = get_object_or_404(Payee, user=request.user)
-
-    payrolls = (
-        PayrollRecord.objects
-        .filter(payee=payee)
-        .select_related("payroll_period")
-        .order_by("-payroll_period__year", "-payroll_period__month")
-    )
-
-    return render(
-        request,
-        "payroll/staff/payslip_dashboard.html",
-        {
-            "payrolls": payrolls,
-            "payee": payee,
-        }
-    )
-
-
-# @login_required
-# def payslip_pdf_view(request, payroll_id):
-#     if not PayrollPeriod.objects.filter(id=payroll_id).exists():
-#         messages.info(request, "You have no record Yet")
-
-#     payroll = get_object_or_404(PayrollPeriod, id=payroll_id)
-
-#     # SECURITY: staff can only access their own
-#     if payroll.payee.user != request.user and not request.user.is_superuser:
-#         return HttpResponse("Unauthorized", status=403)
-
-#     response = HttpResponse(content_type="application/pdf")
-#     response["Content-Disposition"] = (
-#         f'attachment; filename="Payslip_{payroll.payroll_period.month}_{payroll.payroll_period.year}.pdf"'
-#     )
-
-#     p = canvas.Canvas(response, pagesize=A4)
-#     width, height = A4
-
-#     y = height - 50
-
-#     def draw(text, offset=20):
-#         nonlocal y
-#         p.drawString(50, y, text)
-#         y -= offset
-
-#     # HEADER
-#     p.setFont("Helvetica-Bold", 16)
-#     draw("PAYSLIP", 30)
-
-#     p.setFont("Helvetica", 11)
-#     draw(f"Name: {payroll.payee.user.get_full_name()}")
-#     draw(f"Period: {payroll.payroll_period.month}/{payroll.payroll_period.year}")
-#     draw(f"Payee Type: {payroll.payee.payee_type}")
-
-#     draw("-" * 80, 25)
-
-#     # PAY DETAILS
-#     draw(f"Gross Pay: ₦{payroll.gross_pay}")
-#     draw(f"Total Deductions: ₦{payroll.total_deductions}")
-#     draw(f"Net Pay: ₦{payroll.net_pay}", 30)
-
-#     draw("-" * 80, 25)
-
-#     draw("This is a system-generated payslip.", 30)
-
-#     p.showPage()
-#     p.save()
-
-#     return response
-
-
-
-@login_required
-def staff_create_bank_account(request, payee_id):
-    # if request.user.role not in ["ADMIN", "BURSAR"]:
-    #     messages.error(request, "Permission denied.")
-    #     return redirect("accounts:dashboard_redirect")
-
-    payee = get_object_or_404(Payee, id=payee_id)
-
-    if request.method == "POST":
-        form = BankAccountForm(request.POST)
-        if form.is_valid():
-            bank = form.save(commit=False)
-            bank.payee = payee
-            bank.save()
-            messages.success(request, "Bank account added successfully.")
-            return redirect("payroll:staff_payroll_dashboard")
+def dashboard(request):
+    if request.user.role in ['admin', 'staff'] or request.user.is_superuser:
+        return admin_dashboard(request)
     else:
-        form = BankAccountForm()
+        return payee_dashboard(request)
 
-    return render(
-        request,
-        "payroll/bank_account_create.html",
-        {"form": form, "payee": payee}
-    )
+def admin_dashboard(request):
+    periods = PayrollPeriod.objects.filter(is_locked=True).order_by('-year', '-month')[:6]
+    labels = [str(p) for p in reversed(periods)]
+    
+    data = []
+    for p in reversed(periods):
+        total = PayrollRecord.objects.filter(payroll_period=p).aggregate(Sum('net_pay'))['net_pay__sum'] or 0
+        data.append(float(total))
+        
+    chart_data = {
+        'labels': labels,
+        'data': data
+    }
+    
+    pending_banks = BankAccount.objects.filter(is_approved=False).count()
+    
+    return render(request, 'payroll/admin_dashboard.html', {
+        'chart_data': json.dumps(chart_data),
+        'pending_banks': pending_banks
+    })
 
-
-
-# def payee_onboarding(request, payee_id):
-#     payee = get_object_or_404(Payee, id=payee_id)
-
-#     if not payee.bank_accounts.exists():
-#         return redirect("payroll:create_bank_account", payee_id=payee.id)
-
-#     if not payee.has_salary_structure():
-#         return redirect("payroll:assign_salary", payee_id=payee.id)
-
-#     messages.success(request, "Payee is payroll-ready")
-#     return redirect("payroll:payee_detail", payee_id=payee.id)
-
-
-
-@login_required
-def staff_bank_account_update(request, payee_id):
-    payee = get_object_or_404(Payee, id=payee_id)
-
-    bank = payee.bank_accounts.filter(is_primary=True).first()
-
-    if request.method == "POST":
-        BankAccount.objects.update_or_create(
-            payee=payee,
-            is_primary=True,
-            defaults={
-                "bank_name": request.POST["bank_name"],
-                "account_number": request.POST["account_number"],
-                "account_name": request.POST["account_name"],
-            },
-        )
-        return redirect("payroll:staff_dashboard")
-
-    return render(
-        request,
-        "payroll/staff/bank_account_form.html",
-        {"bank": bank},
-    )
-
-
-
-@login_required
-def staff_bank_account_submit(request):
-    payee = get_object_or_404(Payee, user=request.user)
-
-    if request.method == "POST":
-        BankAccount.objects.create(
-            payee=payee,
-            bank_name=request.POST["bank_name"],
-            account_number=request.POST["account_number"],
-            account_name=request.POST["account_name"],
-            is_primary=True,
-            is_approved=False,
-        )
-        return JsonResponse({"success": True})
-
-    return render(
-        request,
-        "payroll/staff/bank_account_form.html"
-    )
-
-
-
-@login_required
-def approve_bank_account(request, account_id):
-    if not request.user.is_superuser:
-        return HttpResponse(status=403)
-
-    account = get_object_or_404(BankAccount, id=account_id)
-
-    account.is_approved = True
-    account.approved_by = request.user
-    account.approved_at = timezone.now()
-    account.save()
-
-    PayrollAuditLog.objects.create(
-        action="Approved bank account",
-        performed_by=request.user,
-        metadata={"account_id": account.id}
-    )
-
-    return redirect("payroll:admin_bank_accounts")
-
-
-
-@login_required
-def staff_salary_history(request):
-    records = PayrollRecord.objects.filter(
-        payee__user=request.user
-    ).order_by("-payroll_period__month")
-
-    return render(request, "payroll/staff/salary_history.html", {
-        "records": records
+def payee_dashboard(request):
+    try:
+        payee = request.user.payee_profile
+    except Payee.DoesNotExist:
+        payee = None
+        
+    recent_payslips = []
+    if payee:
+        recent_payslips = PayrollRecord.objects.filter(payee=payee).order_by('-created_at')[:5]
+        
+    return render(request, 'payroll/payee_dashboard.html', {
+        'payee': payee,
+        'recent_payslips': recent_payslips
     })
 
 
+@login_required
+@user_passes_test(lambda u: u.role == 'admin' or u.is_superuser)
+def admin_create_payee(request):
+    if request.method == 'POST':
+        form = AdminPayeeCreationForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Payee created successfully.')
+            return redirect('payroll:admin_payee_list')
+    else:
+        form = AdminPayeeCreationForm()
 
-@staff_member_required
-def salary_detail(request, pk):
-    payee = get_object_or_404(Payee, pk=pk)
+    return render(request, 'payroll/admin_create_payee.html', {'form': form})
 
-    loans = LoanApplication.objects.filter(payee=payee).order_by("-created_at")
-    payrolls = PayrollRecord.objects.filter(payee=payee).order_by("-created_at")
-
-    context = {
-        "payee": payee,
-        "loans": loans,
-        "payrolls": payrolls,
-    }
-    return render(request, "payroll/payee_detail.html", context)
-
-
-
-def staff_salary_chart(request):
-    payee = Payee.objects.get(user=request.user)
-
-    data = (
-        PayrollRecord.objects
-        .filter(payee=payee, status="approved")
-        .values("payroll_period__month", "payroll_period__year")
-        .annotate(
-            gross=Sum("gross_pay"),
-            deductions=Sum("total_deductions"),
-        )
-        .order_by("payroll_period__year", "payroll_period__month")
-    )
-
-    return JsonResponse([
-        {
-            "label": f"{d['payroll_period__month']}/{d['payroll_period__year']}",
-            "gross": float(d["gross"]),
-            "deductions": float(d["deductions"]),
-            "net": float(d["gross"] - d["deductions"]),
-        }
-        for d in data
-    ], safe=False)
-
-
-
-
-# def create_payee(request):
-    
-    # user = User.objects.filter(role__in = ['ADMIN','TEACHER', 'BURSAR']).order_by('-created_at').first()      # Replace with actual user retrieval logic
-    # created_by = request.user
-    # payee = Payee.objects.create(user=user, 
-    #                              is_active = True)
-
-    # PAYROLL_ELIGIBLE_ROLES = {
-    #     "ADMIN": "admin",
-    #     "TEACHER": "teacher",
-    #     "NON_TEACHER": "non_teacher",
-    #     "CONTRACTOR": "contractor",
-    #     "SERVICE_PROVIDER": "service_provider"
-    # }
-
-    # if payee.payee_type not in PAYROLL_ELIGIBLE_ROLES:
-    #     messages.error(request, "This user cannot be registered to payroll.")
-    #     return redirect(request.META.get("HTTP_REFERER"))
-
-    # payee_type = PAYROLL_ELIGIBLE_ROLES[payee.payee_type]
-    # payee, created = Payee.objects.get_or_create(
-    #     user=user,
-    #     defaults={
-    #         "full_name": user.get_full_name(),
-    #         "payee_type": payee_type,
-    #         "reference_code": f"PAYEE-{user.id}/{uuid4().hex[:5].upper()}",
-    #     },
-    # )
-
-    # StaffProfile.objects.get_or_create(
-    #     payee=payee,
-    #     defaults={
-    #         "phone_number": user.phone_number or "",
-    #         "date_of_employment": user.created_at.date(),
-    #         "is_confirmed": True,
-    #     },
-    # )
-
-    # PayeeSalaryStructure.objects.create(
-    #     payee=payee,
-    #     salary_structure= SalaryStructure.objects.first(),  # Replace with actual logic
-    #     assigned_by=request.user,
-    # )
-
-
-    # # Log the enrollment
-    # PayrollEnrollment.objects.get_or_create(
-    #     user=user,
-    #     payee=payee,
-    #     enrolled_by=created_by,
-    # )
-
-    # messages.success(request, "User successfully registered to payroll.")
-    # return redirect("payroll:payee_list")
-
-
-from .forms import PayeeForm, BankAccountForm
 
 @login_required
-def create_payee(request):
-    if request.user.role not in ["ADMIN", "BURSAR"]:
-        messages.error(request, "Permission denied.")
-        return redirect("accounts:dashboard_redirect")
+def manage_bank_account(request):
+    try:
+        payee = Payee.objects.get(user=request.user)
+        accounts = payee.bank_accounts.all()
+        if request.method == 'POST':
+            form = BankAccountForm(request.POST)
+            if form.is_valid():
+                account = form.save(commit=False)
+                account.payee = payee
+                account.save()
+                messages.info(request, 'Bank account added. Waiting for Admin approval.')
+                return redirect('payroll:manage_bank_account')
+        else:
+            form = BankAccountForm()
+    except Payee.DoesNotExist:
+        messages.error(request, 'You do not have a payroll profile.')
+        return redirect('payroll:payee_profile')
+
+        
+    return render(request, 'payroll/bank_accounts.html', {'form': form, 'accounts': accounts})
+
+
+
+from .admin_forms import AdminBankAccountForm
+
+@login_required
+@user_passes_test(lambda u: u.role == 'admin' or u.is_superuser)
+def admin_manage_bank_account(request):
+    """Allow admin to manage bank accounts for all payees."""
+    # Get all payees' bank accounts
+    all_accounts = BankAccount.objects.select_related('payee', 'payee__user').order_by('account_name')
     
     if request.method == 'POST':
-        # Prevent double enrollment
-        payee = Payee.objects.filter(user=request.POST['user']).first()
-        if payee:
-            messages.warning(request, "Payee already enrolled in payroll.")
-            return redirect("payroll:payee_detail", payee.id)
-
-        form = PayeeForm(request.POST)
-        user = get_object_or_404(User, id=request.POST['user'])
-        payee_type = request.POST['payee_type']
-        payee, created = Payee.objects.get_or_create(
-            user=user,
-            defaults={
-                "payee_type": payee_type,
-                "reference_code": f"PAYEE-{user.get_full_name()[:4].upper()}/{uuid4().hex[:5].upper()}",
-            }
-        )
-
-        messages.success(request, "Payee added successfully")
-
-        StaffProfile.objects.get_or_create(
-            payee=payee,
-            defaults={
-                    "phone_number": payee.user.phone_number,
-                    "address": payee.user.address,
-                    "date_of_employment": payee.user.created_at,
-                    "is_confirmed": True,
-                }
-            )
-
-        PayrollEnrollment.objects.create(
-                user = get_object_or_404(User, id=request.POST["user"]),
-                payee=payee,
-                enrolled_by=request.user,
-            )
-
-        messages.success(
-            request,
-            f"{payee.user.get_full_name()} successfully registered to payroll."
-        )
-
-        return redirect("payroll:payee_detail", payee.pk)
+        form = AdminBankAccountForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Bank account added successfully.')
+            return redirect('payroll:admin_manage_bank_account')
     else:
-        form = PayeeForm()
-
-    return render(request, "payroll/admin/payee_create.html", {"form": form})
-
+        form = AdminBankAccountForm()
+    
+    return render(request, 'payroll/admin_bank_accounts.html', {
+        'form': form,
+        'accounts': all_accounts
+    })
 
 
 @login_required
-def admin_finance_dashboard(request):
-    if request.user.role not in ["ADMIN", "BURSAR"]:
-        return redirect("payroll:dashboard")
-
-    # ======================
-    # OVERVIEW METRICS
-    # ======================
-    payroll_totals = PayrollRecord.objects.aggregate(
-        gross=Sum("gross_pay"),
-        deductions=Sum("total_deductions"),
-        net=Sum("net_pay"),
-    )
-
-    loan_totals = LoanApplication.objects.aggregate(
-        total_loans=Sum("loan_amount"),
-        outstanding=Sum("outstanding_balance"),
-    )
-
-    # ======================
-    # PAGINATED TABLES
-    # ======================
-    period_page = Paginator(
-        PayrollPeriod.objects.order_by("-year", "-month"), 6
-    ).get_page(request.GET.get("period_page"))
-
-    record_page = Paginator(
-        PayrollRecord.objects.select_related("payee", "payroll_period")
-        .order_by("-created_at"),
-        10
-    ).get_page(request.GET.get("record_page"))
-
-    batch_page = Paginator(
-        PaymentBatch.objects.order_by("-created_at"),
-        5
-    ).get_page(request.GET.get("batch_page"))
-
-    loan_page = Paginator(
-        LoanApplication.objects.select_related("payee").order_by("-applied_at"),
-        10
-    ).get_page(request.GET.get("loan_page"))
-
-    audit_page = Paginator(
-        AuditLog.objects.order_by("-created_at"),
-        10
-    ).get_page(request.GET.get("audit_page"))
-
-    context = {
-        "payroll_totals": payroll_totals,
-        "loan_totals": loan_totals,
-
-        "periods": period_page,
-        "records": record_page,
-        "batches": batch_page,
-        "loans": loan_page,
-        "audits": audit_page,
-    }
-
-    return render(request, "payroll/admin/admin_finance_dashboard.html", context)
-
-
-
-def export_payroll_report_pdf(request, period_id):
-    period = get_object_or_404(PayrollPeriod, id=period_id)
-
-    response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = f'attachment; filename="payroll_{period}.pdf"'
-
-    doc = SimpleDocTemplate(response, pagesize=A4)
-    styles = getSampleStyleSheet()
-    elements = []
-
-    # Header
-    elements.append(Paragraph(f"<b>{SCHOOL_NAME}</b>", styles["Title"]))
-    elements.append(Paragraph(SCHOOL_ADDRESS, styles["Normal"]))
-    elements.append(Paragraph(f"Payroll Report – {period}", styles["Heading2"]))
-
-    data = [
-        ["Staff", "Gross", "Deductions", "Net", "Outstanding Loan"]
-    ]
-
-    records = PayrollRecord.objects.filter(payroll_period=period).select_related("payee")
-
-    for r in records:
-        loan_balance = (
-            LoanApplication.objects.filter(payee=r.payee, outstanding_balance__gt=0)
-            .aggregate(total=models.Sum("outstanding_balance"))["total"]
-            or Decimal("0.00")
-        )
-
-        data.append([
-            r.payee.full_name,
-            f"{r.gross_pay:.2f}",
-            f"{r.total_deductions:.2f}",
-            f"{r.net_pay:.2f}",
-            f"{loan_balance:.2f}",
+@user_passes_test(lambda u: u.role == 'admin' or u.is_superuser)
+def approve_bank_accounts(request):
+    pending_accounts = BankAccount.objects.filter(is_approved=False)
+    
+    if request.method == 'POST':
+        account_id = request.POST.get('account_id')
+        action = request.POST.get('action')
+        account = get_object_or_404(BankAccount, id=account_id)
+        
+        if action == 'approve':
+            account.is_approved = True
+            account.save()
+            messages.success(request, f"Approved {account}")
+        elif action == 'reject':
+            account.delete()
+            messages.warning(request, "Rejected bank account.")
             
-        ])
+        return redirect('payroll:approve_bank_accounts')
+        
+    return render(request, 'payroll/approve_bank_accounts.html', {'accounts': pending_accounts})
 
-    table = Table(data, repeatRows=1)
-    table.setStyle(TableStyle([
-        ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
-        ("BACKGROUND", (0,0), (-1,0), colors.lightgrey),
-        ("ALIGN", (1,1), (-1,-1), "RIGHT"),
-    ]))
+@login_required
+def payee_profile(request):
+    payee = Payee.objects.filter(user=request.user).first()
+    
+    if request.method == 'POST':
+        form = PayeeForm(request.POST, instance=payee)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Profile updated successfully.')
+            return redirect('accounts:dashboard_redirect')
+    else:
+        form = PayeeForm(instance=payee)
+        
+    return render(request, 'payroll/payee_profile.html', {'form': form, 'payee': payee})
 
-    elements.append(table)
-    doc.build(elements)
 
-    return response
+@login_required 
+@user_passes_test(lambda u: u.role == 'admin' or u.is_superuser)
+def create_salary_structure(request):
+    if request.method == 'POST':
+        form = SalaryStructureForm(request.POST)
+        formset = SalaryItemFormSet(request.POST)
+        if form.is_valid() and formset.is_valid():
+            structure = form.save()
+            formset.instance = structure
+            formset.save()
+            messages.success(request, 'Salary Structure Created.')
+            return redirect('payroll:payroll_list') 
+    else:
+        form = SalaryStructureForm()
+        formset = SalaryItemFormSet()
+        
+    return render(request, 'payroll/create_structure.html', {'form': form, 'formset': formset})
 
 
+@login_required
+@user_passes_test(lambda u: u.role == 'admin' or u.is_superuser)
+def manage_salary_components(request):
+    components = SalaryComponent.objects.filter(is_active=True)
+    if request.method == 'POST':
+        form = SalaryComponentForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Component added.')
+            return redirect('payroll:manage_salary_components')
+    else:
+        form = SalaryComponentForm()
+    return render(request, 'payroll/admin/manage_components.html', {'form': form, 'components': components})
 
-def export_payslip_pdf(request, record_id):
 
-    if not PayrollRecord.objects.filter(id=record_id).exists():
-        messages.info(request, "You have no record Yet")
-        return redirect("payroll:staff_payroll_dashboard")
+@login_required
+@user_passes_test(lambda u: u.role == 'admin' or u.is_superuser)
+def generate_payroll(request):
+    if request.method == 'POST':
+        form = PayrollGenerationForm(request.POST)
+        if form.is_valid():
+            period = form.save(commit=False)
+            if PayrollPeriod.objects.filter(month=period.month, year=period.year).exists():
+                period = PayrollPeriod.objects.get(month=period.month, year=period.year)
+                if period.is_locked:
+                    messages.error(request, 'This period is locked.')
+                    return redirect('payroll:payroll_list')
+            else:
+                period.save()
+            
+            payees = Payee.objects.filter(is_active=True)
+            if not payees.exists():
+                messages.warning(request, 'No active payees found. Please onboard staff first.')
+                return redirect('payroll:generate_payroll')
 
+            count = 0
+            for payee in payees:
+                if not payee.has_salary_structure():
+                    continue
+                
+                record, created = PayrollRecord.objects.get_or_create(payee=payee, payroll_period=period)
+                
+                structure = payee.salary_assignment.salary_structure
+                gross_pay = Decimal("0.00")
+                
+                record.line_items.all().delete()
+                
+                for item in structure.items.all():
+                    comp_amount = item.amount 
+                    is_earning = (item.component.component_type == 'earning')
+                    
+                    if is_earning:
+                        gross_pay += comp_amount
+                    
+                    PayrollLineItem.objects.create(
+                        payroll_record=record,
+                        name=item.component.name,
+                        amount=comp_amount,
+                        is_deduction=not is_earning
+                    )
+                
+                # Calculate tax at package level
+                tax_deductions = Decimal("0.00")
+                if structure.is_taxable:
+                    tax_deductions = (gross_pay * structure.tax_rate) / Decimal("100")
+
+                record.gross_pay = gross_pay
+                record.loan_deductions = get_loan_deduction(payee, period.month, period.year)
+                record.tax_deductions = tax_deductions 
+                
+                record.calculate_net_pay()
+                record.save()
+                count += 1
+            
+            if count == 0:
+                messages.warning(request, 'No payroll records generated. Ensure payees have salary structures assigned.')
+                return redirect('payroll:generate_payroll')
+
+            period.is_generated = True
+            period.save()
+            messages.success(request, f'Payroll Generated for {count} payees.')
+            return redirect('payroll:payroll_detail', period_id=period.id)
+    else:
+        form = PayrollGenerationForm()
+    
+    payee_count = Payee.objects.filter(is_active=True).count()
+    return render(request, 'payroll/generate_payroll.html', {'form': form, 'payee_count': payee_count})
+
+
+@login_required
+def payroll_list(request):
+    periods = PayrollPeriod.objects.all()
+    return render(request, 'payroll/period_list.html', {'periods': periods})
+
+@login_required
+def payroll_detail(request, period_id):
+    period = get_object_or_404(PayrollPeriod, id=period_id)
+    records = period.records.all()
+    return render(request, 'payroll/period_detail.html', {'period': period, 'records': records})
+
+@login_required
+@user_passes_test(lambda u: u.role == 'admin' or u.is_superuser)
+def approve_lock_payroll(request, period_id):
+    period = get_object_or_404(PayrollPeriod, id=period_id)
+    if not period.is_locked:
+        period.is_locked = True
+        period.is_approved_by_admin = True
+        period.save()
+        messages.success(request, f"Payroll Period {period} Approved and Locked.")
+    return redirect('payroll:payroll_detail', period_id=period.id)
+
+@login_required
+@user_passes_test(lambda u: u.role in ['admin', 'staff'] or u.is_superuser)
+def admin_payee_list(request):
+    q = request.GET.get('q', '')
+    if q:
+        payees = Payee.objects.filter(
+            models.Q(user__first_name__icontains=q) |
+            models.Q(user__last_name__icontains=q) |
+            models.Q(reference_code__icontains=q)
+        ).select_related('user')
+    else:
+        payees = Payee.objects.all().select_related('user')
+    
+    return render(request, 'payroll/admin/payee_list.html', {'payees': payees})
+
+@login_required
+@user_passes_test(lambda u: u.role == 'admin' or u.is_superuser)
+@require_POST
+def toggle_payee_status(request, payee_id):
+    payee = get_object_or_404(Payee, id=payee_id)
+    payee.is_active = not payee.is_active
+    payee.save()
+    status = "activated" if payee.is_active else "deactivated"
+    messages.success(request, f"Payee {payee.user.get_full_name()} has been {status}.")
+    return redirect('payroll:admin_payee_list')
+
+@login_required
+@user_passes_test(lambda u: u.role == 'admin' or u.is_superuser)
+@require_POST
+def delete_payee(request, payee_id):
+    payee = get_object_or_404(Payee, id=payee_id)
+    name = payee.user.get_full_name()
+    payee.delete()
+    messages.success(request, f"Payee {name} has been deleted.")
+    return redirect('payroll:admin_payee_list')
+
+
+@login_required
+@user_passes_test(lambda u: u.role == 'admin' or u.is_superuser)
+@require_POST
+def delete_payroll_record(request, record_id):
     record = get_object_or_404(PayrollRecord, id=record_id)
-  
-    response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = f'attachment; filename="payslip_{record.id}.pdf"'
-
-    doc = SimpleDocTemplate(response, pagesize=A4)
-    styles = getSampleStyleSheet()
-    elements = []
-
-    # Header
-    elements.append(Paragraph(f"<b>{SCHOOL_NAME}</b>", styles["Title"]))
-    elements.append(Paragraph(SCHOOL_ADDRESS, styles["Normal"]))
-    elements.append(Paragraph("Payslip", styles["Heading2"]))
-
-    # Loan
-    loan_balance = (
-        LoanApplication.objects.filter(payee=record.payee, outstanding_balance__gt=0)
-        .aggregate(total=models.Sum("outstanding_balance"))["total"]
-        or Decimal("0.00")
-    )
-
-    # Payslip details
-    elements.append(Paragraph(f"Name: {record.payee.full_name}", styles["Normal"]))
-    elements.append(Paragraph(f"Period: {record.payroll_period}", styles["Normal"]))
-    elements.append(Paragraph(f"Gross Pay: ₦{record.gross_pay}", styles["Normal"]))
-    elements.append(Paragraph(f"Deductions: ₦{record.total_deductions}", styles["Normal"]))
-    elements.append(Paragraph(f"Net Pay: ₦{record.net_pay}", styles["Normal"]))
-    elements.append(Paragraph(f"Outstanding Loan: ₦{loan_balance}", styles["Normal"]))
-
-
-    # 🔐 QR Code
-    qr_data = f"""
-    PAYEE:{record.payee.full_name}
-    PERIOD:{record.payroll_period}
-    NET:{record.net_pay}
-    LOAN:{loan_balance}
-    RECORD:{record.id}
-    """
-
-    qr = qrcode.make(qr_data)
-    buffer = BytesIO()
-    qr.save(buffer)
-    buffer.seek(0)
-
-    qr_img = Image(buffer, 2*inch, 2*inch)
-    elements.append(qr_img)
-
-    doc.build(elements)
-    return response
-
-
-@login_required
-def monthly_payroll_chart(request):
-    if not request.user.is_superuser:
-        return HttpResponse(status=403)
-
-    data = (
-        PayrollRecord.objects
-        .values("payroll_period__month", "payroll_period__year")
-        .annotate(total=Sum("net_pay"))
-        .order_by("payroll_period__year", "payroll_period__month")
-    )
-
-    return JsonResponse(list(data), safe=False)
-
-
-@login_required
-def monthly_deductions_chart(request):
-    if not request.user.is_superuser:
-        return JsonResponse([], safe=False)
-
-    data = (
-        PayrollRecord.objects
-        .filter(paymenttransaction__status="SUCCESS")
-        .values("payroll_period__year", "payroll_period__month")
-        .annotate(total=Sum("total_deductions"))
-        .order_by("payroll_period__year", "payroll_period__month")
-    )
-
-    return JsonResponse([
-        {
-            "month": f'{d["payroll_period__year"]}-{str(d["payroll_period__month"]).zfill(2)}',
-            "total": float(d["total"]),
-        }
-        for d in data
-    ], safe=False)
+    period_id = record.payroll_period.id
+    
+    if record.payroll_period.is_locked:
+        messages.error(request, "Cannot delete record from a locked period.")
+    else:
+        name = record.payee.user.get_full_name()
+        record.delete()
+        messages.success(request, f"Removed {name} from this payroll period.")
+    
+    return redirect('payroll:payroll_detail', period_id=period_id)
 
 
 
 @login_required
-def deduction_dashboard(request):
-    if not request.user.is_superuser:
-        return HttpResponse(status=403)
-
-    records = (
-        PayrollLineItem.objects
-        .select_related("component", "payroll_record__payroll_period")
-        .order_by(
-            "-payroll_record__payroll_period__year",
-            "-payroll_record__payroll_period__month"
-        )
-    )
-
-    return render(
-        request,
-        "payroll/admin/deduction_dashboard.html",
-        {"records": records}
-    )
-
+@user_passes_test(lambda u: u.role == 'admin' or u.is_superuser)
+def process_payments(request, period_id):
+    """Initiate Paystack transfers for a payroll period."""
+    period = get_object_or_404(PayrollPeriod, id=period_id)
+    
+    if not period.is_locked:
+        messages.error(request, "Period must be approved and locked before processing payments.")
+        return redirect('payroll:payroll_detail', period_id=period.id)
+    
+    try:
+        batch, success_count, failed_records = process_payroll_payments(period, request.user)
+        
+        if success_count > 0:
+            messages.success(request, f"✓ {success_count} payments initiated successfully!")
+        
+        if failed_records:
+            messages.warning(request, f"⚠ {len(failed_records)} payments failed. See details below.")
+        
+        return redirect('payroll:payment_status', period_id=period.id)
+        
+    except ValueError as e:
+        messages.error(request, str(e))
+        return redirect('payroll:payroll_detail', period_id=period.id)
+    except Exception as e:
+        messages.error(request, f"Error processing payments: {str(e)}")
+        return redirect('payroll:payroll_detail', period_id=period.id)
 
 @login_required
-def deduction_breakdown_chart(request):
-    data = (
-        PayrollLineItem.objects
-        .filter(line_type="deduction")
-        .values(
-            "component__name",
-            "payroll_record__payroll_period__year",
-            "payroll_record__payroll_period__month"
-        )
-        .annotate(total=Sum("amount"))
-        .order_by(
-            "payroll_record__payroll_period__year",
-            "payroll_record__payroll_period__month"
-        )
-    )
+@user_passes_test(lambda u: u.role == 'admin' or u.is_superuser)
+def payment_status(request, period_id):
+    """Show payment status with success/failed transactions."""
+    period = get_object_or_404(PayrollPeriod, id=period_id)
+    
+    # Get all transactions for this period
+    records = period.records.select_related('payee', 'payee__user').prefetch_related('transactions')
+    
+    payment_data = []
+    success_count = 0
+    failed_count = 0
+    
+    for record in records:
+        latest_tx = record.transactions.order_by('-created_at').first()
+        status = latest_tx.status if latest_tx else 'not_initiated'
+        
+        if status == 'success':
+            success_count += 1
+        elif status == 'failed':
+            failed_count += 1
+        
+        payment_data.append({
+            'record': record,
+            'transaction': latest_tx,
+            'status': status,
+            'can_retry': latest_tx and latest_tx.status == 'failed'
+        })
+    
+    return render(request, 'payroll/payment_status.html', {
+        'period': period,
+        'payment_data': payment_data,
+        'success_count': success_count,
+        'failed_count': failed_count
+    })
+    
 
-    return JsonResponse(list(data), safe=False)
+@login_required
+@user_passes_test(lambda u: u.role == 'admin' or u.is_superuser)
+@require_POST
+def retry_payment(request, transaction_id):
+    """Retry a failed payment."""
+    success, message = retry_failed_payment(transaction_id, request.user)
+    
+    if success:
+        messages.success(request, message)
+    else:
+        messages.error(request, message)
+    
+    # Get period from transaction
+    tx = get_object_or_404(PaymentTransaction, id=transaction_id)
+    return redirect('payroll:payment_status', period_id=tx.payroll_record.payroll_period.id)
 
+@csrf_exempt
+@require_POST
+def paystack_webhook(request):
+    """Handle Paystack webhook notifications."""
+    
+    # Verify signature
+    if not PaystackService.verify_webhook_signature(request):
+        return HttpResponse(status=400)
+    
+    try:
+        payload = json.loads(request.body)
+        event = payload.get('event')
+        data = payload.get('data', {})
+        
+        if event == 'transfer.success':
+            # Update transaction status
+            reference = data.get('reference')
+            if reference:
+                try:
+                    tx = PaymentTransaction.objects.get(paystack_reference=reference)
+                    tx.status = 'success'
+                    tx.response_data = data
+                    tx.save()
+                    
+                    AuditLog.objects.create(
+                        user=None,
+                        action='UPDATE',
+                        model_name='PaymentTransaction',
+                        object_id=str(tx.id),
+                        description=f"Webhook: Transfer successful - {reference}"
+                    )
+                except PaymentTransaction.DoesNotExist:
+                    pass
+        
+        elif event == 'transfer.failed':
+            reference = data.get('reference')
+            if reference:
+                try:
+                    tx = PaymentTransaction.objects.get(paystack_reference=reference)
+                    tx.status = 'failed'
+                    tx.failure_reason = data.get('reason', 'Transfer failed')
+                    tx.response_data = data
+                    tx.save()
+                    
+                    AuditLog.objects.create(
+                        user=None,
+                        action='FAIL',
+                        model_name='PaymentTransaction',
+                        object_id=str(tx.id),
+                        description=f"Webhook: Transfer failed - {data.get('reason')}"
+                    )
+                except PaymentTransaction.DoesNotExist:
+                    pass
+        
+        return HttpResponse(status=200)
+        
+    except Exception as e:
+        print(f"Webhook error: {e}")
+        return HttpResponse(status=400)
 
+@login_required
+def payslip_view(request, record_id):
+    record = get_object_or_404(PayrollRecord, id=record_id)
+    
+    # Allow access if:
+    # 1. User is an admin or staff member
+    # 2. User is a superuser
+    # 3. record belongs to the user
+    is_admin_or_staff = request.user.role in ['admin', 'teacher'] or request.user.is_superuser
+    is_owner = record.payee.user == request.user
+    
+    if not (is_admin_or_staff or is_owner):
+         messages.error(request, "Unauthorized access.")
+         return redirect('accounts:dashboard_redirect')
+    
+    
+    return render(request, 'payroll/payslip.html', {
+        'record': record,
+        'SCHOOL_NAME': settings.SCHOOL_NAME,
+        'SCHOOL_ADDRESS': settings.SCHOOL_ADDRESS,
+        'SCHOOL_LOGO_PATH': settings.SCHOOL_LOGO_PATH
+    })

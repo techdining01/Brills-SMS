@@ -16,15 +16,26 @@ def has_overlapping_leave(payee, start_date, end_date):
 
 
 
-def calculate_leave_balance(payee, year=None):
+def calculate_leave_balance(payee, leave_type=None, year=None):
     if not year:
         year = date.today().year
 
-    approved = LeaveRequest.objects.filter(
+    qs = LeaveRequest.objects.filter(
         payee=payee,
         status="approved",
         start_date__year=year
     )
+    
+    if leave_type:
+        qs = qs.filter(leave_type=leave_type)
+        total_allowed = leave_type.annual_days
+    else:
+        total_allowed = ANNUAL_LEAVE_DAYS
 
-    used_days = sum(l.days for l in approved)
-    return max(ANNUAL_LEAVE_DAYS - used_days, 0)
+    used_days = sum(l.duration() for l in qs)
+    
+    return {
+        "total": total_allowed,
+        "used": used_days,
+        "remaining": max(total_allowed - used_days, 0)
+    }

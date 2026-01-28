@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container ">
+  <h3 class="mb-4">Add Leave Type</h3>
+
+  <form method="post" class="card p-4 shadow-sm">
+    {% csrf_token %}
+
+    {{ form.as_p }}
+    <div class="d-flex justify-content-between">
+      <a href="{% url 'leaves:admin_dashboard' %}" class="btn btn-secondary">
+        Cancel
+      </a>
+      <button type="submit" class="btn btn-primary">
+        Create Leave Type
+      </button>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

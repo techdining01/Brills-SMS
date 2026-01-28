@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Approve Bank Accounts{% endblock %}
+
+{% block extra_css %}
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 20px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+        padding: 2rem;
+    }
+
+    .approve-table th {
+        background: rgba(248, 250, 252, 0.5);
+        color: var(--secondary);
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        padding: 1rem;
+    }
+
+    .approve-table td {
+        padding: 1rem;
+        vertical-align: middle;
+    }
+
+    .btn-approve {
+        background: var(--success);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        transition: all 0.2s ease;
+    }
+
+    .btn-approve:hover {
+        background: #059669;
+        transform: translateY(-2px);
+    }
+
+    .btn-reject {
+        background: var(--danger);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        transition: all 0.2s ease;
+    }
+
+    .btn-reject:hover {
+        background: #dc2626;
+        transform: translateY(-2px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="mb-5">
+        <h1 class="h3 fw-bold mb-1">Account Approvals</h1>
+        <p class="text-muted small">Review and approve new bank account requests from staff.</p>
+    </div>
+
+    <div class="glass-card">
+        <h3 class="h5 fw-bold mb-4">Pending Requests</h3>
+        {% if accounts %}
+        <div class="table-responsive">
+            <table class="table approve-table table-borderless">
+                <thead>
+                    <tr>
+                        <th>Payee</th>
+                        <th>Bank</th>
+                        <th>Account Details</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for acc in accounts %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold text-dark">{{ acc.payee.user.get_full_name }}</div>
+                            <div class="badge bg-secondary-subtle text-secondary small">{{ acc.payee.get_payee_type_display }}</div>
+                        </td>
+                        <td><span class="text-muted">{{ acc.bank_name }}</span></td>
+                        <td>
+                            <div class="fw-bold text-dark">{{ acc.account_number }}</div>
+                            <div class="small text-muted">{{ acc.account_name }}</div>
+                        </td>
+                        <td class="text-end">
+                            <form method="post" class="d-inline-flex gap-2">
+                                {% csrf_token %}
+                                <input type="hidden" name="account_id" value="{{ acc.id }}">
+                                <button type="submit" name="action" value="approve" class="btn-approve shadow-sm">
+                                    <i class="bi bi-check2"></i> Approve
+                                </button>
+                                <button type="submit" name="action" value="reject" class="btn-reject shadow-sm">
+                                    <i class="bi bi-x-lg"></i> Reject
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-check-all display-4 text-success mb-3 d-block"></i>
+            <p class="text-muted">No pending bank accounts. Everything is up to date!</p>
+        </div>
+        {% endif %}
+
+        <div class="mt-5 border-top pt-4">
+            <a href="{% url 'payroll:admin_dashboard' %}" class="btn btn-link text-decoration-none text-muted fw-bold">
+                <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,25 @@
+C:\Users\USER\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\backends\utils.py:98: RuntimeWarning: Accessing the database during app initialization is discouraged. To fix this warning, avoid executing queries in AppConfig.ready() or when your app modules are imported.
+  warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
+Creating test database for alias 'default'...
+.E
+======================================================================
+ERROR: test_get_bank_code_resolution (payroll.tests.PaymentFixTests.test_get_bank_code_resolution)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1393, in patched
+    return func(*newargs, **newkeywargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\USER\Desktop\sms\Brills-SMS\payroll\tests.py", line 44, in test_get_bank_code_resolution
+    code = get_bank_code("GTB")
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\USER\Desktop\sms\Brills-SMS\payroll\services\recipient_service.py", line 59, in get_bank_code
+    raise ValueError(f"Could not resolve bank code for '{bank_name}'")
+ValueError: Could not resolve bank code for 'GTB'
+
+----------------------------------------------------------------------
+Ran 2 tests in 2.480s
+
+FAILED (errors=1)
+Destroying test database for alias 'default'...
+Found 2 test(s).
+System check identified no issues (0 silenced).

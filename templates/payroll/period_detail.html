@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Payroll: {{ period }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 20px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+        padding: 2rem;
+    }
+
+    .detail-table th {
+        background: rgba(248, 250, 252, 0.5);
+        color: var(--secondary);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 0.1em;
+        padding: 1rem;
+    }
+
+    .detail-table td {
+        padding: 1rem;
+        vertical-align: middle;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+    }
+
+    .status-badge {
+        padding: 0.35rem 0.75rem;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <div>
+            <h1 class="h3 fw-bold mb-1">Payroll Details</h1>
+            <p class="text-muted small mb-0">
+                Period: <span class="fw-bold text-dark">{{ period }}</span>
+                <span class="ms-2">
+                    {% if period.is_locked %}
+                    <span
+                        class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill">LOCKED</span>
+                    {% elif period.is_generated %}
+                    <span
+                        class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">GENERATED</span>
+                    {% else %}
+                    <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill">OPEN</span>
+                    {% endif %}
+                </span>
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            {% if user.role == "admin" or user.is_superuser %}
+            {% if not period.is_locked %}
+            <a href="{% url 'payroll:approve_lock_payroll' period.id %}"
+                class="btn btn-primary rounded-pill px-4 shadow-sm">
+                <i class="bi bi-shield-check me-2"></i> Approve & Lock
+            </a>
+            {% else %}
+            <a href="{% url 'payroll:process_payments' period.id %}" class="btn btn-dark rounded-pill px-4 shadow-sm">
+                <i class="bi bi-credit-card me-2"></i> Process Payments
+            </a>
+            <a href="{% url 'payroll:payment_status' period.id %}" class="btn btn-outline-primary rounded-pill px-4">
+                <i class="bi bi-activity me-2"></i> Payment Status
+            </a>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="glass-card shadow-sm">
+        <div class="table-responsive">
+            <table class="table detail-table table-hover border-0">
+                <thead>
+                    <tr>
+                        <th class="border-0">Staff Member</th>
+                        <th class="border-0">Gross Pay</th>
+                        <th class="border-0">Deductions</th>
+                        <th class="border-0 text-primary">Net Payable</th>
+                        <th class="border-0">Status</th>
+                        <th class="border-0 text-end">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold text-dark">{{ record.payee.user.get_full_name }}</div>
+                            <small class="text-muted">{{ record.payee.get_payee_type_display }}</small>
+                        </td>
+                        <td>₦{{ record.gross_pay|default_if_none:"0.00"|intcomma }}</td>
+                        <td><span class="text-danger">-₦{{ record.total_deductions|default_if_none:"0.00"|intcomma}}</span></td>
+                        <td><span class="fw-bold text-success">₦{{ record.net_pay|default_if_none:"0.00"|intcomma}}</span></td>
+                        <td>
+                            {% if record.is_paid %}
+                            <span class="status-badge bg-success-subtle text-success"><i
+                                    class="bi bi-check2-circle me-1"></i> Paid</span>
+                            {% else %}
+                            <span class="status-badge bg-warning-subtle text-warning"><i class="bi bi-clock me-1"></i>
+                                Pending</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="d-flex justify-content-end gap-2">
+                                <a href="{% url 'payroll:payslip_view' record.id %}"
+                                    class="btn btn-sm btn-outline-dark rounded-pill px-3">
+                                    <i class="bi bi-receipt me-1"></i> Slip
+                                </a>
+                                {% if not period.is_locked %}
+                                <form method="post" action="{% url 'payroll:delete_payroll_record' record.id %}"
+                                    onsubmit="return confirm('Remove this record?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5">
+                            <p class="text-muted mb-0">No records generated for this period yet.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

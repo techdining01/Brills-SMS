@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block title %}Leave Heatmap Analytics{% endblock %}
+
+{% block extra_css %}
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 24px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
+        padding: 3rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-5" data-aos="fade-down">
+        <div>
+            <h1 class="h2 fw-bold text-dark mb-1">Leave Utilization Heatmap</h1>
+            <p class="text-muted small">Visualizing staff absence patterns over time</p>
+        </div>
+        <a href="{% url 'leaves:admin_dashboard' %}" class="btn btn-outline-primary rounded-pill px-4">
+            <i class="bi bi-arrow-left me-2"></i>Admin Dashboard
+        </a>
+    </div>
+
+    <div class="glass-card mb-5" data-aos="fade-up">
+        <canvas id="heatmapChart" style="max-height: 400px;"></canvas>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    new Chart(document.getElementById('heatmapChart'), {
+        type: 'line',
+        data: {
+            labels: {{ data.keys | safe |default: "[]" }},
+        datasets: [{
+            label: 'Total Leave Days',
+            data: {{ data.values | safe |default: "[]" }},
+        fill: true,
+        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+        borderColor: 'rgba(37, 99, 235, 1)',
+        tension: 0.4,
+        pointRadius: 6,
+        pointBackgroundColor: 'white',
+        pointBorderWidth: 2
+            }]
+        },
+        options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+            x: { grid: { display: false } }
+        }
+    }
+    });
+</script>
+{% endblock %}

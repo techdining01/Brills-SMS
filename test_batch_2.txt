@@ -1,0 +1,20 @@
+C:\Users\USER\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\backends\utils.py:98: RuntimeWarning: Accessing the database during app initialization is discouraged. To fix this warning, avoid executing queries in AppConfig.ready() or when your app modules are imported.
+  warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
+Creating test database for alias 'default'...
+E..
+======================================================================
+ERROR: test_batch_creation_flow (payroll.tests.PaymentFixTests.test_batch_creation_flow)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 1393, in patched
+    return func(*newargs, **newkeywargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: PaymentFixTests.test_batch_creation_flow() takes 1 positional argument but 2 were given
+
+----------------------------------------------------------------------
+Ran 3 tests in 3.947s
+
+FAILED (errors=1)
+Destroying test database for alias 'default'...
+Found 3 test(s).
+System check identified no issues (0 silenced).

@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Manage Salary Components{% endblock %}
+
+{% block extra_css %}
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 20px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+        padding: 2rem;
+    }
+
+    .component-badge {
+        font-size: 0.7rem;
+        font-weight: 700;
+        padding: 0.25rem 0.75rem;
+        border-radius: 50px;
+        text-transform: uppercase;
+    }
+
+    .badge-earning {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+    }
+
+    .badge-deduction {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+    }
+
+    .list-group-item {
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        padding: 1rem 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row g-5">
+        <!-- Add Form -->
+        <div class="col-lg-4">
+            <div class="mb-4">
+                <h1 class="h3 fw-bold mb-1">Library</h1>
+                <p class="text-muted small">Add types of pay (Basic, Housing, etc.)</p>
+            </div>
+
+            <div class="glass-card">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Component Name</label>
+                        {{ form.name }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Type</label>
+                        {{ form.component_type }}
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold py-2 shadow-sm">
+                        Save Component
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Existing List -->
+        <div class="col-lg-8">
+            <div class="mb-4">
+                <h2 class="h4 fw-bold mb-1">Defined Components</h2>
+                <p class="text-muted small">You can use these components when building Salary Structures.</p>
+            </div>
+
+            <div class="glass-card">
+                {% if components %}
+                <ul class="list-group list-group-flush">
+                    {% for comp in components %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="fw-bold d-block">{{ comp.name }}</span>
+                        </div>
+                        <span
+                            class="component-badge {% if comp.component_type == 'earning' %}badge-earning{% else %}badge-deduction{% endif %}">
+                            {{ comp.get_component_type_display }}
+                        </span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-collection text-muted display-4"></i>
+                    <p class="text-muted mt-3">No components defined yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

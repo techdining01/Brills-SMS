@@ -372,7 +372,7 @@ def pickup_admin_dashboard(request):
         .order_by("-created_at")
     )
 
-    paginator = Paginator(pickup_qs, 15)  # 15 per page
+    paginator = Paginator(pickup_qs, 15)  
     page_number = request.GET.get("page")
     pickups = paginator.get_page(page_number)
 

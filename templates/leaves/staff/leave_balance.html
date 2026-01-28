@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block title %}Detailed Leave Balance{% endblock %}
+
+{% block extra_css %}
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 24px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
+        padding: 2.5rem;
+    }
+
+    .balance-card {
+        border-left: 5px solid var(--primary);
+        transition: transform 0.3s ease;
+    }
+
+    .balance-card:hover {
+        transform: scale(1.02);
+    }
+
+    .percentage-badge {
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: var(--primary-light);
+        color: var(--primary);
+        font-weight: 800;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-5" data-aos="fade-down">
+        <div>
+            <h1 class="h2 fw-bold text-dark mb-1">My Leave Balances</h1>
+            <p class="text-muted small">Yearly breakdown for {{ year }}</p>
+        </div>
+        <a href="{% url 'leaves:staff_dashboard' %}" class="btn btn-outline-primary rounded-pill px-4">
+            <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+        </a>
+    </div>
+
+    <div class="row g-4 mb-5">
+        {% for b in balances %}
+        <div class="col-md-6 col-lg-4" data-aos="fade-up" data-aos-delay="{{ forloop.counter0 }}00">
+            <div class="glass-card balance-card h-100">
+                <div class="d-flex justify-content-between align-items-start mb-4">
+                    <div>
+                        <h3 class="h5 fw-bold text-dark mb-1">{{ b.type.name }}</h3>
+                        <p class="text-muted small mb-0">{{ b.type.annual_days }} Days Annual Allowance</p>
+                    </div>
+                    <div class="percentage-badge shadow-sm">
+                        {{ b.used }} / {{ b.total }}
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between mb-2">
+                        <small class="text-muted">Utilization</small>
+                        <small class="fw-bold text-primary">{{ b.used }} days used</small>
+                    </div>
+                    <div class="progress" style="height: 8px; border-radius: 10px;">
+                        <div class="progress-bar bg-primary" style="width: {% widthratio b.used b.total 100 %}%"></div>
+                    </div>
+                </div>
+
+                <div class="bg-light bg-opacity-50 p-3 rounded-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted small">Available Now</span>
+                        <span class="h4 fw-bold text-success mb-0">{{ b.remaining }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-5">
+            <p class="text-muted">No leave types configured for your profile.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

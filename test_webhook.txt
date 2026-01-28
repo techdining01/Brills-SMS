@@ -1,0 +1,39 @@
+C:\Users\USER\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\backends\utils.py:98: RuntimeWarning: Accessing the database during app initialization is discouraged. To fix this warning, avoid executing queries in AppConfig.ready() or when your app modules are imported.
+  warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
+Creating test database for alias 'default'...
+EE
+======================================================================
+ERROR: test_transfer_failed_webhook (brillspay.tests.WebhookTests.test_transfer_failed_webhook)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\USER\Desktop\sms\Brills-SMS\brillspay\tests.py", line 13, in setUp
+    self.webhook_url = reverse("paystack_webhook")
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\urls\base.py", line 98, in reverse
+    resolved_url = resolver._reverse_with_prefix(view, prefix, *args, **kwargs)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\urls\resolvers.py", line 831, in _reverse_with_prefix
+    raise NoReverseMatch(msg)
+django.urls.exceptions.NoReverseMatch: Reverse for 'paystack_webhook' not found. 'paystack_webhook' is not a valid view function or pattern name.
+
+======================================================================
+ERROR: test_transfer_success_webhook (brillspay.tests.WebhookTests.test_transfer_success_webhook)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\USER\Desktop\sms\Brills-SMS\brillspay\tests.py", line 13, in setUp
+    self.webhook_url = reverse("paystack_webhook")
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\urls\base.py", line 98, in reverse
+    resolved_url = resolver._reverse_with_prefix(view, prefix, *args, **kwargs)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\urls\resolvers.py", line 831, in _reverse_with_prefix
+    raise NoReverseMatch(msg)
+django.urls.exceptions.NoReverseMatch: Reverse for 'paystack_webhook' not found. 'paystack_webhook' is not a valid view function or pattern name.
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.043s
+
+FAILED (errors=2)
+Destroying test database for alias 'default'...
+Found 2 test(s).
+System check identified no issues (0 silenced).

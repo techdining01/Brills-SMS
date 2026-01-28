@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Payment Status - {{ period }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 24px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+        padding: 2.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .status-table th {
+        background: rgba(248, 250, 252, 0.5);
+        color: var(--secondary);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 0.1em;
+        padding: 1.25rem 1rem;
+    }
+
+    .status-table td {
+        padding: 1.25rem 1rem;
+        vertical-align: middle;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+    }
+
+    .badge-process {
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        font-weight: 700;
+        font-size: 0.75rem;
+    }
+
+    .summary-box {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%);
+        border-radius: 20px;
+        padding: 2rem;
+        border: 1px solid rgba(37, 99, 235, 0.1);
+    }
+
+    .stat-val {
+        font-size: 1.75rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    .webhook-box {
+        background: #1e293b;
+        color: #94a3b8;
+        border-radius: 16px;
+        padding: 1.5rem;
+        font-family: 'Fira Code', monospace;
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <div>
+            <h1 class="h3 fw-bold mb-1">Payment Processing</h1>
+            <p class="text-muted small mb-0">Period: <span class="fw-bold text-dark">{{ period }}</span></p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'payroll:payroll_detail' period.id %}" class="btn btn-light rounded-pill px-4">
+                <i class="bi bi-arrow-left me-2"></i> Back
+            </a>
+            {% if not payment_data.0.transaction %}
+            <a href="{% url 'payroll:process_payments' period.id %}"
+                class="btn btn-primary rounded-pill px-4 shadow-sm">
+                <i class="bi bi-rocket-takeoff me-2"></i> Initiate Transfers
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="summary-box h-100 d-flex flex-column justify-content-center">
+                <small class="text-primary fw-bold text-uppercase mb-2">Total Payees</small>
+                <div class="stat-val text-dark">{{ payment_data|length }}</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="summary-box h-100 d-flex flex-column justify-content-center"
+                style="background: rgba(16, 185, 129, 0.08);">
+                <small class="text-success fw-bold text-uppercase mb-2">Successful</small>
+                <div class="stat-val text-success">{{ success_count|default:0 }}</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="summary-box h-100 d-flex flex-column justify-content-center"
+                style="background: rgba(239, 68, 68, 0.08);">
+                <small class="text-danger fw-bold text-uppercase mb-2">Failed</small>
+                <div class="stat-val text-danger">{{ failed_count|default:0 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-card overflow-hidden p-0">
+        <div class="p-4 bg-white border-bottom">
+            <h3 class="h5 fw-bold mb-0 text-dark">Transaction Registry</h3>
+        </div>
+        <div class="table-responsive">
+            <table class="table status-table mb-0">
+                <thead>
+                    <tr>
+                        <th class="ps-4">Recipient</th>
+                        <th>Amount</th>
+                        <th>Bank Account</th>
+                        <th>Status</th>
+                        <th class="text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in payment_data %}
+                    <tr>
+                        <td class="ps-4">
+                            <div class="fw-bold text-dark">{{ item.record.payee.user.get_full_name }}</div>
+                            <code class="small text-muted">{{ item.record.payee.reference_code }}</code>
+                        </td>
+                        <td><span class="fw-bold text-dark">₦{{ item.record.net_pay|floatformat:2 }}</span></td>
+                        <td>
+                            {% with bank=item.record.payee.bank_accounts.all.first %}
+                            {% if bank %}
+                            <div class="small">
+                                <div class="text-dark fw-medium">{{ bank.bank_name }}</div>
+                                <div class="text-muted">{{ bank.account_number }}</div>
+                            </div>
+                            {% else %}
+                            <span class="text-danger small fw-bold"><i class="bi bi-exclamation-circle me-1"></i> No
+                                Bank</span>
+                            {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td>
+                            {% if item.status == "success" %}
+                            <span
+                                class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 fw-bold">SUCCESS</span>
+                            {% elif item.status == "failed" %}
+                            <span
+                                class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-3 fw-bold">FAILED</span>
+                            {% elif item.status == "pending" %}
+                            <span
+                                class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-3 fw-bold">PENDING</span>
+                            {% else %}
+                            <span
+                                class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3 fw-bold">IDLE</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            {% if item.can_retry %}
+                            <form method="post" action="{% url 'payroll:retry_payment' item.transaction.id %}"
+                                class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-warning rounded-pill px-3 shadow-sm">
+                                    <i class="bi bi-arrow-clockwise me-1"></i> Retry
+                                </button>
+                            </form>
+                            {% elif item.status == "success" %}
+                            <i class="bi bi-check-all text-success fs-4"></i>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5">
+                            <p class="text-muted">No data available for this period.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mt-5">
+        <div class="d-flex align-items-center mb-3">
+            <h4 class="h6 fw-bold text-dark text-uppercase mb-0 me-3">Webhook Integration</h4>
+            <span class="badge bg-info-subtle text-info rounded-pill">Real-time Sync</span>
+        </div>
+        <div class="webhook-box shadow-sm">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="text-white-50 small">Paystack Webhook URL (Development)</span>
+                <i class="bi bi-shield-check text-success"></i>
+            </div>
+            <code class="text-info d-block mb-3">
+                'https://newsiest-interlineally-guy.ngrok-free.dev/payroll/paystack/webhook/'
+            </code>
+            <p class="mb-0 small">Automated updates for transfer success or failure are delivered to this endpoint via
+                Paystack's event system.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

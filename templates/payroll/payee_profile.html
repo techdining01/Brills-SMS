@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Payroll Profile{% endblock %}
+
+{% block extra_css %}
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 20px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+        padding: 2.5rem;
+        max-width: 600px;
+        margin: 2rem auto;
+    }
+
+    .profile-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, var(--primary), var(--primary-light));
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: white;
+        margin: 0 auto 1.5rem;
+        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
+    }
+
+    .form-group label {
+        font-weight: 600;
+        color: var(--dark);
+        margin-bottom: 0.5rem;
+        display: block;
+        font-size: 0.9rem;
+    }
+
+    .form-control,
+    .form-select {
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+        outline: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="glass-card text-center">
+        <div class="profile-icon">
+            <i class="bi bi-person-badge"></i>
+        </div>
+        <h2 class="fw-bold text-dark mb-1">Payroll Profile</h2>
+        <p class="text-muted small mb-4">View and manage your professional payroll details.</p>
+
+        <form method="post" class="text-start">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="form-group mb-3">
+                <label>{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                <div class="text-danger small mt-1">{{ field.errors.0 }}</div>
+                {% endif %}
+                {% if field.help_text %}
+                <small class="text-muted">{{ field.help_text }}</small>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <div class="mt-4 pt-2">
+                <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">
+                    Update My Profile
+                </button>
+            </div>
+        </form>
+
+        <div class="mt-4 pt-4 border-top">
+            <a href="{% url 'accounts:dashboard_redirect' %}"
+                class="btn btn-link text-decoration-none text-muted fw-bold">
+                <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

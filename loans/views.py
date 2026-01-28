@@ -1,19 +1,17 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from pytz import timezone
-from .models import LoanApplication, LoanRepayment
-from payroll.models import Payee
 from django.core.paginator import Paginator
 from django.db.models import Sum
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
+from decimal import Decimal
+import csv
 
-
-from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from .forms import LoanApplicationForm
 from .models import LoanApplication, LoanRepayment
+from .forms import LoanApplicationForm
+from payroll.models import Payee
+
+
 
 @login_required
 def apply_for_loan(request):
@@ -35,7 +33,7 @@ def apply_for_loan(request):
 
 
 @login_required
-def admin_loan_list(request):
+def admin_loan_dashboard(request):
     if request.user.role not in ["ADMIN", "BURSAR"]:
         messages.error(request, "Permission denied.")
         return redirect("payroll:staff_payroll_dashboard")
@@ -61,7 +59,7 @@ def admin_loan_list(request):
         "total_pending": total_pending,
     }
 
-    return render(request, "loans/admin/loan_list.html", context)
+    return render(request, "loans/admin/loan_dashboard.html", context)
 
 
 # AJAX endpoint for chart (optional)
@@ -82,7 +80,19 @@ def admin_loan_chart_data(request):
 def admin_loan_detail(request, loan_id):
     loan = get_object_or_404(LoanApplication, id=loan_id)
     repayments = loan.repayments.order_by("-created_at")
-    return render(request, "loans/admin/loan_detail.html", {"loan": loan, "repayments": repayments})
+    
+    # Calculate progress for this loan
+    loan.progress = 0
+    if loan.loan_amount > 0:
+        loan.progress = int((loan.loan_amount - loan.outstanding_balance) / loan.loan_amount * 100)
+    
+    total_paid = loan.loan_amount - loan.outstanding_balance
+    
+    return render(request, "loans/admin/loan_detail.html", {
+        "loan": loan, 
+        "repayments": repayments,
+        "total_paid": total_paid
+    })
 
 @login_required
 def approve_loan(request, loan_id):
@@ -104,7 +114,7 @@ def reject_loan(request, loan_id):
     loan = get_object_or_404(LoanApplication, id=loan_id)
     if request.user.role not in ["ADMIN", "BURSAR"]:
         messages.error(request, "Permission denied.")
-        return redirect("loans:admin_loan_detail", loan.id)
+        return redirect("loans:staff_loan_dashboard")
     
     try:
         loan.reject(request.user)
@@ -138,3 +148,48 @@ def staff_loan_dashboard(request):
 def loan_list(request):
     loans = LoanApplication.objects.filter(payee__user=request.user).order_by("-applied_at")
     return render(request, "loans/staff/loan_dashboard.html", {"loans": loans})
+
+
+@login_required
+def export_loans(request):
+    """Export all loans to CSV."""
+    if request.user.role not in ["ADMIN", "BURSAR"]:
+        messages.error(request, "Permission denied.")
+        return redirect("loans:admin_loan_dashboard")
+    
+    # Create CSV response
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="loans_export.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow([
+        'Loan ID',
+        'Payee Name',
+        'Email',
+        'Loan Amount',
+        'Outstanding Balance',
+        'Status',
+        'Monthly Deduction',
+        'Tenure Months',
+        'Applied Date',
+        'Approved Date'
+    ])
+    
+    # Fetch all loans
+    loans = LoanApplication.objects.select_related('payee', 'payee__user').order_by('-applied_at')
+    
+    for loan in loans:
+        writer.writerow([
+            loan.id,
+            loan.payee.user.get_full_name(),
+            loan.payee.user.email,
+            loan.loan_amount,
+            loan.outstanding_balance,
+            loan.status,
+            loan.monthly_deduction,
+            loan.tenure_months,
+            loan.applied_at.strftime('%Y-%m-%d') if loan.applied_at else '',
+            loan.approved_at.strftime('%Y-%m-%d') if loan.approved_at else ''
+        ])
+    
+    return response

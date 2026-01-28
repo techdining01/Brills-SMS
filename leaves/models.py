@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from payroll.models import Payee
 
 User = settings.AUTH_USER_MODEL
 
@@ -12,6 +13,9 @@ class LeaveType(models.Model):
     def __str__(self):
         return self.name
 
+    @classmethod
+    def get_default_annual_leave_type(cls):
+        return cls.objects.get_or_create(name="Annual Leave", defaults={"annual_days": 20})[0]
 
 
 class LeaveRequest(models.Model):
@@ -21,7 +25,7 @@ class LeaveRequest(models.Model):
         ("rejected", "Rejected"),
     )
 
-    payee = models.ForeignKey("payroll.Payee", on_delete=models.CASCADE)
+    payee = models.ForeignKey(Payee, on_delete=models.CASCADE)
     leave_type = models.ForeignKey(LeaveType, on_delete=models.CASCADE)
 
     start_date = models.DateField()
@@ -45,6 +49,9 @@ class LeaveRequest(models.Model):
 
     def clean(self):
         # prevent overlapping approved leave
+        if not hasattr(self, 'payee') or self.payee is None:
+            return
+
         overlaps = LeaveRequest.objects.filter(
             payee=self.payee,
             status="approved",

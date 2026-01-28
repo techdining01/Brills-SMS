@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Payment Audit - {{ period }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 24px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+        padding: 2.5rem;
+    }
+
+    .audit-table th {
+        background: rgba(248, 250, 252, 0.5);
+        color: var(--secondary);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 0.1em;
+        padding: 1.25rem 1rem;
+    }
+
+    .audit-table td {
+        padding: 1.25rem 1rem;
+        vertical-align: middle;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.02);
+    }
+
+    .status-pill {
+        padding: 0.35rem 0.85rem;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+
+    .step-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .step-list li {
+        font-size: 0.8rem;
+        color: var(--secondary);
+        margin-bottom: 0.25rem;
+        display: flex;
+        align-items: center;
+    }
+
+    .step-list li::before {
+        content: "✓";
+        color: var(--success);
+        font-weight: bold;
+        margin-right: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <div>
+            <h1 class="h3 fw-bold mb-1">Pre-Payment Audit</h1>
+            <p class="text-muted small">Period: <span class="text-primary fw-bold">{{ period }}</span></p>
+        </div>
+        <a href="{% url 'payroll:payroll_detail' period.id %}" class="btn btn-outline-dark rounded-pill px-4">
+            <i class="bi bi-arrow-left me-2"></i> Back to Detail
+        </a>
+    </div>
+
+    <div class="glass-card mb-5">
+        <div class="table-responsive">
+            <table class="table audit-table mb-0">
+                <thead>
+                    <tr>
+                        <th class="ps-4">Payee</th>
+                        <th>Net Amount</th>
+                        <th>Bank Account</th>
+                        <th>Verification</th>
+                        <th class="pe-4">Processing Pathway</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in audit_data %}
+                    <tr>
+                        <td class="ps-4">
+                            <div class="fw-bold">{{ item.record.payee.user.get_full_name }}</div>
+                            <code class="text-muted small">{{ item.record.payee.reference_code }}</code>
+                        </td>
+                        <td><span class="text-success fw-bold">₦{{ item.record.net_pay|floatformat:2 }}</span></td>
+                        <td>
+                            {% if item.bank %}
+                            <div class="fw-bold small">{{ item.bank.bank_name }}</div>
+                            <div class="text-muted small">{{ item.bank.account_number }}</div>
+                            {% else %}
+                            <span class="text-danger small fw-bold"><i
+                                    class="bi bi-exclamation-octagon me-1"></i>MISSING</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.status == "Ready for Transfer" %}
+                            <span class="status-pill bg-success-subtle text-success">READY</span>
+                            {% elif "Failed" in item.status %}
+                            <span class="status-pill bg-danger-subtle text-danger">ERROR</span>
+                            {% else %}
+                            <span class="status-pill bg-warning-subtle text-warning">INCOMPLETE</span>
+                            {% endif %}
+                        </td>
+                        <td class="pe-4">
+                            <ul class="step-list">
+                                {% for step in item.steps %}
+                                <li>{{ step }}</li>
+                                {% endfor %}
+                            </ul>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="glass-card border-primary border-opacity-25" style="background: rgba(37, 99, 235, 0.05);">
+        <h4 class="h6 fw-bold text-primary text-uppercase mb-3"><i class="bi bi-info-circle-fill me-2"></i>Audit Summary
+            & Guidance</h4>
+        <div class="row g-4">
+            <div class="col-md-8">
+                <p class="text-muted small mb-0">
+                    This audit ensures all records have verified bank details and active payroll profiles.
+                    If any employee is marked with an <span class="text-danger fw-bold">ERROR</span>, please resolve
+                    their bank account settings before initiating bulk transfer.
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                {% if period.is_locked %}
+                <span class="badge bg-success rounded-pill px-3 py-2"><i class="bi bi-lock-fill me-1"></i> PERIOD
+                    LOCKED</span>
+                {% else %}
+                <span class="badge bg-warning text-dark rounded-pill px-3 py-2"><i class="bi bi-unlock-fill me-1"></i>
+                    PERIOD OPEN</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

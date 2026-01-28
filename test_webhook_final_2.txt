@@ -1,0 +1,23 @@
+C:\Users\USER\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\backends\utils.py:98: RuntimeWarning: Accessing the database during app initialization is discouraged. To fix this warning, avoid executing queries in AppConfig.ready() or when your app modules are imported.
+  warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
+Creating test database for alias 'default'...
+INFO | Paystack webhook received
+INFO | Event: transfer.failed
+INFO | Reference: TRF_123456
+INFO | Event: transfer.failed
+INFO | Reference: TRF_123456
+WARNING | Payroll Transfer failed for TRF_123456: Insuficient Funds
+.INFO | Paystack webhook received
+INFO | Event: transfer.success
+INFO | Reference: TRF_123456
+INFO | Event: transfer.success
+INFO | Reference: TRF_123456
+INFO | Payroll Transfer success for TRF_123456
+.
+----------------------------------------------------------------------
+Ran 2 tests in 2.597s
+
+OK
+Destroying test database for alias 'default'...
+Found 2 test(s).
+System check identified no issues (0 silenced).

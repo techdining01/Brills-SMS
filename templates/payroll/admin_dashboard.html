@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Payroll Admin Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 20px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .glass-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.15);
+    }
+
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .icon-blue {
+        background: rgba(37, 99, 235, 0.1);
+        color: var(--primary);
+    }
+
+    .icon-green {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success);
+    }
+
+    .icon-orange {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--warning);
+    }
+
+    .dash-header {
+        margin-bottom: 2rem;
+    }
+
+    .dash-header h1 {
+        font-weight: 700;
+        color: var(--dark);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="dash-header d-flex justify-content-between align-items-center">
+        <div>
+            <h1>Payroll Dashboard</h1>
+            <p class="text-muted">Manage your organization's payroll at a glance.</p>
+        </div>
+        <div class="d-none d-md-block">
+            <span class="badge bg-primary-subtle text-primary px-3 py-2 rounded-pill">
+                <i class="bi bi-calendar-event me-1"></i> {% now "F Y" %}
+            </span>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="glass-card h-100">
+                <div class="stat-icon icon-orange">
+                    <i class="bi bi-bank"></i>
+                </div>
+                <h3 class="h5">Action Required</h3>
+                <p class="text-muted small mb-4">{{ pending_banks }} Bank Accounts waiting for approval.</p>
+                <a href="{% url 'payroll:approve_bank_accounts' %}"
+                    class="btn btn-warning btn-sm w-100 rounded-pill fw-bold">
+                    Review Requests
+                </a>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="glass-card h-100">
+                <div class="stat-icon icon-blue">
+                    <i class="bi bi-people"></i>
+                </div>
+                <h3 class="h5">Staff Onboarding</h3>
+                <p class="text-muted small mb-4">Onboard new staff and assign categories.</p>
+                <a href="{% url 'payroll:admin_create_payee' %}"
+                    class="btn btn-outline-primary btn-sm w-100 rounded-pill fw-bold">
+                    Add Payee
+                </a>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="glass-card h-100" style="background: rgba(99, 102, 241, 0.05);">
+                <div class="stat-icon" style="background: rgba(99, 102, 241, 0.1); color: #6366f1;">
+                    <i class="bi bi-layers"></i>
+                </div>
+                <h3 class="h5">Pay Packages</h3>
+                <p class="text-muted small mb-4">Define Salary Structures and global Pay Components.</p>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'payroll:manage_salary_components' %}"
+                        class="btn btn-light btn-sm w-50 rounded-pill fw-bold">Library</a>
+                    <a href="{% url 'payroll:create_salary_structure' %}"
+                        class="btn btn-outline-dark btn-sm w-50 rounded-pill fw-bold">New</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="glass-card h-100">
+                <div class="stat-icon icon-green">
+                    <i class="bi bi-cash-stack"></i>
+                </div>
+                <h3 class="h5">Process Payroll</h3>
+                <p class="text-muted small mb-4">Generate and process payroll for the current period.</p>
+                <a href="{% url 'payroll:generate_payroll' %}"
+                    class="btn btn-primary btn-sm w-100 rounded-pill fw-bold">
+                    Run Payroll
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="glass-card">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="h5 mb-0">Payroll History <small class="text-muted ms-2">(Net Payout)</small></h3>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-light rounded-pill px-3" type="button">
+                            Last 6 Months
+                        </button>
+                    </div>
+                </div>
+                <div style="height: 350px;">
+                    <canvas id="payoutChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const ctx = document.getElementById('payoutChart').getContext('2d');
+        const chartData = JSON.parse('{{ chart_data|escapejs }}');
+
+        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(37, 99, 235, 0.4)');
+        gradient.addColorStop(1, 'rgba(37, 99, 235, 0)');
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartData.labels,
+                datasets: [{
+                    label: 'Net Payout (NGN)',
+                    data: chartData.data,
+                    backgroundColor: gradient,
+                    borderColor: 'rgba(37, 99, 235, 1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: 'rgba(37, 99, 235, 1)',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            callback: function (value) {
+                                return '₦' + value.toLocaleString();
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        titleColor: '#1e293b',
+                        bodyColor: '#1e293b',
+                        borderColor: 'rgba(0, 0, 0, 0.1)',
+                        borderWidth: 1,
+                        padding: 12,
+                        displayColors: false,
+                        callbacks: {
+                            label: function (context) {
+                                return 'Net Payout: ₦' + context.parsed.y.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

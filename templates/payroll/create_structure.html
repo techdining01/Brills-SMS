@@ -1,0 +1,193 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Create Salary Structure{% endblock %}
+
+{% block extra_css %}
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 20px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+        padding: 2.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .form-section-title {
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.1em;
+        color: var(--primary);
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid rgba(37, 99, 235, 0.1);
+        padding-bottom: 0.5rem;
+        display: block;
+    }
+
+    .component-row {
+        background: rgba(255, 255, 255, 0.5);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .component-row:hover {
+        background: rgba(255, 255, 255, 0.8);
+        transform: scale(1.01);
+    }
+
+    .form-control,
+    .form-select {
+        border-radius: 12px !important;
+        padding: 0.75rem 1rem !important;
+    }
+
+    .btn-add {
+        background: rgba(37, 99, 235, 0.1);
+        color: var(--primary);
+        border: 2px dashed var(--primary);
+        border-radius: 15px;
+        padding: 1rem;
+        width: 100%;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+
+    .btn-add:hover {
+        background: rgba(37, 99, 235, 0.15);
+        transform: translateY(-2px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="mb-5">
+        <h1 class="h3 fw-bold mb-1">Create Salary Structure</h1>
+        <p class="text-muted small">Define baseline pay and specialized components for staff categories.</p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="glass-card">
+            <div class="row g-4 mb-4">
+                <div class="col-md-7">
+                    <label class="form-label fw-bold small">Structure Name</label>
+                    {{ form.name }}
+                </div>
+                <div class="col-md-5">
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            {{ form.is_taxable }}
+                            <label class="form-check-label small mb-0 fw-bold">Is Structure Taxable?</label>
+                        </div>
+                        <div id="package-tax-container" style="display: none;">
+                            <label class="form-label small text-muted">Tax Rate (%)</label>
+                            {{ form.tax_rate }}
+                            <small class="text-muted d-block mt-1">Percentage of total gross.</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label fw-bold small">Description (Optional)</label>
+                    {{ form.description }}
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-5 mb-4">
+                <span class="form-section-title mb-0">Earnings & Deductions</span>
+                <a href="{% url 'payroll:manage_salary_components' %}"
+                    class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold">
+                    <i class="bi bi-gear me-1"></i> Manage Library
+                </a>
+            </div>
+            {{ formset.management_form }}
+            {% if formset.non_form_errors %}
+            <div class="alert alert-danger">{{ formset.non_form_errors }}</div>
+            {% endif %}
+            <div id="formset-container">
+                {% for item_form in formset %}
+                <div class="component-row">
+                    <div class="row g-3">
+                        {% for field in item_form %}
+                        {% if field.is_hidden %}
+                        {{ field }}
+                        {% else %}
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.errors %}
+                            <div class="text-danger small mt-1">{{ field.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <button type="button" id="add-component-btn" class="btn-add mt-2">
+                <i class="bi bi-plus-circle me-2"></i> Add Another Component
+            </button>
+
+            <div class="mt-5 pt-4 border-top">
+                <div class="d-flex gap-3">
+                    <a href="{% url 'payroll:admin_dashboard' %}"
+                        class="btn btn-light rounded-pill px-4 fw-bold">Cancel</a>
+                    <button type="submit" class="btn btn-primary rounded-pill px-5 fw-bold shadow-sm">
+                        Create Structure
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+    function togglePackageTax(checkbox) {
+        const container = document.getElementById('package-tax-container');
+        if (container) {
+            container.style.display = checkbox.checked ? 'block' : 'none';
+        }
+    }
+
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', function () {
+        const taxCheckbox = document.querySelector('input[name="is_taxable"]');
+        if (taxCheckbox) togglePackageTax(taxCheckbox);
+
+        document.getElementById('add-component-btn').addEventListener('click', function () {
+            const container = document.getElementById('formset-container');
+            const totalForms = document.getElementById('id_items-TOTAL_FORMS');
+            const currentCount = parseInt(totalForms.value);
+
+            const firstRow = container.querySelector('.component-row');
+            const newRow = firstRow.cloneNode(true);
+
+            // Clear inputs and update IDs/Names
+            newRow.querySelectorAll('input, select').forEach(input => {
+                input.value = '';
+                input.name = input.name.replace('-0-', `-${currentCount}-`);
+                input.id = input.id.replace('-0-', `-${currentCount}-`);
+            });
+
+            // Update labels
+            newRow.querySelectorAll('label').forEach(label => {
+                if (label.getAttribute('for')) {
+                    label.setAttribute('for', label.getAttribute('for').replace('-0-', `-${currentCount}-`));
+                }
+            });
+
+            container.appendChild(newRow);
+            totalForms.value = currentCount + 1;
+        });
+    });
+</script>
+{% endblock %}

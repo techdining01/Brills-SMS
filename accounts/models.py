@@ -4,7 +4,6 @@ from django.contrib.auth.models import AbstractUser
 from django.db.models import Q
 from PIL import Image
 from django.utils import timezone 
-# from exams.models import SchoolClass
 from django.utils.crypto import get_random_string
 from django.contrib.auth.models import BaseUserManager
 from django.utils import timezone
@@ -123,7 +122,7 @@ class User(AbstractUser):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.get_role_display()} - {self.username}"
+        return f"{self.username} - {self.get_role_display()}"
     
 
 # ==============================================================================

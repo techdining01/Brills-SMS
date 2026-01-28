@@ -1,22 +1,209 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Payee Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 20px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+        padding: 2rem;
+    }
+
+    .search-glass {
+        background: rgba(255, 255, 255, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 15px;
+        padding: 0.75rem 1.25rem;
+        transition: all 0.3s ease;
+    }
+
+    .search-glass:focus {
+        background: rgba(255, 255, 255, 0.8);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        outline: none;
+    }
+
+    .payee-table th {
+        background: rgba(248, 250, 252, 0.5);
+        color: var(--secondary);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 0.1em;
+        padding: 1.25rem 1rem;
+    }
+
+    .payee-table td {
+        padding: 1.25rem 1rem;
+        vertical-align: middle;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.02);
+    }
+
+    .avatar-circle {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #fff;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .avatar-placeholder {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.9rem;
+        border: 2px solid #fff;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .status-badge-pill {
+        padding: 0.35rem 0.85rem;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <div>
+            <h1 class="h3 fw-bold mb-1">Payee Registry</h1>
+            <p class="text-muted small mb-0">Manage staff payroll profiles and account statuses.</p>
+        </div>
+        <a href="{% url 'payroll:admin_create_payee' %}" class="btn btn-primary rounded-pill px-4 shadow-sm">
+            <i class="bi bi-person-plus-fill me-2"></i> Register New Payee
+        </a>
+    </div>
 
-<div class="container mt-4 d-flex justify-content-between align-items-center">
-    <h2 class="mb-4">Payees</h2> 
-  <div>
-  <a class="btn btn-sm btn-outline-primary" href="{% url 'payroll:create_payee' %}">
-    Payee +
-  </a>
- </div>
+    <div class="glass-card mb-4">
+        <form method="get" class="row g-3">
+            <div class="col-md-10">
+                <div class="input-group">
+                    <span class="input-group-text bg-transparent border-0 text-muted ps-0">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" name="q" class="form-control search-glass"
+                        placeholder="Search by name, reference or type..." value="{{ request.GET.q }}">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-dark w-100 rounded-pill py-2 fw-bold">Filter Results</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="glass-card overflow-hidden p-0">
+        <div class="table-responsive">
+            <table class="table payee-table mb-0">
+                <thead>
+                    <tr>
+                        <th class="ps-4">Staff Member</th>
+                        <th>Reference</th>
+                        <th>Category</th>
+                        <th>Account Status</th>
+                        <th class="text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payee in payees %}
+                    <tr {% if not payee.is_active %}style="opacity: 0.7;" {% endif %}>
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center">
+                                {% if payee.user.profile_picture %}
+                                <img src="{{ payee.user.profile_picture.url }}" alt="" class="avatar-circle me-3">
+                                {% else %}
+                                <div class="avatar-placeholder me-3">
+                                    {{ payee.user.first_name|first }}{{ payee.user.last_name|first }}
+                                </div>
+                                {% endif %}
+                                <div>
+                                    <div class="fw-bold text-dark">{{ payee.user.get_full_name }}</div>
+                                    <div class="small text-muted">{{ payee.user.email }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td><code class="text-primary fw-bold">{{ payee.reference_code }}</code></td>
+                        <td>
+                            <span
+                                class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3">
+                                {{ payee.get_payee_type_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if payee.is_active %}
+                            <span class="status-badge-pill bg-success-subtle text-success">
+                                <i class="bi bi-check-circle-fill me-1"></i> ACTIVE
+                            </span>
+                            {% else %}
+                            <span class="status-badge-pill bg-danger-subtle text-danger">
+                                <i class="bi bi-dash-circle-fill me-1"></i> INACTIVE
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-light rounded-circle shadow-sm" type="button"
+                                    data-bs-toggle="dropdown">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg p-2 rounded-4">
+                                    <li>
+                                        <form method="post" action="{% url 'payroll:toggle_payee_status' payee.id %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="dropdown-item rounded-3 py-2">
+                                                {% if payee.is_active %}
+                                                <i class="bi bi-pause-circle me-2 text-warning"></i> Deactivate
+                                                {% else %}
+                                                <i class="bi bi-play-circle me-2 text-success"></i> Activate
+                                                {% endif %}
+                                            </button>
+                                        </form>
+                                    </li>
+                                    <li>
+                                        <hr class="dropdown-divider opacity-50">
+                                    </li>
+                                    <li>
+                                        <form method="post" action="{% url 'payroll:delete_payee' payee.id %}"
+                                            onsubmit="return confirm('Archive this payee profile?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="dropdown-item rounded-3 py-2 text-danger">
+                                                <i class="bi bi-trash3 me-2"></i> Archive Profile
+                                            </button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5">
+                            <div class="text-muted">
+                                <i class="bi bi-people fs-1 mb-3 d-block opacity-25"></i>
+                                <p class="mb-0">No staff members match the current filter.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
-
-<ul>
-  {% for p in payees %}
-    <li>
-      <a href="{% url 'payroll:payee_detail' p.id %}">
-        {{ p.user.get_full_name }} – {{ p.payee_type }}
-      </a>
-    </li>
-  {% endfor %}
-</ul>
 {% endblock %}

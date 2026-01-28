@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Leave History Log{% endblock %}
+
+{% block extra_css %}
+<style>
+  .glass-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+    padding: 2rem;
+  }
+
+  .history-table th {
+    background: rgba(248, 250, 252, 0.5);
+    color: var(--secondary);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    padding: 1rem;
+    border: none;
+  }
+
+  .history-table td {
+    padding: 1.25rem 1rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+  }
+
+  .badge-status {
+    padding: 0.4rem 0.8rem;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+  }
+
+  .status-pending {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .status-approved {
+    background: #d1fae5;
+    color: #065f46;
+  }
+
+  .status-rejected {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-5" data-aos="fade-down">
+    <div>
+      <h1 class="h2 fw-bold text-dark mb-1">Leave History Archive</h1>
+      <p class="text-muted small">Comprehensive log of all staff leave applications</p>
+    </div>
+    <a href="{% url 'leaves:admin_dashboard' %}" class="btn btn-outline-primary rounded-pill px-4">
+      <i class="bi bi-arrow-left me-2"></i>Admin Dashboard
+    </a>
+  </div>
+
+  <div class="glass-card shadow-lg" data-aos="fade-up">
+    <div class="table-responsive">
+      <table class="table history-table table-hover align-middle">
+        <thead>
+          <tr>
+            <th class="px-4">Staff Member</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for leave in page %}
+          <tr>
+            <td class="px-4">
+              <div class="d-flex align-items-center">
+                <div class="bg-primary bg-opacity-10 p-2 rounded-circle me-3 text-primary">
+                  <i class="bi bi-person"></i>
+                </div>
+                <div>
+                  <div class="fw-bold text-dark">{{ leave.payee.user.get_full_name }}</div>
+                  <small class="text-muted">{{ leave.leave_type.name }}</small>
+                </div>
+              </div>
+            </td>
+            <td>{{ leave.start_date|date:"D, d M Y" }}</td>
+            <td>{{ leave.end_date|date:"D, d M Y" }}</td>
+            <td>
+              <span class="badge-status status-{{ leave.status }}">{{ leave.get_status_display }}</span>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" class="text-center py-5">
+              <p class="text-muted mb-0">No leave history found.</p>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if page.has_other_pages %}
+    <nav class="mt-4">
+      <ul class="pagination justify-content-center">
+        {% if page.has_previous %}
+        <li class="page-item"><a class="page-link rounded-pill px-3 border-0 shadow-sm mx-1"
+            href="?page={{ page.previous_page_number }}">Previous</a></li>
+        {% endif %}
+        <li class="page-item active"><span class="page-link rounded-pill px-3 border-0 shadow-sm text-white mx-1">Page
+            {{ page.number }} of {{ page.paginator.num_pages }}</span></li>
+        {% if page.has_next %}
+        <li class="page-item"><a class="page-link rounded-pill px-3 border-0 shadow-sm mx-1"
+            href="?page={{ page.next_page_number }}">Next</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

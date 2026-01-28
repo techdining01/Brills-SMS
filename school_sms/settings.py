@@ -283,7 +283,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 ## School config (dynamic)
 SCHOOL_NAME = config("SCHOOL_NAME", "The Brills School")
 SCHOOL_ADDRESS = config("SCHOOL_ADDRESS", "No 1, Adaba Awotan-Akufo Road. Ibadan. Oyo State")
-SCHOOL_LOGO_PATH = BASE_DIR / "static/images/school_logo.png"
+SCHOOL_LOGO_PATH = "{% static 'images/school_logo.png' %}"
 SCHOOL_SLOGAN = config("SCHOOL_SLOGAN", "Knowledge is Light")
 SCHOOL_ECOMMERCE = config("SCHOOL_ECOMMERCE", "")
 PORTAL_DOMAIN = config("PORTAL_DOMAIN", "https://www.thebrillsschool.edu.ng")

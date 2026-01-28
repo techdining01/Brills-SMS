@@ -560,59 +560,93 @@ def paystack_webhook(request):
     logger.info(f"Event: {event}")
     logger.info(f"Reference: {reference}")
 
-    if event != "charge.success":
-        logger.info(" Ignored non-success event")
-        return HttpResponse(status=200)
+    logger.info(f"Event: {event}")
+    logger.info(f"Reference: {reference}")
 
-    try:
-        transaction = Transaction.objects.select_related("order").get(
-            gateway_reference=reference
+    # ==========================
+    # HANDLE CHARGE (Payments)
+    # ==========================
+    if event == "charge.success":
+        try:
+            transaction = Transaction.objects.select_related("order").get(
+                gateway_reference=reference
+            )
+        except Transaction.DoesNotExist:
+            logger.error(f" Transaction not found for ref {reference}")
+            return HttpResponse(status=200)
+
+        if transaction.verified:
+            logger.info("Transaction already verified")
+            return HttpResponse(status=200)
+
+        # ✅ Mark transaction successful
+        transaction.status = "success"
+        transaction.verified = True
+        transaction.payload = data
+        transaction.save(update_fields=["status", "verified", "payload"])
+
+        # ---- STEP 5: UPDATE ORDER ----
+        order = transaction.order
+        order.status = "PAID"
+        order.save(update_fields=["status"])
+
+        # ---- STEP 6: AUTO-UNLOCK CBT / EXAM ----
+        if order.exam:
+            ExamAccess.objects.get_or_create(
+                student=order.ward,
+                exam=order.exam,
+                defaults={"via_payment": True}
+            )
+
+        # ---- STEP 7: CLEAR CART ----
+        Cart.objects.filter(
+            user=transaction.user,
+            ward=transaction.ward
+        ).delete()
+
+        BrillsPayLog.objects.create(
+            user=transaction.user,
+            order=order,
+            action="PAYMENT_SUCCESS",
+            message="Paystack payment confirmed via webhook",
+            metadata={
+                "gateway_reference": reference,
+                "amount": data["data"]["amount"]
+            }
         )
-    except Transaction.DoesNotExist:
-        logger.error(f" Transaction not found for ref {reference}")
-        return HttpResponse(status=200)
 
-    if transaction.verified:
-        logger.info("Transaction already verified")
-        return HttpResponse(status=200)
+        logger.info(f"Payment verified for order {order.reference}")
 
-    # ✅ Mark transaction successful
-    transaction.status = "success"
-    transaction.verified = True
-    transaction.payload = data
-    transaction.save(update_fields=["status", "verified", "payload"])
+    # ==========================
+    # HANDLE TRANSFERS (Payroll)
+    # ==========================
+    elif event == "transfer.success":
+        from payroll.models import PaymentTransaction as PayrollTx
+        try:
+            # Paystack sends the transfer-reference. 
+            # Our PayrollTx stores the 'paystack_reference' (which is the transfer code or transfer-reference?)
+            # In initiate_transfer, we stored data["data"]["reference"] into tx.paystack_reference
+            # In transfer.success webhook, data["data"]["reference"] is the same reference.
+            
+            tx = PayrollTx.objects.get(paystack_reference=reference)
+            tx.status = "success"
+            tx.save()
+            logger.info(f"Payroll Transfer success for {reference}")
+            
+        except PayrollTx.DoesNotExist:
+             logger.warning(f"Payroll Transaction not found for ref {reference}")
 
-    # ---- STEP 5: UPDATE ORDER ----
-    order = transaction.order
-    order.status = "PAID"
-    order.save(update_fields=["status"])
-
-    # ---- STEP 6: AUTO-UNLOCK CBT / EXAM ----
-    if order.exam:
-        ExamAccess.objects.get_or_create(
-            student=order.ward,
-            exam=order.exam,
-            defaults={"via_payment": True}
-        )
-
-    # ---- STEP 7: CLEAR CART ----
-    Cart.objects.filter(
-        user=transaction.user,
-        ward=transaction.ward
-    ).delete()
-
-    BrillsPayLog.objects.create(
-        user=transaction.user,
-        order=order,
-        action="PAYMENT_SUCCESS",
-        message="Paystack payment confirmed via webhook",
-        metadata={
-            "gateway_reference": reference,
-            "amount": data["data"]["amount"]
-        }
-    )
-
-    logger.info(f"Payment verified for order {order.reference}")
+    elif event == "transfer.failed" or event == "transfer.reversed":
+        from payroll.models import PaymentTransaction as PayrollTx
+        try:
+            tx = PayrollTx.objects.get(paystack_reference=reference)
+            tx.status = "failed"
+            tx.failure_reason = data.get("data", {}).get("reason", "Transfer Failed")
+            tx.save()
+            logger.warning(f"Payroll Transfer failed for {reference}: {tx.failure_reason}")
+            
+        except PayrollTx.DoesNotExist:
+             logger.warning(f"Payroll Transaction not found for ref {reference}")
 
     return HttpResponse(status=200)
 
