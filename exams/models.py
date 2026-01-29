@@ -4,6 +4,8 @@ from django.utils import timezone
 from django.db.models import Q, Sum
 import uuid
 
+
+
 class SchoolClass(models.Model):
     LEVEL_CHOICES = [
         ('kindergarten', 'Kindergarten'),
@@ -27,13 +29,13 @@ class SchoolClass(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
-        related_name="teacher_classes"
+        related_name="class_teacher"
     )
     assistant_teacher = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
-        related_name="assistant_teacher_classes"
+        related_name="assistant_class_teacher"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -124,13 +126,13 @@ class ExamAttempt(models.Model):
     student = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="exam_attempts"
+        related_name="attempts"
     )
 
     exam = models.ForeignKey(
         Exam,
         on_delete=models.CASCADE,
-        related_name="attempts"
+        related_name="exam_attempts"
     )
 
     # ---------------- SCORES ----------------

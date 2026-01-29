@@ -1,7 +1,9 @@
 import re
 from django.urls import reverse
 import openpyxl
-# from docx import Document
+
+from school_sms.settings import SCHOOL_NAME
+from docx import Document
 # from docxtpl import DocxTemplate
 from .models import Exam, Question, Choice
 from django.shortcuts import render, redirect, get_object_or_404
@@ -97,6 +99,7 @@ from .forms import ExamForm
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import SchoolClass, Subject
 from django import forms
+from .forms import ClassForm, SubjectForm
 
 
 
@@ -545,31 +548,36 @@ def start_exam(request, exam_id):
 
     random.shuffle(question_ids)
 
-    attempt = ExamAttempt.objects.create(
+    attempt, created = ExamAttempt.objects.get_or_create(
         student=request.user,
         exam=exam,
         question_order=question_ids,   # ✅ LIST, NOT STRING
         remaining_seconds=exam.duration * 60,
         status="in_progress"
     )
-
-    # map answers by question_id
+    if not created:
+        # Existing attempt
+        if attempt.status == "submitted":
+            messages.info(request, "You have already submitted this exam.")
+            return redirect("exams:review_exam", attempt_id=attempt.id)
+       
+        # map answers by question_id
     answers = {
         ans.question_id: ans
         for ans in StudentAnswer.objects.filter(attempt=attempt)
     }
 
     # 🔥 attach answer info directly to question
-    # for q in questions:
-    #     ans = answers.get(q.id)
+    for q in questions:
+        ans = answers.get(q.id)
 
-    #     q.selected_choice_id = ans.selected_choice_id if ans else None
-    #     q.text_answer = ans.answer_text if ans else ""
-    #     q.selected_choices = (
-    #         list(ans.selected_choices.values_list("id", flat=True))
-    #         if ans and hasattr(ans, "selected_choices")
-    #         else []
-    #     )
+        q.selected_choice_id = ans.selected_choice_id if ans else None
+        q.text_answer = ans.answer_text if ans else ""
+        q.selected_choices = (
+            list(ans.selected_choices.values_list("id", flat=True))
+            if ans and hasattr(ans, "selected_choices")
+            else []
+        )
 
     return render(request, "exams/start_exam.html", {
         "exam": exam,
@@ -823,7 +831,7 @@ def admin_bulk_exam_results_pdf(request, exam_id):
 
         if y < 80:
             p.showPage()
-            draw_watermark(p, {{SCHOOL_NAME}})
+            draw_watermark(p, f'{SCHOOL_NAME}')
             draw_status_stamp(p, status)  # for all students
             y = height - 80
 
@@ -1578,12 +1586,14 @@ def admin_analytics_dashboard(request):
 @staff_member_required
 def grant_exam_access(request):
     if request.method == "POST":
-        ExamAccess.objects.create(
+        access, granted = ExamAccess.objects.get_or_create(
             student_id=request.POST["student"],
             exam_id=request.POST["exam"],
             reason=request.POST.get("reason", ""),
             granted_by=request.user
         )
+        if not granted:
+            messages.info(request, "Exam access already granted")
         messages.success(request, "Exam access granted")
         return redirect("exams:grant_exam_access")
 
@@ -1779,6 +1789,7 @@ def class_list(request):
     return render(request, 'exams/class_list.html', {'classes': classes})
 
 
+
 def class_add(request):
     if request.method == 'POST':
         form = ClassForm(request.POST)
@@ -1811,6 +1822,9 @@ def class_delete(request, pk):
 
 
 # ================== Subjects ==================
+
+
+
 def subject_list(request):
     subjects = Subject.objects.select_related('school_class').all()
     return render(request, 'exams/subject_list.html', {'subjects': subjects})

@@ -13,9 +13,11 @@ class User(AbstractUser):
     class Role(models.TextChoices):
         ADMIN = "ADMIN", "Admin"
         TEACHER = "TEACHER", "Teacher"
+	NON-TEACHER = "NON-TEACHER", "Non-Teacher"
         PARENT = "PARENT", "Parent"
         STUDENT = "STUDENT", "Student"
         BURSAR = "BURSAR", "Bursar"
+	SERVICE-PROVIDER = "SERVICE-PROVIDER", "Service-Provider"
 
     base_role = Role.PARENT
 

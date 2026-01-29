@@ -20,6 +20,7 @@ urlpatterns = [
     path('teacher/exams/<int:exam_id>/questions/add/', views.add_question, name='add_question'),
     path('teacher/exams/<int:exam_id>/questions/upload-excel/',views.upload_questions_excel, name='upload_questions_excel'),
     path('teacher/exams/<int:exam_id>/questions/upload-word/', views.upload_questions_word, name='upload_questions_word'),
+    
     # Teacher subjective marking
     # path('teacher/exams/<int:exam_id>/mark/', views.subjective_marking, name='subjective_marking'),
 
@@ -70,17 +71,12 @@ urlpatterns = [
     path("student/exam/<int:attempt_id>/submit/", views.submit_exam, name="submit_exam"),
     path("student/leaderboard/<int:exam_id>/", views.student_leaderboard, name="student_leaderboard"),
 
-
     path("result/<int:attempt_id>/pdf/", views.export_result_pdf, name="export_result_pdf"),
     path("verify/<int:attempt_id>/<uuid:token>/", views.verify_result, name="verify_result"),
     path("admin/exam/<int:exam_id>/results/pdf/", views.admin_bulk_exam_results_pdf, name="admin_bulk_exam_results_pdf"),
     path("teacher/exam/<int:exam_id>/grading/pdf/", views.teacher_grading_summary_pdf, name="teacher_grading_summary_pdf"),
 
-
 ]
-
-
-
 
 urlpatterns += [
     # Classes

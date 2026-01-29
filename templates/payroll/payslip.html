@@ -182,8 +182,8 @@
                     {% if record.loan_deductions > 0 %}
                     <tr>
                         <td>Loan Repayment</td>
-                        <td class="text-end fw-bold text-danger">- ₦{{
-                            record.loan_deductions|default_if_none:"0.00"|intcomma }}</td>
+                        <td class="text-end fw-bold text-danger">
+                            - ₦{{ record.loan_deductions|default_if_none:"0.00"|intcomma }}</td>
                     </tr>
                     {% endif %}
 

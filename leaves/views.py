@@ -1,11 +1,11 @@
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.paginator import Paginator
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.contrib import messages
 from django.http import JsonResponse
 from datetime import timedelta
-
+import csv
 from django.http import HttpResponse
 from django.contrib import messages
 from .forms import LeaveTypeForm
@@ -17,7 +17,7 @@ from .services import has_overlapping_leave, calculate_leave_balance
 
 
 
-
+@user_passes_test(lambda u: u.role in ["ADMIN", "BURSAR"] or u.is_superuser, login_url="leaves:staff_dashboard")
 @login_required
 def admin_dashboard(request):
     pending_periods = PayrollPeriod.objects.filter(
@@ -62,7 +62,6 @@ def staff_dashboard(request):
         ),
     }
     return render(request, "leaves/staff/dashboard.html", context)
-
 
 
 @login_required
@@ -121,9 +120,17 @@ def dashboard_router(request):
 
 
 
+@user_passes_test(lambda u: u.role in ["ADMIN", "BURSAR"] or u.is_superuser, login_url="leaves:staff_dashboard")
 @login_required
+@user_passes_test(lambda u: u.role in ["ADMIN", "BURSAR"] or u.is_superuser, login_url="leaves:admin_dashboard")
 def approve_leave(request, leave_id):
+    """Approve a leave request after checking balance."""
     leave = get_object_or_404(LeaveRequest, id=leave_id)
+    
+    # Check if already processed
+    if leave.status != "pending":
+        messages.warning(request, f"This leave request is already {leave.status}.")
+        return redirect("leaves:admin_dashboard")
 
     year = leave.start_date.year
     balance = calculate_leave_balance(
@@ -133,7 +140,7 @@ def approve_leave(request, leave_id):
     if leave.duration() > balance["remaining"]:
         messages.error(
             request,
-            f"Insufficient leave balance. Remaining: {balance['remaining']} days"
+            f"Insufficient leave balance. Remaining: {balance['remaining']} days, Required: {leave.duration()} days"
         )
         return redirect("leaves:admin_dashboard")
 
@@ -142,21 +149,29 @@ def approve_leave(request, leave_id):
     leave.reviewed_at = timezone.now()
     leave.save()
 
-    messages.success(request, "Leave approved successfully.")
+    messages.success(request, f"Leave approved for {leave.payee.user.get_full_name()}.")
     return redirect("leaves:admin_dashboard")
 
 
 
+@user_passes_test(lambda u: u.role in ["ADMIN", "BURSAR"] or u.is_superuser, login_url="leaves:staff_dashboard")
 @login_required
+@user_passes_test(lambda u: u.role in ["ADMIN", "BURSAR"] or u.is_superuser, login_url="leaves:admin_dashboard")
 def reject_leave(request, leave_id):
+    """Reject a leave request."""
     leave = get_object_or_404(LeaveRequest, id=leave_id)
+    
+    # Check if already processed
+    if leave.status != "pending":
+        messages.warning(request, f"This leave request is already {leave.status}.")
+        return redirect("leaves:admin_dashboard")
 
     leave.status = "rejected"
     leave.reviewed_by = request.user
     leave.reviewed_at = timezone.now()
     leave.save()
 
-    messages.success(request, "Leave rejected.")
+    messages.success(request, f"Leave rejected for {leave.payee.user.get_full_name()}.")
     return redirect("leaves:admin_dashboard")
 
 
@@ -165,7 +180,7 @@ def leave_history(request):
     qs = LeaveRequest.objects.all().order_by("-start_date")
 
     if request.user.role not in ["ADMIN", "BURSAR"]:
-        qs = qs.filter(payee=request.user.payee)
+        qs = qs.filter(payee__user=request.user)
 
     page = Paginator(qs, 10).get_page(request.GET.get("page"))
 
@@ -195,7 +210,7 @@ def leave_calendar_feed(request):
     qs = LeaveRequest.objects.filter(status="approved")
 
     if request.user.role not in ["ADMIN", "BURSAR"]:
-        qs = qs.filter(payee=request.user.payee)
+        qs = qs.filter(payee__user=request.user)
 
     data = [
         {
@@ -225,8 +240,7 @@ def leave_calendar(request):
     )
 
 
-
-
+@user_passes_test(lambda u: u.role in ["ADMIN", "BURSAR"] or u.is_superuser, login_url="leaves:staff_dashboard")
 @login_required
 def export_leave_csv(request):
     response = HttpResponse(content_type="text/csv")
@@ -243,10 +257,11 @@ def export_leave_csv(request):
     return response
 
 
+@user_passes_test(lambda u: u.role in ["ADMIN", "BURSAR"] or u.is_superuser, login_url="leaves:staff_dashboard")
 def add_leave_type(request):
     if request.user.role not in ["ADMIN", "BURSAR"]:
         messages.error(request, "Permission denied")
-        return redirect("accounts:dashboard_redirect")
+       
    
     if request.method == "POST":
         form = LeaveTypeForm(request.POST)
