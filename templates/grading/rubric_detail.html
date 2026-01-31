@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ rubric.name }} - Grading Rubric{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="bi bi-list-check"></i> {{ rubric.name }}</h2>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'rubric_edit' rubric.id %}" class="btn btn-secondary me-2">
+                <i class="bi bi-pencil"></i> Edit
+            </a>
+            <a href="{% url 'rubric_list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Description</h5>
+                </div>
+                <div class="card-body">
+                    <p>{{ rubric.description|default:"No description provided" }}</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Criteria ({{ rubric.criteria.count }})</h5>
+                </div>
+                <div class="card-body">
+                    {% if rubric.criteria.all %}
+                        <div class="list-group">
+                            {% for criteria in rubric.criteria.all %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h6 class="mb-1">{{ criteria.name }}</h6>
+                                        <p class="mb-0 text-muted">{{ criteria.description }}</p>
+                                    </div>
+                                    <div class="text-end">
+                                        <strong>{{ criteria.max_points }} pts</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                    <p class="text-muted">No criteria defined</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Details</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-6">Total Points:</dt>
+                        <dd class="col-sm-6"><strong>{{ rubric.total_points }}</strong></dd>
+                        <dt class="col-sm-6">Status:</dt>
+                        <dd class="col-sm-6">
+                            {% if rubric.is_published %}
+                                <span class="badge bg-success">Published</span>
+                            {% else %}
+                                <span class="badge bg-warning">Draft</span>
+                            {% endif %}
+                        </dd>
+                        <dt class="col-sm-6">Created:</dt>
+                        <dd class="col-sm-6"><small>{{ rubric.created_at|date:"M d, Y" }}</small></dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

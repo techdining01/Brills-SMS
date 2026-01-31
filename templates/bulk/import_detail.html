@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Import Job - {{ job.id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="bi bi-upload"></i> Import Job #{{ job.id }}</h2>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'bulk_import' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Job Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <small class="text-muted d-block mb-1">Type</small>
+                            <h6>{{ job.get_import_type_display }}</h6>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted d-block mb-1">Status</small>
+                            <h6>
+                                <span class="badge {% if job.status == 'completed' %}bg-success{% elif job.status == 'failed' %}bg-danger{% elif job.status == 'processing' %}bg-info{% else %}bg-warning{% endif %}">
+                                    {{ job.get_status_display }}
+                                </span>
+                            </h6>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <small class="text-muted d-block mb-1">Total Rows</small>
+                            <h6>{{ job.total_rows }}</h6>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted d-block mb-1">Successful</small>
+                            <h6 class="text-success">{{ job.successful_rows }}</h6>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted d-block mb-1">Failed</small>
+                            <h6 class="text-danger">{{ job.failed_rows }}</h6>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if job.error_log %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Error Log</h5>
+                </div>
+                <div class="card-body">
+                    <pre class="mb-0">{{ job.error_log }}</pre>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Details</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-6">Job ID:</dt>
+                        <dd class="col-sm-6"><code>{{ job.id }}</code></dd>
+                        <dt class="col-sm-6">Started:</dt>
+                        <dd class="col-sm-6"><small>{{ job.started_at|date:"M d, Y H:i" }}</small></dd>
+                        <dt class="col-sm-6">Completed:</dt>
+                        <dd class="col-sm-6"><small>{{ job.completed_at|date:"M d, Y H:i"|default:"-" }}</small></dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

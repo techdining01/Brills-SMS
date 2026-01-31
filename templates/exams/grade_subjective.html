@@ -1,22 +1,438 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 {% load static %}
-{% block content %}
-{% include "partials/teacher_nav.html" %}
 
-<div class="container py-4">
-  <h3>Grade Subjective Questions - {{ attempt.exam.title }}</h3>
-  <form method="post">
-    {% csrf_token %}
-    {% for answer in subjective_answers %}
-    <div class="mb-3 border p-3 rounded">
-      <p><strong>Q{{ forloop.counter }}:</strong> {{ answer.question.text }}</p>
-      <p>Student Answer: {{ answer.answer_text }}</p>
-      <label>Score (Marks: {{ answer.question.marks }}):</label>
-      <input type="number" name="score_{{ answer.id }}" max="{{ answer.question.marks }}" class="form-control" 
-             value="{{ answer.subjectivemark.score|default:'' }}">
+{% block title %}Grade Subjective Answers - {{ exam.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .grading-container {
+        display: grid;
+        grid-template-columns: 250px 1fr;
+        gap: 20px;
+        margin-top: 20px;
+    }
+    
+    .questions-list {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        border: 1px solid #dee2e6;
+        max-height: calc(100vh - 150px);
+        overflow-y: auto;
+    }
+    
+    .question-item {
+        padding: 10px;
+        margin-bottom: 8px;
+        border-radius: 5px;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: all 0.3s;
+        font-size: 0.9rem;
+        background: white;
+    }
+    
+    .question-item:hover {
+        background: #e9ecef;
+        border-color: #007bff;
+    }
+    
+    .question-item.active {
+        background: #007bff;
+        color: white;
+        border-color: #0056b3;
+        font-weight: bold;
+    }
+    
+    .question-item .badge {
+        margin-right: 5px;
+    }
+    
+    .grading-content {
+        background: white;
+        border-radius: 8px;
+        padding: 25px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .answer-card {
+        border-left: 4px solid #007bff;
+        padding: 15px;
+        margin-bottom: 20px;
+        background: #f8f9fa;
+        border-radius: 5px;
+    }
+    
+    .answer-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .student-name {
+        font-weight: bold;
+        font-size: 1rem;
+    }
+    
+    .grading-status {
+        padding: 3px 10px;
+        border-radius: 15px;
+        font-size: 0.85rem;
+        font-weight: bold;
+    }
+    
+    .grading-status.graded {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .grading-status.pending {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .answer-text {
+        padding: 12px;
+        background: white;
+        border-radius: 5px;
+        margin-bottom: 15px;
+        border-left: 3px solid #17a2b8;
+        line-height: 1.6;
+    }
+    
+    .answer-text small {
+        color: #6c757d;
+        display: block;
+        margin-top: 8px;
+        font-style: italic;
+    }
+    
+    .grading-form {
+        background: #f1f3f5;
+        padding: 15px;
+        border-radius: 5px;
+        margin-top: 12px;
+    }
+    
+    .form-group {
+        margin-bottom: 15px;
+    }
+    
+    .form-group:last-child {
+        margin-bottom: 0;
+    }
+    
+    .marks-input {
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+    
+    .feedback-textarea {
+        width: 100%;
+        min-height: 100px;
+        padding: 10px;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        font-family: 'Segoe UI', sans-serif;
+    }
+    
+    .feedback-textarea:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+    }
+    
+    .mark-range {
+        display: flex;
+        gap: 5px;
+        margin-top: 8px;
+    }
+    
+    .mark-btn {
+        flex: 1;
+        padding: 8px;
+        border: 1px solid #dee2e6;
+        background: white;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 0.85rem;
+    }
+    
+    .mark-btn:hover {
+        background: #e9ecef;
+        border-color: #007bff;
+    }
+    
+    .mark-btn.selected {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+    
+    .stats-bar {
+        display: flex;
+        gap: 20px;
+        padding: 15px;
+        background: #e7f3ff;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .stat {
+        text-align: center;
+    }
+    
+    .stat-number {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #007bff;
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+    
+    .save-btn {
+        width: 100%;
+        padding: 10px;
+        font-weight: bold;
+    }
+    
+    .grading-msg {
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 10px;
+        display: none;
+    }
+    
+    .grading-msg.success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+        display: block;
+    }
+    
+    .grading-msg.error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+        display: block;
+    }
+    
+    @media (max-width: 768px) {
+        .grading-container {
+            grid-template-columns: 1fr;
+        }
+        
+        .questions-list {
+            display: none;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="fas fa-check-double"></i> Grade Subjective Answers</h2>
+            <p class="text-muted">{{ exam.title }}</p>
+        </div>
+        <div class="col-md-4 text-right">
+            <a href="{% url 'teacher_grading_dashboard' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
     </div>
-    {% endfor %}
-    <button class="btn btn-success">Submit Grades</button>
-  </form>
+    
+    <!-- Statistics -->
+    <div class="stats-bar">
+        <div class="stat">
+            <div class="stat-number">{{ total_questions }}</div>
+            <div class="stat-label">Total Questions</div>
+        </div>
+        <div class="stat">
+            <div class="stat-number">{{ total_attempts }}</div>
+            <div class="stat-label">Student Attempts</div>
+        </div>
+    </div>
+    
+    <!-- Main Grading Interface -->
+    <div class="grading-container">
+        <!-- Questions List -->
+        <div class="questions-list">
+            <h6 class="mb-3"><i class="fas fa-list"></i> Questions</h6>
+            {% for question in grading_data %}
+                <div class="question-item" data-question-index="{{ forloop.counter0 }}" onclick="selectQuestion({{ forloop.counter0 }})">
+                    <span class="badge badge-primary">Q{{ forloop.counter }}</span>
+                    <small>{{ question.question.text|truncatewords:10 }}</small>
+                    <br>
+                    <small class="text-muted">({{ question.answers|length }} attempts)</small>
+                </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Grading Content -->
+        <div class="grading-content">
+            {% for question in grading_data %}
+                <div class="question-section" data-question-index="{{ forloop.counter0 }}" style="{% if forloop.counter != 1 %}display: none;{% endif %}">
+                    <div class="alert alert-info">
+                        <h5 class="mb-2">Question {{ forloop.counter }}: ({{ question.question.marks }} marks)</h5>
+                        <p class="mb-0">{{ question.question.text }}</p>
+                    </div>
+                    
+                    {% if question.answers %}
+                        {% for answer_item in question.answers %}
+                            <div class="answer-card" id="answer-{{ answer_item.answer.id }}">
+                                <div class="answer-header">
+                                    <div>
+                                        <div class="student-name">{{ answer_item.student.get_full_name }}</div>
+                                        <small class="text-muted">{{ answer_item.student.admission_number }}</small>
+                                    </div>
+                                    <span class="grading-status {% if answer_item.is_graded %}graded{% else %}pending{% endif %}">
+                                        {% if answer_item.is_graded %}✓ Graded{% else %}⏳ Pending{% endif %}
+                                    </span>
+                                </div>
+                                
+                                <div class="answer-text">
+                                    {{ answer_item.answer.answer_text }}
+                                </div>
+                                
+                                <div class="grading-form">
+                                    <div class="grading-msg" id="msg-{{ answer_item.answer.id }}"></div>
+                                    
+                                    <div class="form-group">
+                                        <label>
+                                            <small><strong>Marks Obtained:</strong></small>
+                                        </label>
+                                        <div class="input-group">
+                                            <input type="number" 
+                                                   class="form-control marks-input" 
+                                                   id="marks-{{ answer_item.answer.id }}" 
+                                                   min="0" 
+                                                   max="{{ question.question.marks }}"
+                                                   value="{{ answer_item.marks|default:'' }}"
+                                                   placeholder="0 - {{ question.question.marks }}">
+                                            <span class="input-group-text">/ {{ question.question.marks }}</span>
+                                        </div>
+                                        <div class="mark-range">
+                                            {% for mark in question.question.marks|make_list %}
+                                                <button type="button" class="mark-btn" onclick="setMarks('{{ answer_item.answer.id }}', {{ forloop.counter|add:'-1' }})">
+                                                    {{ forloop.counter|add:'-1' }}
+                                                </button>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>
+                                            <small><strong>Feedback:</strong></small>
+                                        </label>
+                                        <textarea class="feedback-textarea" 
+                                                  id="feedback-{{ answer_item.answer.id }}" 
+                                                  placeholder="Provide constructive feedback...">{{ answer_item.feedback|default:'' }}</textarea>
+                                    </div>
+                                    
+                                    <button type="button" 
+                                            class="btn btn-primary save-btn" 
+                                            onclick="saveGrade('{{ answer_item.answer.id }}', {{ question.question.marks }})">
+                                        <i class="fas fa-save"></i> Save Grade
+                                    </button>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-info-circle"></i> No student answers for this question yet.
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
 </div>
+
+<script>
+function selectQuestion(index) {
+    // Hide all sections
+    document.querySelectorAll('.question-section').forEach(el => {
+        el.style.display = 'none';
+    });
+    
+    // Show selected section
+    document.querySelectorAll(`[data-question-index="${index}"]`)[1].style.display = 'block';
+    
+    // Update active class
+    document.querySelectorAll('.question-item').forEach(el => {
+        el.classList.remove('active');
+    });
+    document.querySelector(`[data-question-index="${index}"]`).classList.add('active');
+}
+
+// Select first question on load
+document.addEventListener('DOMContentLoaded', () => {
+    selectQuestion(0);
+});
+
+function setMarks(answerId, marks) {
+    document.getElementById(`marks-${answerId}`).value = marks;
+}
+
+function saveGrade(answerId, maxMarks) {
+    const marks = parseInt(document.getElementById(`marks-${answerId}`).value);
+    const feedback = document.getElementById(`feedback-${answerId}`).value;
+    const msgDiv = document.getElementById(`msg-${answerId}`);
+    
+    // Validate
+    if (isNaN(marks) || marks < 0 || marks > maxMarks) {
+        msgDiv.className = 'grading-msg error';
+        msgDiv.innerHTML = `<strong>Error:</strong> Marks must be between 0 and ${maxMarks}`;
+        return;
+    }
+    
+    // Save via AJAX
+    fetch('{% url "submit_subjective_grade" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            answer_id: answerId,
+            marks: marks,
+            feedback: feedback
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        const msgDiv = document.getElementById(`msg-${answerId}`);
+        
+        if (data.success) {
+            msgDiv.className = 'grading-msg success';
+            msgDiv.innerHTML = `<strong>✓ Success:</strong> ${data.message}`;
+            
+            // Update status badge
+            const card = document.getElementById(`answer-${answerId}`);
+            const statusBadge = card.querySelector('.grading-status');
+            statusBadge.className = 'grading-status graded';
+            statusBadge.innerHTML = '✓ Graded';
+            
+            setTimeout(() => msgDiv.className = 'grading-msg', 3000);
+        } else {
+            msgDiv.className = 'grading-msg error';
+            msgDiv.innerHTML = `<strong>Error:</strong> ${data.error}`;
+        }
+    })
+    .catch(error => {
+        const msgDiv = document.getElementById(`msg-${answerId}`);
+        msgDiv.className = 'grading-msg error';
+        msgDiv.innerHTML = `<strong>Error:</strong> Failed to save grade`;
+    });
+}
+</script>
 {% endblock %}

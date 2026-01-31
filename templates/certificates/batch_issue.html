@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Batch Issue Certificates{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-award me-2"></i>Issue Certificates</h4>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Exam: {{ exam.title }}</h5>
+                    
+                    <p class="text-muted">
+                        This will generate and issue certificates to all students who have passed this exam.
+                        Certificates will be available for download in the student dashboard.
+                    </p>
+
+                    <form id="issueForm" method="post" class="mt-4">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label for="passing_percentage" class="form-label">Passing Percentage (%)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="passing_percentage" name="passing_percentage" 
+                                       value="60" min="0" max="100" step="1">
+                                <span class="input-group-text">%</span>
+                            </div>
+                            <div class="form-text">Students scoring above this percentage will receive a certificate.</div>
+                        </div>
+
+                        <div class="alert alert-warning" role="alert">
+                            <i class="bi bi-exclamation-triangle"></i> This action cannot be undone. Certificates will be generated immediately.
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg" id="submitBtn">
+                                <i class="bi bi-check-circle me-2"></i>Issue Certificates
+                            </button>
+                            <a href="{% url 'exam_detail' exam.id %}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                    
+                    <div id="resultMessage" class="mt-4 d-none">
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle-fill"></i> Successfully issued <span id="issuedCount">0</span> certificates!
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('issueForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    const form = this;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        body: new FormData(form),
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('issueForm').classList.add('d-none');
+            document.getElementById('resultMessage').classList.remove('d-none');
+            document.getElementById('issuedCount').textContent = data.issued;
+        } else {
+            alert('Error issuing certificates. Please try again.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Issue Certificates';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Issue Certificates';
+    });
+});
+</script>
+{% endblock %}

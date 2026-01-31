@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}Notifications - Exam System{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-bell"></i> Notifications</h5>
+                        {% if unread_count > 0 %}
+                            <button class="btn btn-sm btn-light" onclick="markAllAsRead()">
+                                <i class="bi bi-check-all"></i> Mark All as Read
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if notifications %}
+                        <div class="notification-list" id="notificationList">
+                            {% for notification in notifications %}
+                                <div class="notification-item {% if not notification.is_read %}unread{% endif %}" data-id="{{ notification.id }}">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h6 class="notification-title">
+                                                <span class="badge badge-{{ notification.category }}">
+                                                    {% if notification.category == 'info' %}
+                                                        <i class="bi bi-info-circle"></i>
+                                                    {% elif notification.category == 'success' %}
+                                                        <i class="bi bi-check-circle"></i>
+                                                    {% elif notification.category == 'warning' %}
+                                                        <i class="bi bi-exclamation-triangle"></i>
+                                                    {% elif notification.category == 'error' %}
+                                                        <i class="bi bi-x-circle"></i>
+                                                    {% endif %}
+                                                </span>
+                                                {{ notification.title }}
+                                                {% if not notification.is_read %}
+                                                    <span class="unread-indicator"></span>
+                                                {% endif %}
+                                            </h6>
+                                            <p class="notification-message mb-2">{{ notification.message }}</p>
+                                            <small class="text-muted">{{ notification.created_at|timesince }} ago</small>
+                                        </div>
+                                        <div class="notification-actions">
+                                            {% if not notification.is_read %}
+                                                <button class="btn btn-sm btn-outline-secondary" onclick="markAsRead({{ notification.id }})">
+                                                    <i class="bi bi-check"></i> Read
+                                                </button>
+                                            {% endif %}
+                                            <a href="{% url 'notification_detail' notification.id %}" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-arrow-right"></i> View
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Pagination -->
+                        {% if notifications.has_other_pages %}
+                            <nav aria-label="Page navigation">
+                                <ul class="pagination justify-content-center">
+                                    {% if notifications.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page=1">First</a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ notifications.previous_page_number }}">Previous</a>
+                                        </li>
+                                    {% endif %}
+                                    
+                                    <li class="page-item active">
+                                        <span class="page-link">Page {{ notifications.number }} of {{ notifications.paginator.num_pages }}</span>
+                                    </li>
+                                    
+                                    {% if notifications.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ notifications.next_page_number }}">Next</a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ notifications.paginator.num_pages }}">Last</a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-inbox"></i> No notifications yet. Check back later!
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sidebar Stats -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="stat-item mb-3">
+                        <h6>Unread</h6>
+                        <p class="h3 text-warning">{{ unread_count }}</p>
+                    </div>
+                    <div class="stat-item">
+                        <h6>Total Notifications</h6>
+                        <p class="h3 text-primary">{{ notifications.paginator.count }}</p>
+                    </div>
+                    <hr>
+                    <small class="text-muted">Notifications are sent in real-time via WebSocket</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .notification-item {
+        padding: 15px;
+        border-bottom: 1px solid #e0e0e0;
+        background-color: #f9f9f9;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+    
+    .notification-item:last-child {
+        border-bottom: none;
+    }
+    
+    .notification-item.unread {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+    }
+    
+    .notification-item:hover {
+        background-color: #f5f5f5;
+    }
+    
+    .unread-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background-color: #dc3545;
+        border-radius: 50%;
+        margin-left: 5px;
+    }
+    
+    .notification-title {
+        margin-bottom: 5px;
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .notification-message {
+        color: #666;
+        font-size: 0.95em;
+    }
+    
+    .notification-actions {
+        display: flex;
+        gap: 5px;
+    }
+    
+    .badge-info {
+        background-color: #0dcaf0;
+    }
+    
+    .badge-success {
+        background-color: #198754;
+    }
+    
+    .badge-warning {
+        background-color: #ffc107;
+        color: #333;
+    }
+    
+    .badge-error {
+        background-color: #dc3545;
+    }
+    
+    .stat-item h6 {
+        color: #666;
+        font-size: 0.9em;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+</style>
+
+<script>
+function markAsRead(notificationId) {
+    fetch('/api/notifications/mark-read/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            notification_id: notificationId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const item = document.querySelector(`[data-id="${notificationId}"]`);
+            item.classList.remove('unread');
+            item.querySelector('.notification-actions button').style.display = 'none';
+            location.reload(); // Refresh to update count
+        }
+    });
+}
+
+function markAllAsRead() {
+    fetch('/api/notifications/mark-all-read/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        }
+    });
+}
+</script>
+{% endblock %}

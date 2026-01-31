@@ -24,7 +24,7 @@ urlpatterns = [
     path('', landing_page, name='landing_page'),
     path('about/', about_page, name= 'about'),
     path("admin/mega-dashboard/", admin_grand_dashboard, name="admin_grand_dashboard"),
-    path('exams/', include('exams.urls')),
+    path('dashboard/', include('dashboards.urls')),
     path('admin/', admin.site.urls),
     path('auth/', include('accounts.urls')), 
     path('brillspay/', include('brillspay.urls')),

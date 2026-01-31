@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Class Leaderboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>{{ school_class.name }} - Leaderboard</h2>
+        </div>
+        <div class="col-md-4">
+            <a href="{% url 'dashboards:student_dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+        </div>
+    </div>
+
+    <!-- Leaderboard Table -->
+    {% if page_obj %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Rank</th>
+                        <th>Student Name</th>
+                        <th>Average Score</th>
+                        <th>Attempts</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in page_obj %}
+                        <tr {% if entry.is_self %}class="table-info"{% endif %}>
+                            <td>
+                                <span class="badge bg-{% if entry.rank == 1 %}warning{% elif entry.rank == 2 %}secondary{% elif entry.rank == 3 %}warning{% else %}light text-dark{% endif %}">
+                                    {% if entry.rank == 1 %}🥇{% elif entry.rank == 2 %}🥈{% elif entry.rank == 3 %}🥉{% else %}{{ entry.rank }}{% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                {{ entry.student.first_name }} {{ entry.student.last_name }}
+                                {% if entry.is_self %}<small class="badge bg-info">You</small>{% endif %}
+                            </td>
+                            <td>
+                                <strong>{{ entry.avg_score|floatformat:2 }}</strong>
+                            </td>
+                            <td>{{ entry.attempt_count }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1">First</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                        </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Last</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="alert alert-info" role="alert">
+            No exam results available for your class yet.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

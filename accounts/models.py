@@ -10,16 +10,18 @@ from django.utils import timezone
 import uuid
 
 class User(AbstractUser):
+
     class Role(models.TextChoices):
         ADMIN = "ADMIN", "Admin"
         TEACHER = "TEACHER", "Teacher"
-	NON-TEACHER = "NON-TEACHER", "Non-Teacher"
+        NON_TEACHER = "NON_TEACHER", "Non-Teacher"
         PARENT = "PARENT", "Parent"
         STUDENT = "STUDENT", "Student"
         BURSAR = "BURSAR", "Bursar"
-	SERVICE-PROVIDER = "SERVICE-PROVIDER", "Service-Provider"
+        SERVICE_PROVIDER = "SERVICE_PROVIDER", "Service-Provider"
 
     base_role = Role.PARENT
+
 
     role = models.CharField(
         max_length=50,

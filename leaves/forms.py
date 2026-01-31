@@ -16,12 +16,14 @@ class LeaveRequestForm(forms.ModelForm):
 class LeaveTypeForm(forms.ModelForm):
     class Meta:
         model = LeaveType
-        fields = ["name"]
+        fields = ["name", "annual_days"]
         widgets = {
             "name": forms.TextInput(attrs={"class": "form-control"}),
+            "annual_days": forms.TextInput(attrs={"class": "form-control", "type": "number"}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["name"].queryset = LeaveType.objects.all()
         self.fields["name"].label = "Leave Type"
+        self.fields["annual_days"].label = "Annual days"

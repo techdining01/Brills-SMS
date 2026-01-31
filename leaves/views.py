@@ -82,7 +82,6 @@ def leave_balance_view(request):
     )
 
 
-
 @login_required
 def request_leave(request):
     try:
@@ -202,7 +201,6 @@ def leave_heatmap(request):
         "leaves/leave_heatmap.html",
         {"data": data}
     )
-
 
 
 @login_required

@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Create Exam{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h2 class="mb-4"><i class="bi bi-plus-circle"></i> Create New Exam</h2>
+
+            <div class="card">
+                <div class="card-body">
+                    <form method="post" action="{% url 'create_exam' %}">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Exam Title *</label>
+                            <input type="text" class="form-control" id="title" name="title" required placeholder="e.g. Mathematics Mid-Term">
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="school_class" class="form-label">Class *</label>
+                                    <select class="form-select" id="school_class" name="school_class" required>
+                                        <option value="">Select a class</option>
+                                        {% for class in classes %}
+                                        <option value="{{ class.id }}">{{ class.name }} ({{ class.academic_year }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="duration" class="form-label">Duration (minutes) *</label>
+                                    <input type="number" class="form-control" id="duration" name="duration" required min="5">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="start_time" class="form-label">Start Time *</label>
+                                    <input type="datetime-local" class="form-control" id="start_time" name="start_time" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="end_time" class="form-label">End Time *</label>
+                                    <input type="datetime-local" class="form-control" id="end_time" name="end_time" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3 border p-3 rounded bg-light">
+                            <label class="form-label fw-bold">Settings</label>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="allow_retake" name="allow_retake">
+                                <label class="form-check-label" for="allow_retake">Allow Retakes</label>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_published" name="is_published">
+                                <label class="form-check-label" for="is_published">Publish Immediately</label>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="d-flex gap-2 justify-content-end">
+                            <a href="javascript:history.back()" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> Create Exam
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

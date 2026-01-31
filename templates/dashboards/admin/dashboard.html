@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Exam System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2><i class="bi bi-speedometer2"></i> Admin Dashboard</h2>
+            <p class="text-muted">Welcome back, Admin! Here's an overview of the system.</p>
+        </div>
+    </div>
+
+    <!-- Statistics Row -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <i class="bi bi-people" style="font-size: 2em; color: #3498db;"></i>
+                <h3>{{ total_students }}</h3>
+                <p>Total Students</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <i class="bi bi-person-badge" style="font-size: 2em; color: #27ae60;"></i>
+                <h3>{{ total_teachers }}</h3>
+                <p>Teachers</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <i class="bi bi-building" style="font-size: 2em; color: #9b59b6;"></i>
+                <h3>{{ total_classes }}</h3>
+                <p>Classes</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <i class="bi bi-file-earmark-text" style="font-size: 2em; color: #e74c3c;"></i>
+                <h3>{{ total_exams }}</h3>
+                <p>Exams Created</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions Row -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-lightning"></i> Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{% url 'dashboards:admin_classes_list' %}" class="btn btn-outline-primary me-2">
+                        <i class="bi bi-plus-circle"></i> Manage Classes
+                    </a>
+                    <a href="{% url 'dashboards:admin_exams_list' %}" class="btn btn-outline-primary me-2">
+                        <i class="bi bi-plus-circle"></i> Manage Exams
+                    </a>
+                    <a href="{% url 'dashboards:admin_students_list' %}" class="btn btn-outline-primary me-2">
+                        <i class="bi bi-plus-circle"></i> Manage Students
+                    </a>
+                    <a href="{% url 'dashboards:admin_retake_requests' %}" class="btn btn-outline-warning">
+                        <i class="bi bi-arrow-repeat"></i> Retake Requests <span class="badge bg-warning">{{ pending_retake_requests }}</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Menu Shortcuts Row -->
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <a href="{% url 'dashboards:admin_leaderboard' %}" class="card text-decoration-none" style="color: inherit;">
+                <div class="card-body text-center">
+                    <i class="bi bi-trophy" style="font-size: 2em; color: #f39c12;"></i>
+                    <h5 class="card-title mt-2">Class Leaderboards</h5>
+                    <p class="card-text text-muted">View student rankings</p>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-4 mb-3">
+            <a href="{% url 'dashboards:admin_system_logs' %}" class="card text-decoration-none" style="color: inherit;">
+                <div class="card-body text-center">
+                    <i class="bi bi-file-text" style="font-size: 2em; color: #1abc9c;"></i>
+                    <h5 class="card-title mt-2">System Logs</h5>
+                    <p class="card-text text-muted">View system activities</p>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-4 mb-3">
+            <a href="/admin/" class="card text-decoration-none" style="color: inherit;">
+                <div class="card-body text-center">
+                    <i class="bi bi-gear" style="font-size: 2em; color: #95a5a6;"></i>
+                    <h5 class="card-title mt-2">Django Admin</h5>
+                    <p class="card-text text-muted">Advanced configurations</p>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

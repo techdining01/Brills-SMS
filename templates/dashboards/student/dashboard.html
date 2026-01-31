@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block title %}Student Dashboard - Exam System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2><i class="bi bi-pencil-square"></i> Student Dashboard</h2>
+            <p class="text-muted">Welcome, {{ request.user.get_full_name }}! Check your exams and results here.</p>
+        </div>
+    </div>
+
+    <!-- Statistics Row -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <i class="bi bi-file-earmark" style="font-size: 2em; color: #3498db;"></i>
+                <h3>{{ total_exams }}</h3>
+                <p>Available Exams</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <i class="bi bi-check-circle" style="font-size: 2em; color: #27ae60;"></i>
+                <h3>{{ completed_exams }}</h3>
+                <p>Completed</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <i class="bi bi-star" style="font-size: 2em; color: #f39c12;"></i>
+                <h3>{{ average_score }}</h3>
+                <p>Average Score</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <i class="bi bi-trophy" style="font-size: 2em; color: #e74c3c;"></i>
+                <h3>{{ class_rank }}</h3>
+                <p>Class Rank</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-lightning"></i> Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{% url 'dashboards:student_available_exams' %}" class="btn btn-primary me-2">
+                        <i class="bi bi-list"></i> Available Exams
+                    </a>
+                    <a href="{% url 'dashboards:student_attempt_history' %}" class="btn btn-info me-2">
+                        <i class="bi bi-graph-up"></i> My Results
+                    </a>
+                    <a href="{% url 'dashboards:student_class_leaderboard' %}" class="btn btn-warning">
+                        <i class="bi bi-leaderboard"></i> Leaderboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Available Exams -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-clock"></i> Upcoming & Available Exams</h5>
+                </div>
+                <div class="card-body">
+                    {% if available_exams %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Exam Name</th>
+                                        <th>Subject</th>
+                                        <th>Duration</th>
+                                        <th>Total Questions</th>
+                                        <th>Attempts Left</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for exam in available_exams %}
+                                        <tr>
+                                            <td><strong>{{ exam.title }}</strong></td>
+                                            <td>{{ exam.subject }}</td>
+                                            <td>{{ exam.duration }} mins</td>
+                                            <td>{{ exam.questions.count }}</td>
+                                            <td>
+                                                <span class="badge bg-info">{{ exam.attempts_allowed }}</span>
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'dashboards:start_exam' exam.id %}" class="btn btn-sm btn-success">
+                                                    <i class="bi bi-play"></i> Start
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No available exams at the moment.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Results -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-award"></i> Recent Results</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_results %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Exam Name</th>
+                                        <th>Date Taken</th>
+                                        <th>Score</th>
+                                        <th>Percentage</th>
+                                        <th>Grade</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for result in recent_results %}
+                                        <tr>
+                                            <td><strong>{{ result.exam.title }}</strong></td>
+                                            <td>{{ result.started_at|date:"M d, Y" }}</td>
+                                            <td>{{ result.total_score }}/{{ result.exam.total_marks }}</td>
+                                            <td>
+                                                <span class="badge bg-{% if result.percentage >= 80 %}success{% elif result.percentage >= 60 %}warning{% else %}danger{% endif %}">
+                                                    {{ result.percentage }}%
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <strong class="text-{% if result.grade == 'A' %}success{% elif result.grade == 'B' %}info{% elif result.grade == 'C' %}warning{% else %}danger{% endif %}">
+                                                    {{ result.grade }}
+                                                </strong>
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'dashboards:exam_result' result.id %}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="bi bi-eye"></i> View
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No exam results yet. Complete an exam to see your results here.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Class Performance -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-graph-up"></i> Your Performance</h5>
+                </div>
+                <div class="card-body">
+                    <div class="progress mb-3">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ average_score }}%">
+                            {{ average_score }}%
+                        </div>
+                    </div>
+                    <p class="small text-muted">Average: {{ average_score }}% across {{ completed_exams }} exams</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-leaderboard"></i> Class Standing</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">
+                        <strong>Your Rank: <span class="badge bg-primary">{{ class_rank }} / {{ total_students }}</span></strong>
+                    </p>
+                    <p class="small text-muted">
+                        Keep practicing to improve your rank!
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .stat-card {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    .stat-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    .stat-card h3 {
+        color: #333;
+        margin: 10px 0;
+    }
+    .stat-card p {
+        font-size: 0.9em;
+        margin: 0;
+    }
+</style>
+{% endblock %}

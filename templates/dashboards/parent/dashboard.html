@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}Parent Dashboard - Exam System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2><i class="bi bi-house-heart"></i> Parent Dashboard</h2>
+            <p class="text-muted">Welcome, {{ request.user.get_full_name }}! Monitor your child's academic progress.</p>
+        </div>
+    </div>
+
+    <!-- Select Child -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-person-check"></i> Select Child</h5>
+                </div>
+                <div class="card-body">
+                    {% if children %}
+                        <div class="btn-group" role="group">
+                            {% for child in children %}
+                                <a href="?child_id={{ child.id }}" class="btn btn-outline-primary {% if selected_child.id == child.id %}active{% endif %}">
+                                    {{ child.get_full_name }}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No children linked to your account yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if selected_child %}
+        <!-- Child Statistics -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <i class="bi bi-person-check" style="font-size: 2em; color: #3498db;"></i>
+                    <h3>{{ selected_child.get_full_name }}</h3>
+                    <p>Class: {{ selected_child.student_class.name }}</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <i class="bi bi-file-earmark" style="font-size: 2em; color: #27ae60;"></i>
+                    <h3>{{ exams_taken }}</h3>
+                    <p>Exams Taken</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <i class="bi bi-star" style="font-size: 2em; color: #f39c12;"></i>
+                    <h3>{{ average_score }}%</h3>
+                    <p>Average Score</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <i class="bi bi-trophy" style="font-size: 2em; color: #e74c3c;"></i>
+                    <h3>{{ class_rank }}</h3>
+                    <p>Class Rank</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-lightning"></i> Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <a href="{% url 'dashboards:parent_child_results' selected_child.id %}" class="btn btn-primary me-2">
+                            <i class="bi bi-graph-up"></i> View Results
+                        </a>
+                        <a href="{% url 'dashboards:parent_children_list' %}" class="btn btn-info me-2">
+                            <i class="bi bi-list"></i> All Children
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Results -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-award"></i> Recent Exam Results</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if recent_results %}
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Exam Name</th>
+                                            <th>Date</th>
+                                            <th>Score</th>
+                                            <th>Percentage</th>
+                                            <th>Grade</th>
+                                            <th>Status</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for result in recent_results %}
+                                            <tr>
+                                                <td><strong>{{ result.exam_attempt.exam.title }}</strong></td>
+                                                <td>{{ result.exam_attempt.started_at|date:"M d, Y" }}</td>
+                                                <td>{{ result.total_score }}/{{ result.exam_attempt.exam.total_marks }}</td>
+                                                <td>
+                                                    <span class="badge bg-{% if result.percentage >= 80 %}success{% elif result.percentage >= 60 %}warning{% else %}danger{% endif %}">
+                                                        {{ result.percentage }}%
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <strong class="text-{% if result.grade == 'A' %}success{% elif result.grade == 'B' %}info{% elif result.grade == 'C' %}warning{% else %}danger{% endif %}">
+                                                        {{ result.grade }}
+                                                    </strong>
+                                                </td>
+                                                <td>
+                                                    {% if result.is_graded %}
+                                                        <span class="badge bg-success">Graded</span>
+                                                    {% else %}
+                                                        <span class="badge bg-warning">Pending</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <a href="{% url 'dashboards:exam_result' result.id %}" class="btn btn-sm btn-outline-primary">
+                                                        <i class="bi bi-eye"></i>
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <p class="text-muted">No exam results available yet.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Trends -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-graph-up"></i> Performance Trend</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="progress mb-2">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {{ average_score }}%">
+                            </div>
+                        </div>
+                        <p class="small text-muted">
+                            Average Score: <strong>{{ average_score }}%</strong>
+                        </p>
+                        <p class="small">
+                            <i class="bi bi-arrow-up text-success"></i>
+                            Great progress! Keep up the good work.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-info-circle"></i> Class Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Class:</strong> {{ selected_child.student_class.name }}</p>
+                        <p><strong>Class Rank:</strong> <span class="badge bg-primary">{{ class_rank }}</span></p>
+                        <p><strong>Total Students:</strong> {{ total_students }}</p>
+                        <p class="small text-muted mt-3">
+                            For detailed progress reports and teacher feedback, visit the Results section.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> Please select a child to view their progress and exam results.
+        </div>
+    {% endif %}
+</div>
+
+<style>
+    .stat-card {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    .stat-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    .stat-card h3 {
+        color: #333;
+        margin: 10px 0;
+    }
+    .stat-card p {
+        font-size: 0.9em;
+        margin: 0;
+    }
+</style>
+{% endblock %}

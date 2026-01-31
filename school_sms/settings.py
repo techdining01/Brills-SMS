@@ -65,6 +65,7 @@ CSRF_FAILURE_VIEW = "brillspay.views.csrf_failure"
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -73,22 +74,21 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.humanize',
 
-
     # Third-party apps
-    # 'rest_framework',
-    # 'channels',
-    # 'tailwind',             
-    # 'storages',             #3# For AWS S3 integration
+    'channels',
+    'crispy_forms',
+    'crispy_bootstrap5',
     
 
     # Local Apps (The four pillars of this project)
-    'exams',                         
+    'exams.apps.ExamsConfig',                         
     'accounts.apps.AccountsConfig',
     'brillspay.apps.BrillspayConfig',
     'pickup.apps.PickupConfig',
     'payroll.apps.PayrollConfig',
     'loans.apps.LoansConfig',
     'leaves.apps.LeavesConfig',
+    'dashboards.apps.DashboardsConfig',
 ]
 
 
@@ -128,6 +128,15 @@ TEMPLATES = [
 
 
 WSGI_APPLICATION = 'school_sms.wsgi.application'
+ASGI_APPLICATION = 'school_sms.asgi.application'
+
+# Channels Configuration
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+    }
+}
+
 
 
 # Database

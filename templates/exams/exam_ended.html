@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Exam Ended{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h1 class="card-title text-danger mb-4">
+                        <i class="fas fa-times-circle"></i> Exam Ended
+                    </h1>
+                    
+                    <div class="alert alert-warning" role="alert">
+                        {{ message }}
+                    </div>
+
+                    <div class="exam-info mb-4">
+                        <h3>{{ exam.title }}</h3>
+                        <p class="text-muted">{{ exam.description }}</p>
+                        
+                        <div class="details mt-3">
+                            <p><strong>End Time:</strong> {{ exam.end_time|date:"d M Y, H:i" }}</p>
+                            <p><strong>Total Marks:</strong> {{ exam.total_marks }}</p>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info" role="alert">
+                        <p>This exam window has closed. If you believe this is an error or need to request access, please contact your instructor.</p>
+                    </div>
+
+                    <div class="button-group">
+                        <a href="{% url 'student_dashboard' %}" class="btn btn-primary">Back to Dashboard</a>
+                        <a href="{% url 'student_available_exams' %}" class="btn btn-secondary">View Available Exams</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .button-group {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    .button-group .btn {
+        min-width: 150px;
+    }
+</style>
+{% endblock %}

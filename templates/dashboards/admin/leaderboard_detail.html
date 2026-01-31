@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Leaderboard - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2><i class="bi bi-trophy"></i> Leaderboard</h2>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Top Performers</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="50">#</th>
+                                <th>Student</th>
+                                <th>Class</th>
+                                <th>Score</th>
+                                <th>Exams</th>
+                                <th>Average</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if leaderboard %}
+                                {% for entry in leaderboard %}
+                                <tr>
+                                    <td>
+                                        {% if forloop.counter == 1 %}
+                                            <span class="badge bg-warning">🥇</span>
+                                        {% elif forloop.counter == 2 %}
+                                            <span class="badge bg-secondary">🥈</span>
+                                        {% elif forloop.counter == 3 %}
+                                            <span class="badge bg-danger">🥉</span>
+                                        {% else %}
+                                            {{ forloop.counter }}
+                                        {% endif %}
+                                    </td>
+                                    <td><strong>{{ entry.student.first_name }} {{ entry.student.last_name }}</strong></td>
+                                    <td>{{ entry.class_name }}</td>
+                                    <td><strong>{{ entry.total_score }}</strong></td>
+                                    <td>{{ entry.exams_count }}</td>
+                                    <td>{{ entry.average_score|floatformat:2 }}%</td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    No data available
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Total Exams Conducted</small>
+                        <h4 class="mb-0">0</h4>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Total Attempts</small>
+                        <h4 class="mb-0">0</h4>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Average Score</small>
+                        <h4 class="mb-0">0%</h4>
+                    </div>
+                    <div>
+                        <small class="text-muted d-block mb-1">Pass Rate</small>
+                        <h4 class="mb-0">0%</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

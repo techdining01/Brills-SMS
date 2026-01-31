@@ -1148,7 +1148,7 @@
                             Pickups
                         </a></li>
 
-                    <li><a class="dropdown-item" href="{% url 'exams:admin_dashboard' %}"
+                    <li><a class="dropdown-item" href="{% url 'dashboards:admin_dashboard' %}"
                             data-bs-dismiss="navbarContent">
                             Exams
                         </a></li>
@@ -1255,7 +1255,7 @@
                     {% else %}
 
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'exams:exams' %}" data-bs-dismiss="navbarContent">
+                        <a class="nav-link" href="{% url 'dashboards:cbt' %}" data-bs-dismiss="navbarContent">
                             CBT
                         </a>
                     </li>
@@ -1268,7 +1268,7 @@
 
                     {% else %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'exams:cbt' %}" data-bs-dismiss="navbarContent">
+                        <a class="nav-link" href="{% url 'dashboards:cbt' %}" data-bs-dismiss="navbarContent">
                             CBT
                         </a>
                     </li>

@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Export Job - {{ job.id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="bi bi-download"></i> Export Job #{{ job.id }}</h2>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'bulk_export' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Job Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <small class="text-muted d-block mb-1">Type</small>
+                            <h6>{{ job.get_export_type_display }}</h6>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted d-block mb-1">Status</small>
+                            <h6>
+                                <span class="badge {% if job.status == 'completed' %}bg-success{% elif job.status == 'failed' %}bg-danger{% elif job.status == 'processing' %}bg-info{% else %}bg-warning{% endif %}">
+                                    {{ job.get_status_display }}
+                                </span>
+                            </h6>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <small class="text-muted d-block mb-1">Format</small>
+                            <h6>{{ job.get_file_format_display }}</h6>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted d-block mb-1">Created</small>
+                            <h6><small>{{ job.created_at|date:"M d, Y H:i" }}</small></h6>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted d-block mb-1">Completed</small>
+                            <h6><small>{{ job.completed_at|date:"M d, Y H:i"|default:"-" }}</small></h6>
+                        </div>
+                    </div>
+
+                    {% if job.status == 'completed' and job.export_file %}
+                    <div class="alert alert-success mt-3">
+                        <i class="bi bi-check-circle"></i> Export completed successfully!
+                        <a href="?download=1" class="btn btn-sm btn-success mt-2">
+                            <i class="bi bi-download"></i> Download File
+                        </a>
+                    </div>
+                    {% elif job.status == 'failed' %}
+                    <div class="alert alert-danger mt-3">
+                        <i class="bi bi-exclamation-circle"></i> Export failed. Please try again.
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info mt-3">
+                        <i class="bi bi-hourglass-split"></i> Export is {{ job.get_status_display|lower }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Details</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-6">Job ID:</dt>
+                        <dd class="col-sm-6"><code>{{ job.id }}</code></dd>
+                        <dt class="col-sm-6">Exported By:</dt>
+                        <dd class="col-sm-6"><small>{{ job.exported_by.username }}</small></dd>
+                        {% if job.exam %}
+                        <dt class="col-sm-6">Exam:</dt>
+                        <dd class="col-sm-6"><small>{{ job.exam.title }}</small></dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

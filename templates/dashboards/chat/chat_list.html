@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Messages{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2><i class="bi bi-chat-dots"></i> Messages</h2>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="list-group list-group-flush">
+                    {% for conversation in conversations %}
+                        <a href="{% url 'dashboards:chat_detail' conversation.user.id %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <div class="avatar me-3">
+                                    <span class="avatar-initial rounded-circle bg-primary text-white p-2">
+                                        {{ conversation.user.first_name|first }}{{ conversation.user.last_name|first }}
+                                    </span>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1">{{ conversation.user.get_full_name }} <span class="badge bg-secondary">{{ conversation.user.get_role_display }}</span></h6>
+                                    {% if conversation.last_message %}
+                                        <small class="text-muted d-block text-truncate" style="max-width: 300px;">
+                                            {% if conversation.last_message.sender == request.user %}
+                                                You: 
+                                            {% endif %}
+                                            {{ conversation.last_message.message }}
+                                        </small>
+                                    {% else %}
+                                        <small class="text-muted">Start a conversation</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                {% if conversation.last_message %}
+                                    <small class="text-muted d-block">{{ conversation.last_message.created_at|date:"M d, H:i" }}</small>
+                                {% endif %}
+                                {% if conversation.unread_count > 0 %}
+                                    <span class="badge bg-danger rounded-pill">{{ conversation.unread_count }}</span>
+                                {% endif %}
+                            </div>
+                        </a>
+                    {% empty %}
+                        <div class="list-group-item text-center py-5">
+                            <p class="mb-0 text-muted">No conversations yet.</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

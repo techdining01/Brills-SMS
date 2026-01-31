@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Bulk Import - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="bi bi-upload"></i> Bulk Import</h2>
+            <p class="text-muted">Import students or questions from CSV files.</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Import Students</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <input type="hidden" name="import_type" value="students">
+                        
+                        <div class="mb-3">
+                            <label for="school_class_id" class="form-label">Select Class</label>
+                            <select class="form-select" id="school_class_id" name="school_class_id" required>
+                                <option value="">Choose class...</option>
+                                {% for school_class in classes %}
+                                <option value="{{ school_class.id }}">{{ school_class.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="student_csv" class="form-label">CSV File</label>
+                            <input type="file" class="form-control" id="student_csv" name="csv_file" accept=".csv" required>
+                            <div class="form-text">
+                                Expected columns: First Name, Last Name, Email, Phone, Address
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-cloud-upload me-2"></i>Import Students
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Import Questions</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <input type="hidden" name="import_type" value="questions">
+                        
+                        <div class="mb-3">
+                            <label for="category_id" class="form-label">Category (Optional)</label>
+                            <select class="form-select" id="category_id" name="category_id">
+                                <option value="">All Categories</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}">{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="question_csv" class="form-label">CSV File</label>
+                            <input type="file" class="form-control" id="question_csv" name="csv_file" accept=".csv" required>
+                            <div class="form-text">
+                                Expected columns: Text, Type, Marks, Difficulty, Explanation, Choice 1, Choice 2...
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-cloud-upload me-2"></i>Import Questions
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

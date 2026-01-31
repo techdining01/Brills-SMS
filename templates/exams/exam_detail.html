@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ exam.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="bi bi-file-earmark-text"></i> {{ exam.title }}</h2>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'edit_exam' exam.id %}" class="btn btn-secondary me-2">
+                <i class="bi bi-pencil"></i> Edit
+            </a>
+            <a href="{% url 'teacher_exams_list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Details</h5>
+                </div>
+                <div class="card-body">
+                    <p>{{ exam.description|default:"No description provided" }}</p>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <small class="text-muted d-block mb-1">Class</small>
+                            <h6>{{ exam.school_class.name }}</h6>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted d-block mb-1">Duration</small>
+                            <h6>{{ exam.duration }} minutes</h6>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <small class="text-muted d-block mb-1">Total Questions</small>
+                            <h6>{{ exam.questions.count }}</h6>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted d-block mb-1">Total Marks</small>
+                            <h6>{{ exam.total_marks }}</h6>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Questions ({{ exam.questions.count }})</h5>
+                </div>
+                <div class="card-body">
+                    {% if exam.questions.all %}
+                    <div class="list-group">
+                        {% for question in exam.questions.all %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ question.text|truncatewords:20 }}</h6>
+                                    <small class="text-muted">
+                                        <span class="badge bg-secondary">{{ question.category.name }}</span>
+                                        <span class="badge bg-info">{{ question.get_question_type_display }}</span>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No questions added to this exam yet</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Status</h5>
+                </div>
+                <div class="card-body">
+                    {% if exam.is_published %}
+                        <span class="badge bg-success">Published</span>
+                    {% else %}
+                        <span class="badge bg-warning">Draft</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if not exam.is_published %}
+                        <a href="{% url 'publish_exam' exam.id %}" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i> Publish Exam
+                        </a>
+                        {% else %}
+                        <a href="{% url 'unpublish_exam' exam.id %}" class="btn btn-warning">
+                            <i class="bi bi-dash-circle"></i> Unpublish
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'schedule_exam' exam.id %}" class="btn btn-info">
+                            <i class="bi bi-calendar-event"></i> Schedule
+                        </a>
+                        <a href="{% url 'exam_analytics_phase5' exam.id %}" class="btn btn-secondary">
+                            <i class="bi bi-graph-up"></i> View Analytics
+                        </a>
+                        <a href="{% url 'batch_issue_certificates' exam.id %}" class="btn btn-outline-primary">
+                            <i class="bi bi-award"></i> Issue Certificates
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

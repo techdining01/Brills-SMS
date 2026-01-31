@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}Teacher Dashboard - Exam System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2><i class="bi bi-clipboard-check"></i> Teacher Dashboard</h2>
+            <p class="text-muted">Welcome, {{ request.user.get_full_name }}! Manage your exams and grading here.</p>
+        </div>
+    </div>
+
+    <!-- Statistics Row -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <i class="bi bi-file-earmark-text" style="font-size: 2em; color: #3498db;"></i>
+                <h3>{{ total_exams }}</h3>
+                <p>Exams Created</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <i class="bi bi-people" style="font-size: 2em; color: #27ae60;"></i>
+                <h3>{{ total_students }}</h3>
+                <p>Students in Classes</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <i class="bi bi-hourglass-split" style="font-size: 2em; color: #f39c12;"></i>
+                <h3>{{ pending_grading }}</h3>
+                <p>Pending Grading</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <i class="bi bi-check-circle" style="font-size: 2em; color: #9b59b6;"></i>
+                <h3>{{ total_graded }}</h3>
+                <p>Graded</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-lightning"></i> Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{% url 'dashboards:create_exam' %}" class="btn btn-primary me-2">
+                        <i class="bi bi-plus-circle"></i> Create New Exam
+                    </a>
+                    <a href="{% url 'dashboards:teacher_exams' %}" class="btn btn-info me-2">
+                        <i class="bi bi-list"></i> My Exams
+                    </a>
+                    <a href="{% url 'dashboards:teacher_grading_dashboard' %}" class="btn btn-warning">
+                        <i class="bi bi-pen"></i> Grade Submissions
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Exams -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Exams</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_exams %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Exam Name</th>
+                                        <th>Class</th>
+                                        <th>Duration</th>
+                                        <th>Total Questions</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for exam in recent_exams %}
+                                        <tr>
+                                            <td><strong>{{ exam.title }}</strong></td>
+                                            <td>{{ exam.exam_class.name }}</td>
+                                            <td>{{ exam.duration }} mins</td>
+                                            <td>{{ exam.questions.count }}</td>
+                                            <td>
+                                                {% if exam.is_published %}
+                                                    <span class="badge bg-success">Published</span>
+                                                {% else %}
+                                                    <span class="badge bg-warning">Draft</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'dashboards:exam_detail' exam.id %}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <a href="{% url 'dashboards:edit_exam' exam.id %}" class="btn btn-sm btn-outline-secondary">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No exams created yet. <a href="{% url 'dashboards:create_exam' %}">Create your first exam</a></p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Statistics -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Class Performance</h5>
+                </div>
+                <div class="card-body">
+                    {% if classes %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Class</th>
+                                        <th>Students</th>
+                                        <th>Avg Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for class in classes %}
+                                        <tr>
+                                            <td>{{ class.name }}</td>
+                                            <td>{{ class.students.count }}</td>
+                                            <td>
+                                                <span class="badge bg-info">
+                                                    {% widthratio class.avg_score 100 1 %}%
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No classes assigned yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> Grading Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="progress mb-3">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {% widthratio total_graded total_submissions 100 %}%">
+                            {% widthratio total_graded total_submissions 100 %}% Graded
+                        </div>
+                    </div>
+                    <p class="small text-muted">
+                        {{ total_graded }} of {{ total_submissions }} submissions graded
+                    </p>
+                    {% if pending_grading > 0 %}
+                        <a href="{% url 'dashboards:teacher_grading_dashboard' %}" class="btn btn-sm btn-warning">
+                            <i class="bi bi-exclamation-triangle"></i> {{ pending_grading }} Pending
+                        </a>
+                    {% else %}
+                        <p class="text-success"><i class="bi bi-check-circle"></i> All graded!</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .stat-card {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    .stat-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    .stat-card h3 {
+        color: #333;
+        margin: 10px 0;
+    }
+    .stat-card p {
+        font-size: 0.9em;
+        margin: 0;
+    }
+</style>
+{% endblock %}

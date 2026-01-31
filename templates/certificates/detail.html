@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ certificate.certificate_number }} - Certificate{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2><i class="bi bi-award"></i> Certificate Details</h2>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h5 class="mb-1">{{ certificate.certificate_number }}</h5>
+                            <small class="text-muted">Issued on {{ certificate.issued_date|date:"F d, Y" }}</small>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            {% if certificate.is_revoked %}
+                                <span class="badge bg-danger">Revoked</span>
+                            {% else %}
+                                <span class="badge bg-success">Active</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <small class="text-muted d-block mb-1">Student</small>
+                            <h6 class="mb-3">{{ certificate.student.first_name }} {{ certificate.student.last_name }}</h6>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted d-block mb-1">Exam</small>
+                            <h6 class="mb-3">{{ certificate.exam.title }}</h6>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <small class="text-muted d-block mb-1">Score</small>
+                            <h6 class="mb-3">{{ certificate.score }}/{{ certificate.total_marks }}</h6>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted d-block mb-1">Percentage</small>
+                            <h6 class="mb-3">{{ certificate.percentage|floatformat:2 }}%</h6>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted d-block mb-1">Grade</small>
+                            <h6 class="mb-3">{{ certificate.grade }}</h6>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <small class="text-muted d-block mb-1">Verification Code</small>
+                            <code>{{ certificate.verification_code }}</code>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-light">
+                    <a href="{% url 'certificate_download' certificate.id %}" class="btn btn-primary">
+                        <i class="bi bi-download"></i> Download Certificate
+                    </a>
+                    <a href="{% url 'certificate_list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

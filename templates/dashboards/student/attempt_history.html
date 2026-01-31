@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Attempt History{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>My Exam Attempts</h2>
+        </div>
+        <div class="col-md-4">
+            <a href="{% url 'dashboards:student_dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+        </div>
+    </div>
+
+    <!-- Filter Form -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="form-inline">
+                <div class="form-group mr-2">
+                    <label for="status" class="mr-2">Filter by Status:</label>
+                    <select name="status" id="status" class="form-control">
+                        <option value="">All Statuses</option>
+                        {% for status in statuses %}
+                            <option value="{{ status }}" {% if status_filter == status %}selected{% endif %}>
+                                {{ status|title }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Filter</button>
+                {% if status_filter %}
+                    <a href="{% url 'dashboards:student_attempt_history' %}" class="btn btn-secondary ms-2">Clear</a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Attempts Table -->
+    {% if page_obj %}
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Exam</th>
+                        <th>Status</th>
+                        <th>Score</th>
+                        <th>Total Marks</th>
+                        <th>Started</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for attempt in page_obj %}
+                        <tr>
+                            <td>{{ attempt.exam.title }}</td>
+                            <td>
+                                <span class="badge bg-{% if attempt.status == 'submitted' %}success{% elif attempt.status == 'in_progress' %}warning{% elif attempt.status == 'interrupted' %}danger{% else %}secondary{% endif %}">
+                                    {{ attempt.status|title }}
+                                </span>
+                            </td>
+                            <td>{{ attempt.total_score }}</td>
+                            <td>{{ attempt.exam.total_marks }}</td>
+                            <td>{{ attempt.started_at|date:"d M Y, H:i" }}</td>
+                            <td>
+                                {% if attempt.status == 'submitted' %}
+                                    <a href="{% url 'dashboards:student_result_detail' attempt.id %}" class="btn btn-sm btn-info">View Result</a>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#retakeModal{{ attempt.exam.id }}">
+                                        Request Retake
+                                    </button>
+
+                                    <!-- Retake Modal -->
+                                    <div class="modal fade" id="retakeModal{{ attempt.exam.id }}" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Request Retake: {{ attempt.exam.title }}</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <form action="{% url 'dashboards:student_request_retake' %}" method="post">
+                                                    {% csrf_token %}
+                                                    <div class="modal-body">
+                                                        <input type="hidden" name="exam_id" value="{{ attempt.exam.id }}">
+                                                        <div class="mb-3">
+                                                            <label for="reason{{ attempt.exam.id }}" class="form-label">Reason for Retake</label>
+                                                            <textarea class="form-control" id="reason{{ attempt.exam.id }}" name="reason" rows="3" required placeholder="Please explain why you need to retake this exam..."></textarea>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                        <button type="submit" class="btn btn-primary">Submit Request</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% elif attempt.status == 'in_progress' %}
+                                    <a href="{% url 'dashboards:resume_exam' attempt.id %}" class="btn btn-sm btn-warning">Resume</a>
+                                {% else %}
+                                    <a href="{% url 'dashboards:student_result_detail' attempt.id %}" class="btn btn-sm btn-info">View</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1&status={{ status_filter }}">First</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}&status={{ status_filter }}">Previous</a>
+                        </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}&status={{ status_filter }}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}&status={{ status_filter }}">Next</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&status={{ status_filter }}">Last</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="alert alert-info" role="alert">
+            No exam attempts found.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

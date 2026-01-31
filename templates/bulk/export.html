@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Bulk Export - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="bi bi-download"></i> Bulk Export</h2>
+            <p class="text-muted">Export exam results and data.</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Export Exam Results</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="export_type" value="results">
+                        
+                        <div class="mb-3">
+                            <label for="exam_id" class="form-label">Select Exam</label>
+                            <select class="form-select" id="exam_id" name="exam_id" required>
+                                <option value="">Choose exam...</option>
+                                {% for exam in exams %}
+                                <option value="{{ exam.id }}">{{ exam.title }} ({{ exam.school_class.name }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Format</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="file_format" id="format_csv" value="csv" checked>
+                                <label class="form-check-label" for="format_csv">CSV</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="file_format" id="format_xlsx" value="xlsx">
+                                <label class="form-check-label" for="format_xlsx">Excel (XLSX)</label>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-file-earmark-spreadsheet me-2"></i>Export Results
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

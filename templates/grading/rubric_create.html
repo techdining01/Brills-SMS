@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Create Grading Rubric{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-list-check me-2"></i>Create Grading Rubric</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="rubricForm">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label for="name" class="form-label">Rubric Name</label>
+                            <input type="text" class="form-control" id="name" name="name" required placeholder="e.g., Essay Writing Rubric">
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3" placeholder="Describe what this rubric evaluates..."></textarea>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="total_points" class="form-label">Total Points</label>
+                            <input type="number" class="form-control" id="total_points" name="total_points" value="100" required>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <h5 class="mb-3">Criteria</h5>
+                        <div id="criteria-container">
+                            <div class="criteria-item card bg-light mb-3">
+                                <div class="card-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-8">
+                                            <label class="form-label">Criterion Name</label>
+                                            <input type="text" class="form-control" name="criteria_name" required placeholder="e.g., Grammar & Spelling">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Max Points</label>
+                                            <input type="number" class="form-control" name="criteria_max_points" required value="10">
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label">Description</label>
+                                            <textarea class="form-control" name="criteria_desc_0" rows="2" placeholder="Description for this criterion"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn btn-outline-primary mb-4" onclick="addCriterion()">
+                            <i class="bi bi-plus-circle"></i> Add Criterion
+                        </button>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{% url 'rubric_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Create Rubric</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let criteriaCount = 1;
+
+function addCriterion() {
+    const container = document.getElementById('criteria-container');
+    const newCriterion = document.createElement('div');
+    newCriterion.className = 'criteria-item card bg-light mb-3';
+    newCriterion.innerHTML = `
+        <div class="card-body">
+            <div class="d-flex justify-content-end mb-2">
+                <button type="button" class="btn-close" aria-label="Remove" onclick="this.closest('.criteria-item').remove()"></button>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <label class="form-label">Criterion Name</label>
+                    <input type="text" class="form-control" name="criteria_name" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Max Points</label>
+                    <input type="number" class="form-control" name="criteria_max_points" required>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control" name="criteria_desc_${criteriaCount}" rows="2"></textarea>
+                </div>
+            </div>
+        </div>
+    `;
+    container.appendChild(newCriterion);
+    criteriaCount++;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit Question - Question Bank{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="bi bi-pencil-square"></i> Edit Question</h2>
+            <p class="text-muted">Update question details.</p>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="mb-3">
+                            <label for="text" class="form-label">Question Text</label>
+                            <textarea class="form-control" id="text" name="text" rows="4" required>{{ question.text }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="explanation" class="form-label">Explanation (Optional)</label>
+                            <textarea class="form-control" id="explanation" name="explanation" rows="3" placeholder="Explain the answer...">{{ question.explanation }}</textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="type" class="form-label">Type</label>
+                            <select class="form-select" id="type" name="type" required>
+                                <option value="objective" {% if question.question_type == 'objective' %}selected{% endif %}>Multiple Choice</option>
+                                <option value="subjective" {% if question.question_type == 'subjective' %}selected{% endif %}>Essay / Theory</option>
+                                <option value="boolean" {% if question.question_type == 'boolean' %}selected{% endif %}>True / False</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="category" class="form-label">Category</label>
+                            <select class="form-select" id="category" name="category">
+                                <option value="">Uncategorized</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}" {% if question.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="difficulty" class="form-label">Difficulty</label>
+                            <select class="form-select" id="difficulty" name="difficulty">
+                                <option value="easy" {% if question.difficulty == 'easy' %}selected{% endif %}>Easy</option>
+                                <option value="medium" {% if question.difficulty == 'medium' %}selected{% endif %}>Medium</option>
+                                <option value="hard" {% if question.difficulty == 'hard' %}selected{% endif %}>Hard</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="marks" class="form-label">Default Marks</label>
+                            <input type="number" class="form-control" id="marks" name="marks" value="{{ question.marks }}" min="1">
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="choices-section" class="mb-4">
+                    <hr>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Answer Choices</h5>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addChoice()">
+                            <i class="bi bi-plus-lg"></i> Add Choice
+                        </button>
+                    </div>
+                    <div id="choices-container">
+                        {% for choice in question.choices.all %}
+                        <div class="choice-item row g-2 mb-2 align-items-center">
+                            <div class="col-auto">
+                                <input class="form-check-input" type="radio" name="correct_choice" value="{{ forloop.counter0 }}" {% if choice.is_correct %}checked{% endif %}>
+                            </div>
+                            <div class="col">
+                                <input type="text" class="form-control" name="choice_text_{{ forloop.counter0 }}" value="{{ choice.text }}" required>
+                            </div>
+                            <div class="col-auto">
+                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeChoice(this)">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <hr>
+                
+                <div class="d-flex justify-content-end">
+                    <a href="{% url 'dashboards:question_bank_detail' question.id %}" class="btn btn-secondary me-2">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Update Question</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    let choiceCount = {{ question.choices.count|default:0 }};
+
+    function toggleChoices() {
+        const type = document.getElementById('type').value;
+        const choicesSection = document.getElementById('choices-section');
+        const container = document.getElementById('choices-container');
+        
+        if (type === 'objective') {
+            choicesSection.style.display = 'block';
+            const inputs = choicesSection.querySelectorAll('input');
+            inputs.forEach(input => input.disabled = false);
+            
+            // If empty (switched from another type), add default fields
+            if (container.children.length === 0) {
+                choiceCount = 0; // Reset
+                addChoice();
+                addChoice();
+                // Set first one as checked by default
+                container.querySelector('input[type="radio"]').checked = true;
+            }
+        } else {
+            choicesSection.style.display = 'none';
+            const inputs = choicesSection.querySelectorAll('input');
+            inputs.forEach(input => input.disabled = true);
+        }
+    }
+
+    function addChoice() {
+        const container = document.getElementById('choices-container');
+        const newChoice = document.createElement('div');
+        newChoice.className = 'choice-item row g-2 mb-2 align-items-center';
+        newChoice.innerHTML = `
+            <div class="col-auto">
+                <input class="form-check-input" type="radio" name="correct_choice" value="${choiceCount}">
+            </div>
+            <div class="col">
+                <input type="text" class="form-control" name="choice_text_${choiceCount}" placeholder="Option" required>
+            </div>
+            <div class="col-auto">
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeChoice(this)">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(newChoice);
+        choiceCount++;
+    }
+
+    function removeChoice(button) {
+        button.closest('.choice-item').remove();
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', toggleChoices);
+</script>
+{% endblock %}

@@ -2,13 +2,12 @@ from django.contrib import admin
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import get_user_model
-from exams.models import Exam, ExamAttempt, PTARequest
+from exams.models import Exam, ExamAttempt
 from django.utils import timezone
 from brillspay.models import Transaction, Order
 from pickup.models import PickupAuthorization
-from django.db.models import Sum
-
-
+from django.db.models import Sum, Q
+from exams.models import ChatMessage
 
 
 
@@ -22,6 +21,10 @@ def landing_page(request):
     # if request.user.is_authenticated:
     #     return redirect('accounts:dashboard_redirect')
     return render(request, 'exams/landing.html')
+
+
+def cbt_exam(request):
+    return render(request, 'exams/cbt_home.html')
 
 
 def about_page(request):
@@ -62,9 +65,120 @@ def admin_grand_dashboard(request):
     pending_orders = Order.objects.filter(status="pending").count()
 
     # ==========================
-    # PTA
+    # CHAT
     # ==========================
-    pending_pta = PTARequest.objects.filter(status="PENDING").count()
+
+    """Chat conversation with a specific user"""
+    user = request.user
+
+    # Restrict to Admin and Teacher only
+    if user.role not in [User.Role.ADMIN, User.Role.TEACHER]:
+        messages.error(request, 'Access denied. Chat is available for staff only.')
+        return redirect('accounts:dashboard_redirect')
+    
+    # Get users who have exchanged messages
+    sent_to = ChatMessage.objects.filter(sender=user).values_list('recipient', flat=True)
+    received_from = ChatMessage.objects.filter(recipient=user).values_list('sender', flat=True)
+    
+    user_ids = set(list(sent_to) + list(received_from))
+    
+    # Also include admins if user is teacher, or teachers if user is admin
+    if user.role == User.Role.TEACHER:
+        admins = User.objects.filter(role=User.Role.ADMIN).values_list('id', flat=True)
+        user_ids.update(admins)
+    elif user.role == User.Role.ADMIN:
+        teachers = User.objects.filter(role=User.Role.TEACHER).values_list('id', flat=True)
+        user_ids.update(teachers)
+        
+    # Filter out students from the conversation list just in case
+    conversations = User.objects.filter(id__in=user_ids).exclude(id=user.id).exclude(role=User.Role.STUDENT)
+    
+    # Annotate with last message
+    conversation_list = []
+    for partner in conversations:
+        last_msg = ChatMessage.objects.filter(
+            Q(sender=user, recipient=partner) | Q(sender=partner, recipient=user)
+        ).order_by('-created_at').first()
+        
+        unread_count = ChatMessage.objects.filter(
+            sender=partner, recipient=user, is_read=False
+        ).count()
+        
+        conversation_list.append({
+            'user': partner,
+            'last_message': last_msg,
+            'unread_count': unread_count
+        })
+    
+    # Sort by last message time
+    conversation_list.sort(key=lambda x: x['last_message'].created_at if x['last_message'] else timezone.now(), reverse=True)
+    unread_count = sum([conv['unread_count'] for conv in conversation_list])
+    
+
+    # ==========================
+    # PICKUPS
+    # ==========================
+    active_pickups = PickupAuthorization.objects.filter(
+        created_at__lte=timezone.now(),
+        expires_at__gte=timezone.now()
+    ).count()
+
+    context = {
+        "stats": {
+            "total_users": total_users,
+            "pending_users": pending_users,
+            "students": students,
+            "parents": parents,
+            "staff": staff,
+            "total_exams": total_exams,
+            "active_exams": active_exams,
+            "attempts_today": attempts_today,
+            "total_revenue": total_revenue,
+            "pending_orders": pending_orders,
+            "unread_count": unread_count,
+            "active_pickups": active_pickups,
+        }
+    }
+
+    return render(request, "exams/admin_grand_dashboard.html", context)
+
+
+
+    received_from = ChatMessage.objects.filter(recipient=user).values_list('sender', flat=True)
+    
+    user_ids = set(list(sent_to) + list(received_from))
+    
+    # Also include admins if user is teacher, or teachers if user is admin
+    if user.role == User.Role.TEACHER:
+        admins = User.objects.filter(role=User.Role.ADMIN).values_list('id', flat=True)
+        user_ids.update(admins)
+    elif user.role == User.Role.ADMIN:
+        teachers = User.objects.filter(role=User.Role.TEACHER).values_list('id', flat=True)
+        user_ids.update(teachers)
+        
+    # Filter out students from the conversation list just in case
+    conversations = User.objects.filter(id__in=user_ids).exclude(id=user.id).exclude(role=User.Role.STUDENT)
+    
+    # Annotate with last message
+    conversation_list = []
+    for partner in conversations:
+        last_msg = ChatMessage.objects.filter(
+            Q(sender=user, recipient=partner) | Q(sender=partner, recipient=user)
+        ).order_by('-created_at').first()
+        
+        unread_count = ChatMessage.objects.filter(
+            sender=partner, recipient=user, is_read=False
+        ).count()
+        
+        conversation_list.append({
+            'user': partner,
+            'last_message': last_msg,
+            'unread_count': unread_count
+        })
+    
+    # Sort by last message time
+    conversation_list.sort(key=lambda x: x['last_message'].created_at if x['last_message'] else timezone.now(), reverse=True)
+   
 
     # ==========================
     # PICKUPS
@@ -86,9 +200,9 @@ def admin_grand_dashboard(request):
             "attempts_today": attempts_today,
             "total_revenue": total_revenue,
             "pending_orders": pending_orders,
-            "pending_pta": pending_pta,
+            "unread_count": unread_count,
             "active_pickups": active_pickups,
         }
     }
 
-    return render(request, "exams/admin/admin_grand_dashboard.html", context)
+    return render(request, "exams/admin_grand_dashboard.html", context)

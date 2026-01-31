@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Start Exam - {{ exam.title }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-info-circle me-2"></i>Exam Instructions</h4>
+                </div>
+                <div class="card-body">
+                    <h3 class="card-title text-center mb-4">{{ exam.title }}</h3>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-4 text-center">
+                            <div class="p-3 bg-light rounded">
+                                <h5 class="text-muted mb-1">Duration</h5>
+                                <h4 class="mb-0">{{ duration_minutes }} mins</h4>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="p-3 bg-light rounded">
+                                <h5 class="text-muted mb-1">Questions</h5>
+                                <h4 class="mb-0">{{ questions_count }}</h4>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="p-3 bg-light rounded">
+                                <h5 class="text-muted mb-1">Total Marks</h5>
+                                <h4 class="mb-0">{{ total_marks }}</h4>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mb-4">
+                        <h5 class="alert-heading"><i class="bi bi-exclamation-triangle me-2"></i>Please read carefully:</h5>
+                        <ul class="mb-0">
+                            <li>Ensure you have a stable internet connection.</li>
+                            <li>Do not refresh the page during the exam.</li>
+                            <li>The timer will start immediately after you click "Start Exam".</li>
+                            <li>Your answers are auto-saved periodically.</li>
+                            <li>Once the time is up, the exam will be submitted automatically.</li>
+                        </ul>
+                    </div>
+
+                    <div class="description mb-4">
+                        <h6>Description:</h6>
+                        <p>{{ exam.description|default:"No description provided." }}</p>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <form action="{% url 'create_exam_attempt' exam.id %}" method="post">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-primary btn-lg w-100">
+                                <i class="bi bi-play-circle me-2"></i>Start Exam Now
+                            </button>
+                        </form>
+                        <a href="{% url 'student_available_exams' %}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

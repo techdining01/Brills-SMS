@@ -5,7 +5,6 @@ from django.db.models import Q, Sum
 import uuid
 
 
-
 class SchoolClass(models.Model):
     LEVEL_CHOICES = [
         ('kindergarten', 'Kindergarten'),
@@ -14,7 +13,6 @@ class SchoolClass(models.Model):
         ('junior_secondary', 'Junior Secondary'),
         ('senior_secondary', 'Senior Secondary'),
     ]
-
 
     name = models.CharField(max_length=100, unique=True)
     level = models.CharField(
@@ -48,7 +46,6 @@ class SchoolClass(models.Model):
 
 
 class Subject(models.Model):
-
     name = models.CharField(max_length=100)
     classes = models.ManyToManyField(SchoolClass, related_name='subjects', blank=True)    
     description = models.TextField(blank=True)
@@ -66,7 +63,7 @@ class Subject(models.Model):
 
 class Exam(models.Model):
     title = models.CharField(max_length=200)
-    school_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE)
+    school_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name='class_exam')
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     duration = models.PositiveIntegerField(help_text='Minutes')
     start_time = models.DateTimeField()
@@ -74,9 +71,20 @@ class Exam(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     is_published = models.BooleanField(default=False)
-    allow_retake = models.BooleanField(default=False) # if true, students can retake
+    allow_retake = models.BooleanField(default=False)
     requires_payment = models.BooleanField(default=False)
-    price = models.PositiveIntegerField(default=0) 
+    price = models.PositiveIntegerField(default=0)
+    passing_marks = models.PositiveIntegerField(default=40, help_text="Minimum marks required to pass")
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def total_marks(self):
+        return self.questions.aggregate(total=Sum('marks'))['total'] or 0
 
 
 class ExamAccess(models.Model):
@@ -99,26 +107,37 @@ class ExamAccess(models.Model):
 
 class Question(models.Model):
     EXAM_TYPES = (
-    ('objective','Objective'),
-    ('subjective','Subjective'),
+        ('objective','Objective'),
+        ('subjective','Subjective'),
     )
-    exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
+    exam = models.ForeignKey(Exam, on_delete=models.CASCADE, related_name='questions')
     text = models.TextField()
     type = models.CharField(max_length=20, choices=EXAM_TYPES)
     marks = models.PositiveIntegerField(default=1)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order']
+
+    def __str__(self):
+        return f"{self.exam.title} - Q{self.order}"
 
 
 class Choice(models.Model):
-    question = models.ForeignKey(Question, on_delete=models.CASCADE)
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='choices')
     text = models.CharField(max_length=255)
     is_correct = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.text
+
 
 class ExamAttempt(models.Model):
 
     ATTEMPT_STATUS = (
         ('in_progress', 'In Progress'),
         ('submitted', 'Submitted'),
-        ('archived', 'Archived'),     # old attempt after retake
+        ('archived', 'Archived'),
         ('expired', 'Expired'),
         ('interrupted', 'Interrupted'),
     )
@@ -135,13 +154,11 @@ class ExamAttempt(models.Model):
         related_name="exam_attempts"
     )
 
-    # ---------------- SCORES ----------------
     score = models.PositiveIntegerField(
         default=0,
         help_text="Objective score only"
     )
 
-    # ---------------- STATUS ----------------
     status = models.CharField(
         max_length=20,
         choices=ATTEMPT_STATUS,
@@ -157,7 +174,6 @@ class ExamAttempt(models.Model):
     is_submitted = models.BooleanField(default=False)
     retake_allowed = models.BooleanField(default=False)
 
-    # ---------------- TIMER / STATE ----------------
     question_order = models.JSONField(default=list)
     remaining_seconds = models.PositiveIntegerField(help_text="Remaining time in seconds")
 
@@ -167,22 +183,20 @@ class ExamAttempt(models.Model):
         help_text="Browser closed, power outage, network lost, etc."
     )
 
-    # ---------------- TIMESTAMPS ----------------
     started_at = models.DateTimeField(auto_now_add=True)
     last_activity_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = [
-            # ✅ only ONE active attempt per student per exam
             models.UniqueConstraint(
                 fields=['student', 'exam'],
                 condition=models.Q(status__in=['in_progress', 'interrupted']),
                 name='unique_active_attempt_per_exam'
             )
         ]
+        ordering = ['-started_at']
 
-    # ---------------- CALCULATED SCORES ----------------
     @property
     def subjective_score(self):
         return (
@@ -198,6 +212,27 @@ class ExamAttempt(models.Model):
         return self.score + self.subjective_score
     
     @property
+    def percentage(self):
+        total_marks = self.exam.total_marks
+        if total_marks > 0:
+            return round((self.total_score / total_marks) * 100, 1)
+        return 0
+
+    @property
+    def grade(self):
+        pct = self.percentage
+        if pct >= 70:
+            return 'A'
+        elif pct >= 60:
+            return 'B'
+        elif pct >= 50:
+            return 'C'
+        elif pct >= 45:
+            return 'D'
+        else:
+            return 'F'
+
+    @property
     def is_fully_graded(self):
         total_subjective = self.answers.filter(
             question__type="subjective"
@@ -210,8 +245,6 @@ class ExamAttempt(models.Model):
 
         return total_subjective == graded
 
-    
-    # ---------------- STATE HELPERS ----------------
     def save_progress(self, seconds_left, reason=None):
         self.remaining_seconds = max(seconds_left, 0)
         if reason:
@@ -264,6 +297,7 @@ class StudentAnswer(models.Model):
     class Meta:
         unique_together = ('attempt', 'question')
 
+
 class SubjectiveMark(models.Model):
     answer = models.OneToOneField(
         StudentAnswer,
@@ -277,17 +311,18 @@ class SubjectiveMark(models.Model):
         on_delete=models.SET_NULL,
         null=True
     )
+    marked_at = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return f"Mark for {self.answer.question}"
 
 
 class PTARequest(models.Model):
-    # Statuses
     class Status(models.TextChoices):
         PENDING = 'PENDING', 'Pending'
         SCHEDULED = 'SCHEDULED', 'Scheduled'
         RESOLVED = 'RESOLVED', 'Resolved'
 
-    # Request types
     class RequestType(models.TextChoices):
         MEETING = 'MEETING', 'Meeting Request'
         ATTENTION = 'ATTENTION', 'Attention Needed'
@@ -299,7 +334,6 @@ class PTARequest(models.Model):
         limit_choices_to=Q(role='PARENT'), 
         related_name='pta_sent'
     )
-    # The Staff/Teacher being requested
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.SET_NULL, 
@@ -313,12 +347,13 @@ class PTARequest(models.Model):
     message = models.TextField()
     
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
-    
-    # Optional: For scheduled meetings
     scheduled_time = models.DateTimeField(null=True, blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
 
     def recipient_name(self):
         return self.recipient.get_full_name() if self.recipient else "N/A"
@@ -328,8 +363,8 @@ class PTARequest(models.Model):
     
 
 class RetakeRequest(models.Model):
-    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, limit_choices_to={"role": "student"})
-    exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, limit_choices_to={"role": "STUDENT"}, related_name='retake_requests')
+    exam = models.ForeignKey(Exam, on_delete=models.CASCADE, related_name='retake_requests')
     reason = models.TextField(blank=True, null=True)
     status = models.CharField(
         max_length=20,
@@ -339,6 +374,9 @@ class RetakeRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="retake_reviews")
+
+    class Meta:
+        ordering = ['-created_at']
 
     def __str__(self):
         return f"{self.student.username} → {self.exam.title} ({self.status})"
@@ -352,6 +390,7 @@ class Notification(models.Model):
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     related_exam = models.IntegerField(null=True, blank=True)
+    
     class Meta:
         ordering = ['-created_at']
 
@@ -359,21 +398,33 @@ class Notification(models.Model):
         self.is_read = True
         self.save()
 
+    def __str__(self):
+        return f"{self.title} - to {self.recipient.username}"
+
 
 class Broadcast(models.Model):
-    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    target_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, blank=True, null=True)
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='broadcasts')
+    target_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, blank=True, null=True, related_name='broadcasts')
     title = models.CharField(max_length=200)
     message = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
     
     def __str__(self):
         return f"Broadcast by {self.sender.username} to {self.target_class.name if self.target_class else 'All'}"
     
 
-
 class SystemLog(models.Model):
-    level = models.CharField(max_length=20)
+    LEVEL_CHOICES = (
+        ('INFO', 'Info'),
+        ('WARNING', 'Warning'),
+        ('ERROR', 'Error'),
+        ('CRITICAL', 'Critical'),
+    )
+    
+    level = models.CharField(max_length=20, choices=LEVEL_CHOICES)
     source = models.CharField(max_length=100)
     message = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -383,3 +434,17 @@ class SystemLog(models.Model):
 
     def __str__(self):
         return f"{self.level} | {self.source}"
+
+
+class ChatMessage(models.Model):
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sent_messages')
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='received_messages')
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.sender} -> {self.recipient}: {self.message[:20]}"

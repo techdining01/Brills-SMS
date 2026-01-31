@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Schedule Exam{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-calendar-event me-2"></i>Schedule Exam</h4>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Exam: {{ exam.title }}</h5>
+
+                    {% if schedule %}
+                    <div class="alert alert-info mb-4">
+                        <h6><i class="bi bi-info-circle"></i> Current Schedule</h6>
+                        <p class="mb-1">Scheduled for: <strong>{{ schedule.scheduled_date|date:"F j, Y, g:i a" }}</strong></p>
+                        <p class="mb-0">Status: <strong>{{ schedule.status|title }}</strong></p>
+                    </div>
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label for="scheduled_date" class="form-label">Start Date & Time</label>
+                            <input type="datetime-local" class="form-control" id="scheduled_date" name="scheduled_date" required 
+                                   value="{{ schedule.scheduled_date|date:'Y-m-d\TH:i' }}">
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="close_at" class="form-label">End Date & Time (Optional)</label>
+                            <input type="datetime-local" class="form-control" id="close_at" name="close_at"
+                                   value="{{ schedule.close_at|date:'Y-m-d\TH:i' }}">
+                            <div class="form-text">Leave blank if the exam has no fixed end time.</div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="notify_before_minutes" class="form-label">Notify Students Before (Minutes)</label>
+                            <input type="number" class="form-control" id="notify_before_minutes" name="notify_before_minutes" 
+                                   value="{{ schedule.notify_before_minutes|default:'15' }}" min="5" step="5">
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="auto_open" name="auto_open" checked>
+                            <label class="form-check-label" for="auto_open">Automatically open exam at start time</label>
+                        </div>
+
+                        <div class="mb-4 form-check">
+                            <input type="checkbox" class="form-check-input" id="auto_close" name="auto_close" checked>
+                            <label class="form-check-label" for="auto_close">Automatically close exam at end time</label>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> Save Schedule
+                            </button>
+                            <a href="{% url 'exam_detail' exam.id %}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

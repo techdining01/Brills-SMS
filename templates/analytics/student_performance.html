@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Student Performance - {{ student.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="bi bi-person-badge"></i> Student Performance</h2>
+            <p class="text-muted">{{ student.get_full_name }} ({{ student.username }})</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="javascript:history.back()" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm text-center h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Average Score</h6>
+                    <h2 class="text-primary">{{ performance.average_score|default:"0" }}%</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm text-center h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Exams Taken</h6>
+                    <h2 class="text-info">{{ performance.exams_taken|default:"0" }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm text-center h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Passed</h6>
+                    <h2 class="text-success">{{ performance.exams_passed|default:"0" }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm text-center h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Attendance</h6>
+                    <h2 class="text-warning">{{ performance.attendance_rate|default:"0" }}%</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">Exam History</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Exam</th>
+                        <th>Date</th>
+                        <th>Score</th>
+                        <th>Status</th>
+                        <th>Grade</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for attempt in performance.recent_attempts %}
+                    <tr>
+                        <td>{{ attempt.exam.title }}</td>
+                        <td>{{ attempt.completed_at|date:"M d, Y H:i" }}</td>
+                        <td>
+                            <strong>{{ attempt.score }}</strong> / {{ attempt.exam.total_marks }}
+                        </td>
+                        <td>
+                            {% if attempt.status == 'submitted' %}
+                                <span class="badge bg-success">Completed</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">{{ attempt.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if attempt.score >= attempt.exam.pass_mark %}
+                                <span class="badge bg-success">Pass</span>
+                            {% else %}
+                                <span class="badge bg-danger">Fail</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">
+                            No exam attempts recorded
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -125,9 +125,9 @@ def dashboard_redirect(request):
         return redirect('accounts:pending_approval')
 
     if user.role == "STUDENT":
-        return redirect("exams:student_dashboard")
+        return redirect("dashboards:student_dashboard")
     if user.role == "TEACHER":
-        return redirect("exams:teacher_dashboard")
+        return redirect("dashboards:teacher_dashboard")
     if user.role == "ADMIN":
         return redirect("admin_grand_dashboard")
     if user.role == 'PARENT':
@@ -146,10 +146,10 @@ def post_login_router(request):
         return redirect('accounts:pending_approval')
 
     if user.role == 'STUDENT':
-        return redirect('exams:student_dashboard')
+        return redirect('dashboards:student_dashboard')
 
     if user.role == 'TEACHER':
-        return redirect('exams:teacher_dashboard')
+        return redirect('dashboards:teacher_dashboard')
 
     if user.role == 'PARENT':
         return redirect('pickups:parent_dashboard')
