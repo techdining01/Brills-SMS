@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            {% extends 'base.html' %}
 {% load static %}
 
 {% block title %}Take Exam - {{ exam.title }}{% endblock %}
@@ -223,7 +223,7 @@
         <div style="margin-bottom: 15px;">
             <small class="text-muted">Questions: {{ answered_questions }}/{{ total_questions }}</small>
             <div class="progress-bar-custom">
-                <div class="progress-fill" style="width: {{ answered_questions|add:0|mul:100|div:total_questions }}%"></div>
+                <div class="progress-fill" style="width: {% widthratio answered_questions total_questions 100 %}%"></div>
             </div>
         </div>
         
@@ -238,15 +238,17 @@
     <div class="exam-content">
         <!-- Exam Header with Timer -->
         <div class="exam-header">
-            <div>
-                <h5 class="mb-0">{{ exam.title }}</h5>
-                <small class="text-muted">Question {{ current_question.order }} of {{ total_questions }}</small>
+        <div class="d-flex flex-column">
+            <div class="d-flex align-items-center">
+                <h5 class="mb-0 me-2">{{ exam.title }}</h5>
+                <span id="save-status" class="fw-bold" style="font-size: 0.8rem;"></span>
             </div>
-            <div class="timer" id="timer">
-                <i class="fas fa-clock"></i>
-                <span id="time-display">{{ time_remaining_minutes }}:{% widthratio time_remaining_seconds 60 1 %}</span>
-            </div>
+            <small class="text-muted">Question {{ current_question.order }} of {{ total_questions }}</small>
         </div>
+        <div class="timer" id="timer">
+            <i class="bi bi-clock"></i> <span id="time-display">{{ time_remaining_display }}</span>
+        </div>
+    </div>
         
         <!-- Question Display -->
         <div class="question-display">
@@ -258,8 +260,8 @@
                 </div>
                 
                 <!-- Question Type Badge -->
-                <span class="question-type-badge {% if current_question.question_type == 'objective' %}objective{% else %}subjective{% endif %}">
-                    {{ current_question.get_question_type_display }}
+                <span class="question-type-badge {% if current_question.type == 'objective' %}objective{% else %}subjective{% endif %}">
+                    {{ current_question.get_type_display }}
                 </span>
                 
                 <!-- Question Text -->
@@ -272,33 +274,29 @@
                     {% csrf_token %}
                     <input type="hidden" name="question_id" value="{{ current_question.id }}">
                     
-                    {% if current_question.question_type == 'objective' %}
+                    {% if current_question.type == 'objective' %}
                         <!-- Objective Question (MCQ) -->
                         <div class="options-group">
                             {% for choice in current_question.choices.all %}
-                                {% with current_answer=answers_map|get:current_question.id %}
-                                    <label class="option-item {% if current_answer.selected_choice_id == choice.id %}selected{% endif %}">
-                                        <input type="radio" 
-                                               name="selected_choice_id" 
-                                               value="{{ choice.id }}" 
-                                               class="choice-radio"
-                                               {% if current_answer.selected_choice_id == choice.id %}checked{% endif %}>
-                                        <span>{{ choice.text }}</span>
-                                    </label>
-                                {% endwith %}
+                                <label class="option-item {% if current_answer.selected_choice_id == choice.id %}selected{% endif %}">
+                                    <input type="radio" 
+                                           name="selected_choice_id" 
+                                           value="{{ choice.id }}" 
+                                           class="choice-radio"
+                                           {% if current_answer.selected_choice_id == choice.id %}checked{% endif %}>
+                                    <span>{{ choice.text }}</span>
+                                </label>
                             {% endfor %}
                         </div>
                     {% else %}
                         <!-- Subjective Question -->
-                        {% with current_answer=answers_map|get:current_question.id %}
-                            <textarea id="answer-text" 
-                                      name="answer_text" 
-                                      class="answer-textarea" 
-                                      placeholder="Type your answer here...">{{ current_answer.answer_text }}</textarea>
-                            <div class="char-count">
-                                <span id="char-count">0</span> / 5000 characters
-                            </div>
-                        {% endwith %}
+                        <textarea id="answer-text" 
+                                  name="answer_text" 
+                                  class="answer-textarea" 
+                                  placeholder="Type your answer here...">{{ current_answer.answer_text }}</textarea>
+                        <div class="char-count">
+                            <span id="char-count">0</span> / 5000 characters
+                        </div>
                     {% endif %}
                 </form>
             {% else %}
@@ -367,92 +365,141 @@ setInterval(updateTimer, 1000);
 const answerForm = document.getElementById('answer-form');
 const choiceRadios = document.querySelectorAll('.choice-radio');
 const answerTextarea = document.getElementById('answer-text');
+let isDirty = false;
+
+function setDirty() {
+    isDirty = true;
+    document.getElementById('save-status').textContent = 'Unsaved changes...';
+    document.getElementById('save-status').style.color = 'orange';
+}
 
 function saveAnswer() {
-    const questionId = answerForm.querySelector('input[name="question_id"]').value;
-    let selectedChoiceId = null;
-    let answerText = '';
-    
-    const checkedRadio = answerForm.querySelector('.choice-radio:checked');
-    if (checkedRadio) {
-        selectedChoiceId = checkedRadio.value;
-    }
-    
-    if (answerTextarea) {
-        answerText = answerTextarea.value;
-    }
-    
-    // AJAX save
-    fetch('{% url "save_answer" attempt.id %}', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            question_id: questionId,
-            selected_choice_id: selectedChoiceId,
-            answer_text: answerText
-        })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            console.log('Answer saved');
+    return new Promise((resolve, reject) => {
+        const questionId = answerForm.querySelector('input[name="question_id"]').value;
+        let selectedChoiceId = null;
+        let answerText = '';
+        
+        const checkedRadio = answerForm.querySelector('.choice-radio:checked');
+        if (checkedRadio) {
+            selectedChoiceId = checkedRadio.value;
         }
+        
+        if (answerTextarea) {
+            answerText = answerTextarea.value;
+        }
+        
+        document.getElementById('save-status').textContent = 'Saving...';
+        
+        // AJAX save
+        fetch('{% url "dashboards:save_answer" attempt.id %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                question_id: questionId,
+                selected_choice_id: selectedChoiceId,
+                answer_text: answerText
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Answer saved');
+                isDirty = false;
+                document.getElementById('save-status').textContent = 'Saved';
+                document.getElementById('save-status').style.color = 'green';
+                resolve(data);
+            } else {
+                console.error('Save failed:', data.error);
+                document.getElementById('save-status').textContent = 'Save Failed: ' + data.error;
+                document.getElementById('save-status').style.color = 'red';
+                reject(data.error);
+            }
+        })
+        .catch(err => {
+            console.error('Network error:', err);
+            document.getElementById('save-status').textContent = 'Network Error';
+            document.getElementById('save-status').style.color = 'red';
+            reject(err);
+        });
     });
 }
 
 // Auto-save on changes
 choiceRadios.forEach(radio => {
-    radio.addEventListener('change', saveAnswer);
+    radio.addEventListener('change', () => {
+        setDirty();
+        saveAnswer();
+    });
 });
 
 if (answerTextarea) {
     answerTextarea.addEventListener('input', () => {
+        setDirty();
         document.getElementById('char-count').textContent = answerTextarea.value.length;
     });
     
     // Auto-save every 30 seconds
-    setInterval(saveAnswer, 30000);
+    setInterval(() => {
+        if (isDirty) saveAnswer();
+    }, 30000);
 }
 
 // Navigation
 const questions = {{ total_questions }};
 let currentIndex = {{ current_question.order|add:"-1" }};
 
+async function navigateTo(url) {
+    if (isDirty) {
+        try {
+            await saveAnswer();
+            window.location.href = url;
+        } catch (e) {
+            if (confirm('Failed to save answer. Leave anyway?')) {
+                window.location.href = url;
+            }
+        }
+    } else {
+        window.location.href = url;
+    }
+}
+
 document.getElementById('prev-btn').addEventListener('click', () => {
     if (currentIndex > 0) {
         const questionsIds = Array.from(document.querySelectorAll('.question-item')).map(el => el.dataset.questionId);
-        window.location.href = `?question_id=${questionsIds[currentIndex - 1]}`;
+        navigateTo(`?question_id=${questionsIds[currentIndex - 1]}`);
     }
 });
 
 document.getElementById('next-btn').addEventListener('click', () => {
     const questionsIds = Array.from(document.querySelectorAll('.question-item')).map(el => el.dataset.questionId);
     if (currentIndex < questionsIds.length - 1) {
-        window.location.href = `?question_id=${questionsIds[currentIndex + 1]}`;
+        navigateTo(`?question_id=${questionsIds[currentIndex + 1]}`);
     }
 });
 
 // Interrupt exam
 document.getElementById('interrupt-btn').addEventListener('click', () => {
     if (confirm('Are you sure? You can resume this exam later.')) {
-        window.location.href = '{% url "interrupt_exam" attempt.id %}';
+        window.location.href = '{% url "dashboards:interrupt_exam" attempt.id %}';
     }
 });
 
 // Submit exam
 document.getElementById('submit-btn').addEventListener('click', () => {
     if (confirm('Are you sure you want to submit this exam? This cannot be undone.')) {
-        window.location.href = '{% url "submit_exam" attempt.id %}?confirm=true';
+        window.location.href = '{% url "dashboards:submit_exam" attempt.id %}?confirm=true';
     }
 });
 
 // Warn before leaving
 window.addEventListener('beforeunload', (e) => {
-    e.preventDefault();
-    e.returnValue = 'You have unsaved work. Are you sure?';
+    if (isDirty) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved work. Are you sure?';
+    }
 });
 </script>
 {% endblock %}

@@ -527,7 +527,7 @@ def question_bank_create(request):
                     except (ValueError, IndexError):
                         continue
         
-        return redirect('question_bank_detail', question_id=question.id)
+        return redirect('dashboards:question_bank_detail', question_id=question.id)
     
     context = {'categories': QuestionCategory.objects.all()}
     return render(request, 'question_bank/create.html', context)
@@ -578,7 +578,7 @@ def question_bank_edit(request, question_id):
                     except (ValueError, IndexError):
                         continue
         
-        return redirect('question_bank_detail', question_id=question.id)
+        return redirect('dashboards:question_bank_detail', question_id=question.id)
     
     context = {
         'question': question,
@@ -603,7 +603,7 @@ def rubric_edit(request, rubric_id):
         rubric.is_published = request.POST.get('is_published') == 'on'
         rubric.save()
         
-        return redirect('rubric_detail', rubric_id=rubric.id)
+        return redirect('dashboards:rubric_detail', rubric_id=rubric.id)
     
     context = {
         'rubric': rubric,

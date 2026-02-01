@@ -8,7 +8,7 @@
     {% for item in order.items.all %}
       <div class="d-flex justify-content-between mb-2">
         <span>{{ item.product_name }} × {{ item.quantity }}</span>
-        <strong>₦{{ item.subtotal|floatformat:0 }}</strong>
+        <div>₦{{ item.subtotal }}</div>
       </div>
     {% endfor %}
 

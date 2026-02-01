@@ -10,6 +10,7 @@ app_name = 'dashboards'
 urlpatterns = [
     # Authentication
     path('', views.cbt_exam, name='cbt'),
+    path('about/', views.about_page, name='about'),
     
     # Admin Dashboard
     path('admin/', views.admin_dashboard, name='admin_dashboard'),

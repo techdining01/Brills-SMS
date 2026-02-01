@@ -17,44 +17,64 @@
                         
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <label for="first_name" class="form-label">First Name *</label>
-                                <input type="text" class="form-control" id="first_name" name="first_name" required>
+                                <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name *</label>
+                                {{ form.first_name }}
+                                {{ form.first_name.errors }}
                             </div>
                             <div class="col-md-6">
-                                <label for="last_name" class="form-label">Last Name *</label>
-                                <input type="text" class="form-control" id="last_name" name="last_name" required>
+                                <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name *</label>
+                                {{ form.last_name }}
+                                {{ form.last_name.errors }}
                             </div>
                         </div>
                         
                         <div class="mb-3">
-                            <label for="username" class="form-label">Username *</label>
-                            <input type="text" class="form-control" id="username" name="username" required>
+                            <label for="{{ form.username.id_for_label }}" class="form-label">Username *</label>
+                            {{ form.username }}
+                            {{ form.username.errors }}
                             <div class="form-text">Used for login. Must be unique.</div>
                         </div>
 
                         <div class="mb-3">
-                            <label for="email" class="form-label">Email Address</label>
-                            <input type="email" class="form-control" id="email" name="email">
+                            <label for="{{ form.email.id_for_label }}" class="form-label">Email Address</label>
+                            {{ form.email }}
+                            {{ form.email.errors }}
                         </div>
                         
                         <div class="mb-3">
-                            <label for="password" class="form-label">Password *</label>
-                            <input type="password" class="form-control" id="password" name="password" required>
+                            <label for="{{ form.password.id_for_label }}" class="form-label">Password *</label>
+                            {{ form.password }}
+                            {{ form.password.errors }}
                         </div>
                         
                         <div class="mb-3">
-                            <label for="school_class" class="form-label">Class</label>
-                            <select class="form-select" id="school_class" name="school_class">
-                                <option value="">Select Class</option>
-                                {% for school_class in classes %}
-                                <option value="{{ school_class.id }}">{{ school_class.name }} ({{ school_class.academic_year }})</option>
-                                {% endfor %}
-                            </select>
+                            <label for="{{ form.student_class.id_for_label }}" class="form-label">Class</label>
+                            {{ form.student_class }}
+                            {{ form.student_class.errors }}
                         </div>
                         
                         <div class="mb-3">
-                            <label for="admission_number" class="form-label">Admission Number</label>
-                            <input type="text" class="form-control" id="admission_number" name="admission_number" placeholder="Leave blank to auto-generate">
+                            <label for="{{ form.admission_number.id_for_label }}" class="form-label">Admission Number</label>
+                            {{ form.admission_number }}
+                            {{ form.admission_number.errors }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.phone_number.id_for_label }}" class="form-label">Phone Number</label>
+                            {{ form.phone_number }}
+                            {{ form.phone_number.errors }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.address.id_for_label }}" class="form-label">Address</label>
+                            {{ form.address }}
+                            {{ form.address.errors }}
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            {{ form.is_active }}
+                            <label for="{{ form.is_active.id_for_label }}" class="form-check-label">Active</label>
+                            {{ form.is_active.errors }}
                         </div>
                         
                         <div class="d-flex justify-content-between mt-4">

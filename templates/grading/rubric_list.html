@@ -10,7 +10,7 @@
             <h2><i class="bi bi-list-check"></i> Grading Rubrics</h2>
         </div>
         <div class="col-md-4 text-end">
-            <a href="{% url 'rubric_create' %}" class="btn btn-primary">
+            <a href="{% url 'dashboards:rubric_create' %}" class="btn btn-primary">
                 <i class="bi bi-plus-circle"></i> Create Rubric
             </a>
         </div>
@@ -43,10 +43,10 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <a href="{% url 'rubric_detail' rubric.id %}" class="btn btn-sm btn-outline-primary">
+                                <a href="{% url 'dashboards:rubric_detail' rubric.id %}" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-eye"></i>
                                 </a>
-                                <a href="{% url 'rubric_edit' rubric.id %}" class="btn btn-sm btn-outline-secondary">
+                                <a href="{% url 'dashboards:rubric_edit' rubric.id %}" class="btn btn-sm btn-outline-secondary">
                                     <i class="bi bi-pencil"></i>
                                 </a>
                             </td>
@@ -55,7 +55,7 @@
                     {% else %}
                     <tr>
                         <td colspan="5" class="text-center text-muted py-4">
-                            No rubrics found. <a href="{% url 'rubric_create' %}">Create one now</a>
+                            No rubrics found. <a href="{% url 'dashboards:rubric_create' %}">Create one now</a>
                         </td>
                     </tr>
                     {% endif %}

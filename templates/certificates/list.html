@@ -62,10 +62,10 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <a href="{% url 'certificate_detail' cert.id %}" class="btn btn-sm btn-outline-primary">
+                                <a href="{% url 'dashboards:certificate_detail' cert.id %}" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-eye"></i>
                                 </a>
-                                <a href="{% url 'certificate_download' cert.id %}" class="btn btn-sm btn-outline-secondary">
+                                <a href="{% url 'dashboards:certificate_download' cert.id %}" class="btn btn-sm btn-outline-secondary">
                                     <i class="bi bi-download"></i>
                                 </a>
                             </td>

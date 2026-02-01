@@ -17,6 +17,7 @@ class CustomUserAdmin(UserAdmin):
 
     list_display = (
         "username",
+        'student_class',
         "email",
         "role",
         "is_active",
@@ -25,9 +26,9 @@ class CustomUserAdmin(UserAdmin):
         "date_joined",
     )
 
-    list_filter = ("role", "is_active", "is_approved")
+    list_filter = ("role", "is_active", "is_approved", "student_class")
 
-    search_fields = ("username", "email", "first_name", "last_name")
+    search_fields = ("username", "email", "first_name", "last_name", "student_class")
 
     ordering = ("-date_joined",)
 

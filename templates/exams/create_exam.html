@@ -3,6 +3,227 @@
 
 {% block title %}Create Exam{% endblock %}
 
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const addQuestionBtn = document.getElementById('addQuestionBtn');
+        const questionsContainer = document.getElementById('questionsContainer');
+        const emptyMsg = document.getElementById('emptyQuestionsMsg');
+        const form = document.querySelector('form');
+        let questionCount = 0;
+
+        addQuestionBtn.addEventListener('click', function() {
+            if (emptyMsg) emptyMsg.style.display = 'none';
+            questionCount++;
+            addQuestionCard(questionCount);
+        });
+
+        function addQuestionCard(index) {
+            const card = document.createElement('div');
+            card.className = 'card mb-3 border-secondary question-card';
+            card.dataset.index = index;
+            card.innerHTML = `
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <span class="fw-bold">Question ${index}</span>
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-question">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Question Text</label>
+                        <textarea class="form-control question-text" rows="2" required></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Type</label>
+                            <select class="form-select question-type">
+                                <option value="objective">Objective (Multiple Choice)</option>
+                                <option value="subjective">Subjective (Essay)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Marks</label>
+                            <input type="number" class="form-control question-marks" value="1" min="1">
+                        </div>
+                    </div>
+                    
+                    <div class="choices-section">
+                        <label class="form-label d-block">Choices (Select correct answer)</label>
+                        <div class="choices-container"></div>
+                        <button type="button" class="btn btn-sm btn-outline-primary mt-2 add-choice">
+                            <i class="bi bi-plus-circle"></i> Add Choice
+                        </button>
+                    </div>
+                </div>
+            `;
+            questionsContainer.appendChild(card);
+            
+            // Add initial choices for objective type
+            const choicesContainer = card.querySelector('.choices-container');
+            addChoice(choicesContainer, index, 1);
+            addChoice(choicesContainer, index, 2);
+
+            // Event Listeners for this card
+            const typeSelect = card.querySelector('.question-type');
+            const choicesSection = card.querySelector('.choices-section');
+            
+            typeSelect.addEventListener('change', function() {
+                if (this.value === 'objective') {
+                    choicesSection.style.display = 'block';
+                } else {
+                    choicesSection.style.display = 'none';
+                }
+            });
+
+            card.querySelector('.remove-question').addEventListener('click', function() {
+                card.remove();
+                if (questionsContainer.children.length === 0 && emptyMsg) {
+                    emptyMsg.style.display = 'block';
+                }
+                updateQuestionNumbers();
+            });
+
+            card.querySelector('.add-choice').addEventListener('click', function() {
+                addChoice(choicesContainer, index);
+            });
+        }
+
+        function addChoice(container, qIndex, choiceNum = null) {
+            const count = container.children.length + 1;
+            const row = document.createElement('div');
+            row.className = 'input-group mb-2 choice-row';
+            row.innerHTML = `
+                <div class="input-group-text">
+                    <input class="form-check-input mt-0 choice-correct" type="radio" name="correct_answer_${qIndex}" aria-label="Correct answer">
+                </div>
+                <input type="text" class="form-control choice-text" placeholder="Option ${choiceNum || count}" required>
+                <button class="btn btn-outline-secondary remove-choice" type="button"><i class="bi bi-x"></i></button>
+            `;
+            container.appendChild(row);
+
+            row.querySelector('.remove-choice').addEventListener('click', function() {
+                row.remove();
+            });
+        }
+
+        function updateQuestionNumbers() {
+            const cards = document.querySelectorAll('.question-card');
+            cards.forEach((card, i) => {
+                const newIndex = i + 1;
+                card.querySelector('.card-header span').textContent = `Question ${newIndex}`;
+                card.dataset.index = newIndex;
+                
+                // Update radio names
+                card.querySelectorAll('.choice-correct').forEach(radio => {
+                    radio.name = `correct_answer_${newIndex}`;
+                });
+                
+                // Update event listeners references if needed (not needed as closures capture elements)
+            });
+            questionCount = cards.length;
+        }
+
+        // Form Submission Interception
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Gather Exam Data
+            const formData = new FormData(form);
+            const examData = {};
+            formData.forEach((value, key) => {
+                examData[key] = value;
+            });
+
+            // Explicitly handle checkboxes
+            ['is_active', 'is_published', 'allow_retake'].forEach(field => {
+                const el = form.querySelector(`[name="${field}"]`);
+                if (el) examData[field] = el.checked;
+            });
+
+            // Gather Questions Data
+            const questions = [];
+            let isValid = true;
+            
+            const cards = document.querySelectorAll('.question-card');
+            cards.forEach((card, index) => {
+                const qType = card.querySelector('.question-type').value;
+                const question = {
+                    text: card.querySelector('.question-text').value,
+                    type: qType,
+                    marks: card.querySelector('.question-marks').value,
+                    order: index + 1,
+                    choices: []
+                };
+
+                if (qType === 'objective') {
+                    const choiceRows = card.querySelectorAll('.choice-row');
+                    if (choiceRows.length < 2) {
+                        alert(`Question ${index + 1} must have at least 2 choices.`);
+                        isValid = false;
+                        return;
+                    }
+                    
+                    let hasCorrect = false;
+                    choiceRows.forEach(row => {
+                        const isCorrect = row.querySelector('.choice-correct').checked;
+                        if (isCorrect) hasCorrect = true;
+                        question.choices.push({
+                            text: row.querySelector('.choice-text').value,
+                            is_correct: isCorrect
+                        });
+                    });
+                    
+                    if (!hasCorrect) {
+                        alert(`Question ${index + 1} must have a correct answer selected.`);
+                        isValid = false;
+                        return;
+                    }
+                }
+                questions.push(question);
+            });
+
+            if (!isValid) return;
+
+            const payload = {
+                exam: examData,
+                questions: questions
+            };
+
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+
+            fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert('Error creating exam: ' + JSON.stringify(data.errors || data.message));
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An unexpected error occurred.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            });
+        });
+    });
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
     <div class="row">
@@ -11,30 +232,36 @@
 
             <div class="card">
                 <div class="card-body">
-                    <form method="post" action="{% url 'create_exam' %}">
+                    <form method="post" action="{% url 'dashboards:create_exam' %}">
                         {% csrf_token %}
+
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                         
                         <div class="mb-3">
-                            <label for="title" class="form-label">Exam Title *</label>
-                            <input type="text" class="form-control" id="title" name="title" required placeholder="e.g. Mathematics Mid-Term">
+                            <label for="{{ form.title.id_for_label }}" class="form-label">Exam Title *</label>
+                            {{ form.title }}
+                            {{ form.title.errors }}
                         </div>
 
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="school_class" class="form-label">Class *</label>
-                                    <select class="form-select" id="school_class" name="school_class" required>
-                                        <option value="">Select a class</option>
-                                        {% for class in classes %}
-                                        <option value="{{ class.id }}">{{ class.name }} ({{ class.academic_year }})</option>
-                                        {% endfor %}
-                                    </select>
+                                    <label for="{{ form.school_class.id_for_label }}" class="form-label">Class *</label>
+                                    {{ form.school_class }}
+                                    {{ form.school_class.errors }}
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="duration" class="form-label">Duration (minutes) *</label>
-                                    <input type="number" class="form-control" id="duration" name="duration" required min="5">
+                                    <label for="{{ form.duration.id_for_label }}" class="form-label">Duration (minutes) *</label>
+                                    {{ form.duration }}
+                                    {{ form.duration.errors }}
                                 </div>
                             </div>
                         </div>
@@ -42,27 +269,61 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="start_time" class="form-label">Start Time *</label>
-                                    <input type="datetime-local" class="form-control" id="start_time" name="start_time" required>
+                                    <label for="{{ form.start_time.id_for_label }}" class="form-label">Start Time *</label>
+                                    {{ form.start_time }}
+                                    {{ form.start_time.errors }}
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="end_time" class="form-label">End Time *</label>
-                                    <input type="datetime-local" class="form-control" id="end_time" name="end_time" required>
+                                    <label for="{{ form.end_time.id_for_label }}" class="form-label">End Time *</label>
+                                    {{ form.end_time }}
+                                    {{ form.end_time.errors }}
                                 </div>
                             </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.passing_marks.id_for_label }}" class="form-label">Passing Marks</label>
+                            {{ form.passing_marks }}
+                            {{ form.passing_marks.errors }}
                         </div>
 
                         <div class="mb-3 border p-3 rounded bg-light">
                             <label class="form-label fw-bold">Settings</label>
                             <div class="form-check form-switch mb-2">
-                                <input class="form-check-input" type="checkbox" id="allow_retake" name="allow_retake">
-                                <label class="form-check-label" for="allow_retake">Allow Retakes</label>
+                                {{ form.is_active }}
+                                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Active</label>
+                                {{ form.is_active.errors }}
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                {{ form.allow_retake }}
+                                <label class="form-check-label" for="{{ form.allow_retake.id_for_label }}">Allow Retakes</label>
+                                {{ form.allow_retake.errors }}
                             </div>
                             <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="is_published" name="is_published">
-                                <label class="form-check-label" for="is_published">Publish Immediately</label>
+                                {{ form.is_published }}
+                                <label class="form-check-label" for="{{ form.is_published.id_for_label }}">Publish Immediately</label>
+                                {{ form.is_published.errors }}
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <!-- Question Builder Section -->
+                        <div class="mt-4 mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0 fw-bold"><i class="bi bi-list-task me-2"></i>Questions</h5>
+                                <button type="button" class="btn btn-sm btn-success" id="addQuestionBtn">
+                                    <i class="bi bi-plus-lg"></i> Add Question
+                                </button>
+                            </div>
+                            
+                            <div id="questionsContainer">
+                                <!-- Questions will be added here dynamically -->
+                                <div class="text-center text-muted py-4 border rounded bg-light" id="emptyQuestionsMsg">
+                                    <p class="mb-0">No questions added yet. Click "Add Question" to begin.</p>
+                                </div>
                             </div>
                         </div>
 

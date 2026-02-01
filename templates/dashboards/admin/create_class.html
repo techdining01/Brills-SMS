@@ -16,39 +16,46 @@
                         {% csrf_token %}
                         
                         <div class="mb-3">
-                            <label for="name" class="form-label">Class Name *</label>
-                            <input type="text" class="form-control" id="name" name="name" required placeholder="e.g. JSS 1 A">
+                            <label for="{{ form.name.id_for_label }}" class="form-label">Class Name *</label>
+                            {{ form.name }}
+                            {{ form.name.errors }}
                         </div>
                         
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <label for="level" class="form-label">Level *</label>
-                                <select class="form-select" id="level" name="level" required>
-                                    <option value="">Select Level</option>
-                                    {% for value, label in levels %}
-                                    <option value="{{ value }}">{{ label }}</option>
-                                    {% endfor %}
-                                </select>
+                                <label for="{{ form.level.id_for_label }}" class="form-label">Level *</label>
+                                {{ form.level }}
+                                {{ form.level.errors }}
                             </div>
                             <div class="col-md-6">
-                                <label for="academic_year" class="form-label">Academic Year *</label>
-                                <input type="text" class="form-control" id="academic_year" name="academic_year" required placeholder="e.g. 2023/2024">
+                                <label for="{{ form.academic_year.id_for_label }}" class="form-label">Academic Year *</label>
+                                {{ form.academic_year }}
+                                {{ form.academic_year.errors }}
                             </div>
                         </div>
                         
                         <div class="mb-3">
-                            <label for="teacher" class="form-label">Class Teacher</label>
-                            <select class="form-select" id="teacher" name="teacher">
-                                <option value="">Select Teacher (Optional)</option>
-                                {% for teacher in teachers %}
-                                <option value="{{ teacher.id }}">{{ teacher.get_full_name }} ({{ teacher.username }})</option>
-                                {% endfor %}
-                            </select>
+                            <label for="{{ form.teacher.id_for_label }}" class="form-label">Class Teacher</label>
+                            {{ form.teacher }}
+                            {{ form.teacher.errors }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.assistant_teacher.id_for_label }}" class="form-label">Assistant Teacher</label>
+                            {{ form.assistant_teacher }}
+                            {{ form.assistant_teacher.errors }}
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            {{ form.is_active }}
+                            <label for="{{ form.is_active.id_for_label }}" class="form-check-label">Active</label>
+                            {{ form.is_active.errors }}
                         </div>
                         
                         <div class="mb-3">
-                            <label for="description" class="form-label">Description</label>
-                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                            <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                            {{ form.description }}
+                            {{ form.description.errors }}
                         </div>
                         
                         <div class="d-flex justify-content-between mt-4">

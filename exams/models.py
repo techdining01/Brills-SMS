@@ -229,6 +229,8 @@ class ExamAttempt(models.Model):
             return 'C'
         elif pct >= 45:
             return 'D'
+        elif pct >= 40:
+            return 'E'
         else:
             return 'F'
 

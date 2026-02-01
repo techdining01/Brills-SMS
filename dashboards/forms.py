@@ -30,12 +30,22 @@ class StudentForm(forms.ModelForm):
     
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'email', 'student_class', 'phone_number', 'address', 'password', 'is_active']
+        fields = ['username', 'first_name', 'last_name', 'email', 'student_class', 'admission_number', 'phone_number', 'address', 'password', 'is_active']
         widgets = {
+            'username': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. adigun_123'}),
             'first_name': forms.TextInput(attrs={'class': 'form-control'}),
             'last_name': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
             'student_class': forms.Select(attrs={'class': 'form-select'}),
+            'admission_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'phone_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 08012345678'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'username': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. jdoe123'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'student_class': forms.Select(attrs={'class': 'form-select'}),
+            'admission_number': forms.TextInput(attrs={'class': 'form-control'}),
             'phone_number': forms.TextInput(attrs={'class': 'form-control'}),
             'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -57,14 +67,15 @@ class StudentForm(forms.ModelForm):
 class ExamForm(forms.ModelForm):
     class Meta:
         model = Exam
-        fields = ['title', 'school_class', 'duration', 'start_time', 'end_time', 'passing_marks', 'is_active', 'allow_retake']
+        fields = ['title', 'school_class', 'duration', 'start_time', 'end_time', 'passing_marks', 'is_active', 'is_published', 'allow_retake']
         widgets = {
-            'title': forms.TextInput(attrs={'class': 'form-control'}),
+            'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. First Term Exam Math'}),
             'school_class': forms.Select(attrs={'class': 'form-select'}),
             'duration': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Minutes'}),
             'start_time': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
             'end_time': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
             'passing_marks': forms.NumberInput(attrs={'class': 'form-control'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'is_published': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'allow_retake': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }

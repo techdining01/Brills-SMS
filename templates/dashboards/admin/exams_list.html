@@ -35,10 +35,10 @@
                     {% for exam in exams %}
                     <tr>
                         <td><strong>{{ exam.title }}</strong></td>
-                        <td>{{ exam.exam_class.name }}</td>
+                        <td>{{ exam.school_class.name }}</td>
                         <td><span class="badge bg-info">{{ exam.questions.count }}</span></td>
                         <td>{{ exam.duration }} min</td>
-                        <td><span class="badge bg-secondary">{{ exam.attempts.count }}</span></td>
+                        <td><span class="badge bg-secondary">{{ exam.exam_attempts.count }}</span></td>
                         <td>
                             {% if exam.is_published %}
                                 <span class="badge bg-success">Published</span>
@@ -47,13 +47,13 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{% url 'exam_detail' exam.id %}" class="btn btn-sm btn-outline-primary" title="View">
+                            <a href="{% url 'dashboards:exam_detail' exam.id %}" class="btn btn-sm btn-outline-primary" title="View">
                                 <i class="bi bi-eye"></i>
                             </a>
-                            <a href="{% url 'edit_exam' exam.id %}" class="btn btn-sm btn-outline-secondary" title="Edit">
+                            <a href="{% url 'dashboards:edit_exam' exam.id %}" class="btn btn-sm btn-outline-secondary" title="Edit">
                                 <i class="bi bi-pencil"></i>
                             </a>
-                            <a href="{% url 'delete_exam' exam.id %}" class="btn btn-sm btn-outline-danger" title="Delete" onclick="return confirm('Are you sure you want to delete this exam?')">
+                            <a href="{% url 'dashboards:delete_exam' exam.id %}" class="btn btn-sm btn-outline-danger" title="Delete" onclick="return confirm('Are you sure you want to delete this exam?')">
                                 <i class="bi bi-trash"></i>
                             </a>
                         </td>
@@ -65,7 +65,7 @@
     </div>
     {% else %}
     <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i> No exams found. <a href="{% url 'create_exam' %}">Create one now</a>
+        <i class="bi bi-info-circle"></i> No exams found. <a href="{% url 'dashboards:create_exam' %}">Create one now</a>
     </div>
     {% endif %}
 </div>

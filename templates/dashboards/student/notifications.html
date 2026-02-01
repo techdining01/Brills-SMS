@@ -52,7 +52,7 @@
 
 <script>
 function markAllAsRead() {
-    fetch('{% url 'mark_all_notifications_read' %}', {
+    fetch('{% url 'dashboards:mark_all_notifications_read' %}', {
         method: 'POST',
         headers: {
             'X-CSRFToken': '{{ csrf_token }}',

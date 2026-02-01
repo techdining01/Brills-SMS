@@ -7,15 +7,15 @@ PHASE 2: EXAM TAKING INTERFACE
 - Submit & auto-grade objective questions
 """
 
-from turtle import title
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_http_methods, require_POST
+from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
-from django.db.models import Q, Count, Max, F
+from django.db.models import Count
 from django.utils import timezone
 from django.db import transaction
-from datetime import datetime, timedelta
+from django.contrib import messages
 import json
 
 from accounts.models import User
@@ -27,7 +27,7 @@ from exams.models import (
 
 # ========================= EXAM TAKING VIEWS =========================
 
-@login_required(login_url='login')
+@login_required()
 @require_http_methods(["GET"])
 def start_exam(request, exam_id):
     """
@@ -52,7 +52,7 @@ def start_exam(request, exam_id):
     
     if active_attempt:
         # Resume existing attempt
-        return redirect('take_exam', attempt_id=active_attempt.id)
+        return redirect('dashboards:take_exam', attempt_id=active_attempt.id)
     
     # Check if exam has started
     if exam.start_time > timezone.now():
@@ -61,12 +61,12 @@ def start_exam(request, exam_id):
             'time_until_start': exam.start_time - timezone.now()
         })
     
-    # # Check if exam has ended
-    # if exam.end_time < timezone.now():
-    #     return render(request, 'exams/exam_ended.html', {
-    #         'exam': exam,
-    #         'message': 'This exam has ended'
-    #     })
+    # Check if exam has ended
+    if exam.end_time < timezone.now():
+        return render(request, 'exams/exam_ended.html', {
+            'exam': exam,
+            'message': 'This exam has ended'
+        })
     
     # Show exam instructions
     return render(request, 'exams/exam_instructions.html', {
@@ -79,7 +79,7 @@ def start_exam(request, exam_id):
     })
 
 
-@login_required(login_url='login')
+@login_required()
 @require_http_methods(["POST"])
 def create_exam_attempt(request, exam_id):
     """
@@ -92,7 +92,7 @@ def create_exam_attempt(request, exam_id):
     # Verify access
     if not _can_take_exam(student, exam):
         messages.error(request, 'You do not have access to this exam')
-        return redirect('student_available_exams')
+        return redirect('dashboards:student_available_exams')
     
     # Check existing active attempt
     active_attempt = ExamAttempt.objects.filter(
@@ -102,7 +102,7 @@ def create_exam_attempt(request, exam_id):
     ).first()
     
     if active_attempt:
-        return redirect('take_exam', attempt_id=active_attempt.id)
+        return redirect('dashboards:take_exam', attempt_id=active_attempt.id)
     
     # Create new attempt
     with transaction.atomic():
@@ -131,10 +131,10 @@ def create_exam_attempt(request, exam_id):
                 related_exam=exam.id
             )
     
-    return redirect('take_exam', attempt_id=attempt.id)
+    return redirect('dashboards:take_exam', attempt_id=attempt.id)
 
 
-@login_required(login_url='login')
+@login_required()
 @require_http_methods(["GET"])
 def take_exam(request, attempt_id):
     """
@@ -151,8 +151,11 @@ def take_exam(request, attempt_id):
         return JsonResponse({'error': 'Unauthorized'}, status=403)
     
     # Check if exam has ended
+    if attempt.status == 'submitted':
+        return JsonResponse({'error': 'Exam already submitted'}, status=400)
+    
     if attempt.exam.end_time < timezone.now():
-        return redirect('submit_exam', attempt_id=attempt.id)
+        return redirect('dashboards:submit_exam', attempt_id=attempt.id)
     
     # Calculate time remaining
     elapsed = (timezone.now() - attempt.started_at).total_seconds()
@@ -161,7 +164,7 @@ def take_exam(request, attempt_id):
     
     # Auto-submit if time's up
     if time_remaining <= 0:
-        return redirect('submit_exam', attempt_id=attempt.id)
+        return redirect('dashboards:submit_exam', attempt_id=attempt.id)
     
     # Get all questions
     questions = attempt.exam.questions.prefetch_related(
@@ -170,7 +173,7 @@ def take_exam(request, attempt_id):
     
     # Get student's current answers
     student_answers = StudentAnswer.objects.filter(
-        exam_attempt=attempt
+        attempt=attempt
     ).select_related('selected_choice')
     
     # Build answer map
@@ -189,6 +192,11 @@ def take_exam(request, attempt_id):
     else:
         current_question = questions.first()
     
+    # Get current answer if exists
+    current_answer = None
+    if current_question and current_question.id in answers_map:
+        current_answer = answers_map[current_question.id]
+
     # Question navigation data
     questions_data = []
     for i, q in enumerate(questions, 1):
@@ -196,7 +204,7 @@ def take_exam(request, attempt_id):
         questions_data.append({
             'id': q.id,
             'number': i,
-            'type': q.question_type,
+            'type': q.type,
             'is_answered': is_answered,
             'is_current': q.id == current_question.id if current_question else False
         })
@@ -205,46 +213,72 @@ def take_exam(request, attempt_id):
         'attempt': attempt,
         'exam': attempt.exam,
         'current_question': current_question,
+        'current_answer': current_answer,
         'questions': questions,
         'questions_data': questions_data,
         'answers_map': answers_map,
         'total_questions': questions.count(),
         'answered_questions': len(answers_map),
         'time_remaining_seconds': int(time_remaining),
-        'time_remaining_minutes': int(time_remaining // 60),
+        'time_remaining_display': f"{int(time_remaining // 60)}:{int(time_remaining % 60):02d}",
         'duration_minutes': attempt.exam.duration
     })
 
 
-@login_required(login_url='login')
+@login_required()
 @require_http_methods(["POST"])
 def save_answer(request, attempt_id):
     """
     Save a single answer (AJAX auto-save)
     POST: Save answer and return status
     """
-    attempt = get_object_or_404(ExamAttempt, id=attempt_id)
+    try:
+        attempt = ExamAttempt.objects.get(id=attempt_id)
+    except ExamAttempt.DoesNotExist:
+        return JsonResponse({'error': 'Exam attempt not found'}, status=404)
     
     # Verify ownership
     if attempt.student != request.user:
         return JsonResponse({'error': 'Unauthorized'}, status=403)
     
     # Check exam not ended
+    if attempt.status == 'submitted':
+        return JsonResponse({'error': 'Exam already submitted'}, status=400)
+    
+    # Allow saving if within duration, even if end_time passed slightly (grace period), 
+    # but strict on end_time if it's a fixed schedule.
+    # For now, we keep the strict check but return clear error.
     if attempt.exam.end_time < timezone.now():
-        return JsonResponse({'error': 'Exam time ended'}, status=400)
+        return JsonResponse({'error': 'Exam time has ended'}, status=400)
     
     try:
         data = json.loads(request.body)
         question_id = data.get('question_id')
-        question = Question.objects.get(id=question_id, exam=attempt.exam)
         
+        if not question_id:
+            return JsonResponse({'error': 'Missing question ID'}, status=400)
+
+        try:
+            question = Question.objects.get(id=question_id, exam=attempt.exam)
+        except Question.DoesNotExist:
+             return JsonResponse({'error': 'Invalid question ID'}, status=400)
+        
+        selected_choice_id = data.get('selected_choice_id')
+        
+        # If selected_choice_id is provided, verify it exists and belongs to question
+        if selected_choice_id:
+            if not question.choices.filter(id=selected_choice_id).exists():
+                 # If choice invalid, treat as clearing the answer or error?
+                 # Better to return error to debug frontend issues
+                 return JsonResponse({'error': 'Invalid choice selection'}, status=400)
+
         with transaction.atomic():
             # Get or create student answer
             student_answer, created = StudentAnswer.objects.update_or_create(
                 exam_attempt=attempt,
                 question=question,
                 defaults={
-                    'selected_choice_id': data.get('selected_choice_id'),
+                    'selected_choice_id': selected_choice_id,
                     'answer_text': data.get('answer_text', ''),
                     'answered_at': timezone.now()
                 }
@@ -261,6 +295,8 @@ def save_answer(request, attempt_id):
             'answered_count': attempt.answers.all().count()
         })
     
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
     except Exception as e:
         return JsonResponse({
             'success': False,
@@ -268,7 +304,7 @@ def save_answer(request, attempt_id):
         }, status=400)
 
 
-@login_required(login_url='login')
+@login_required()
 @require_http_methods(["GET"])
 def resume_exam(request, attempt_id):
     """
@@ -292,10 +328,10 @@ def resume_exam(request, attempt_id):
         attempt.status = 'in_progress'
         attempt.save()
     
-    return redirect('take_exam', attempt_id=attempt.id)
+    return redirect('dashboards:take_exam', attempt_id=attempt.id)
 
 
-@login_required(login_url='login')
+@login_required()
 @require_http_methods(["GET", "POST"])
 def submit_exam(request, attempt_id):
     """
@@ -331,7 +367,7 @@ def submit_exam(request, attempt_id):
         
         # Auto-grade objective questions
         objective_questions = attempt.exam.questions.filter(
-            question_type='objective'
+            type='objective'
         )
         
         total_objective_score = 0
@@ -357,7 +393,7 @@ def submit_exam(request, attempt_id):
         SystemLog.objects.create(
             level='INFO',
             message=f'Student {attempt.student.username} submitted exam: {attempt.exam.title}',
-            created_by=attempt.student
+            created_at=timezone.now()
         )
         
         # Create notification for teacher
@@ -369,11 +405,11 @@ def submit_exam(request, attempt_id):
                 message=f'{attempt.student.get_full_name()} submitted exam: {attempt.exam.title}',
                 related_exam=attempt.exam
             )
-    
-    return redirect('exam_result', attempt_id=attempt.id)
+        
+        return redirect('dashboards:exam_result', attempt_id=attempt.id)
 
 
-@login_required(login_url='login')
+@login_required()   
 @require_http_methods(["GET"])
 def exam_result(request, attempt_id):
     """
@@ -402,12 +438,12 @@ def exam_result(request, attempt_id):
     for answer in answers:
         answer_data = {
             'question': answer.question,
-            'question_type': answer.question.question_type,
+            'question_type': answer.question.type,
             'marks': answer.question.marks,
             'answer': answer
         }
         
-        if answer.question.question_type == 'objective':
+        if answer.question.type == 'objective':
             answer_data['is_correct'] = (
                 answer.selected_choice and answer.selected_choice.is_correct
             )
@@ -459,7 +495,7 @@ def exam_result(request, attempt_id):
     })
 
 
-@login_required(login_url='login')
+@login_required()
 @require_http_methods(["GET"])
 def interrupt_exam(request, attempt_id):
     """
@@ -479,11 +515,11 @@ def interrupt_exam(request, attempt_id):
         SystemLog.objects.create(
             level='INFO',
             message=f'Exam interrupted by {attempt.student.username}: {attempt.exam.title}',
-            created_by=attempt.student
+            created_at=timezone.now()
         )
     
     messages.info(request, 'Exam interrupted. You can resume later.')
-    return redirect('student_available_exams')
+    return redirect('dashboards:student_available_exams')
 
 
 # ========================= HELPER FUNCTIONS =========================

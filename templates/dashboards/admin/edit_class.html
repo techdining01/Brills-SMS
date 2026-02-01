@@ -15,46 +15,9 @@
                     </a>
                 </div>
                 <div class="card-body">
-                    <form method="post" action="{% url 'dashboards:admin_create_class' %}">
+                    <form method="post">
                         {% csrf_token %}
-                        
-                        <div class="mb-3">
-                            <label for="name" class="form-label">Class Name *</label>
-                            <input type="text" class="form-control" id="name" name="name" value="{{ class.name }}" required>
-                        </div>
-                        
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label for="level" class="form-label">Level *</label>
-                                <select class="form-select" id="level" name="level" required>
-                                    <option value="">Select Level</option>
-                                    {% for value, label in levels %}
-                                    <option value="{{ value }}" {% if class.level == value %}selected{% endif %}>{{ label }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="academic_year" class="form-label">Academic Year *</label>
-                                <input type="text" class="form-control" id="academic_year" name="academic_year" value="{{ class.academic_year }}" required>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="teacher" class="form-label">Class Teacher</label>
-                            <select class="form-select" id="teacher" name="teacher">
-                                <option value="">Select Teacher (Optional)</option>
-                                {% for teacher in teachers %}
-                                <option value="{{ teacher.id }}" {% if class.teacher.id == teacher.id %}selected{% endif %}>
-                                    {{ teacher.get_full_name }} ({{ teacher.username }})
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="description" class="form-label">Description</label>
-                            <textarea class="form-control" id="description" name="description" rows="3">{{ class.description }}</textarea>
-                        </div>
+                        {{form.as_p}}
                         
                         <div class="d-flex justify-content-between mt-4">
                             <a href="{% url 'dashboards:admin_classes_list' %}" class="btn btn-secondary">Cancel</a>

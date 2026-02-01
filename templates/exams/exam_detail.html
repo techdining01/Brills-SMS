@@ -10,10 +10,10 @@
             <h2><i class="bi bi-file-earmark-text"></i> {{ exam.title }}</h2>
         </div>
         <div class="col-md-4 text-end">
-            <a href="{% url 'edit_exam' exam.id %}" class="btn btn-secondary me-2">
+            <a href="{% url 'dashboards:edit_exam' exam.id %}" class="btn btn-secondary me-2">
                 <i class="bi bi-pencil"></i> Edit
             </a>
-            <a href="{% url 'teacher_exams_list' %}" class="btn btn-outline-secondary">
+            <a href="{% url 'dashboards:teacher_exams_list' %}" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left"></i> Back
             </a>
         </div>
@@ -103,21 +103,21 @@
                 <div class="card-body">
                     <div class="d-grid gap-2">
                         {% if not exam.is_published %}
-                        <a href="{% url 'publish_exam' exam.id %}" class="btn btn-success">
+                        <a href="{% url 'dashboards:publish_exam' exam.id %}" class="btn btn-success">
                             <i class="bi bi-check-circle"></i> Publish Exam
                         </a>
                         {% else %}
-                        <a href="{% url 'unpublish_exam' exam.id %}" class="btn btn-warning">
+                        <a href="{% url 'dashboards:unpublish_exam' exam.id %}" class="btn btn-warning">
                             <i class="bi bi-dash-circle"></i> Unpublish
                         </a>
                         {% endif %}
-                        <a href="{% url 'schedule_exam' exam.id %}" class="btn btn-info">
+                        <a href="{% url 'dashboards:schedule_exam' exam.id %}" class="btn btn-info">
                             <i class="bi bi-calendar-event"></i> Schedule
                         </a>
-                        <a href="{% url 'exam_analytics_phase5' exam.id %}" class="btn btn-secondary">
+                        <a href="{% url 'dashboards:exam_analytics_phase5' exam.id %}" class="btn btn-secondary">
                             <i class="bi bi-graph-up"></i> View Analytics
                         </a>
-                        <a href="{% url 'batch_issue_certificates' exam.id %}" class="btn btn-outline-primary">
+                        <a href="{% url 'dashboards:batch_issue_certificates' exam.id %}" class="btn btn-outline-primary">
                             <i class="bi bi-award"></i> Issue Certificates
                         </a>
                     </div>

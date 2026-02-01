@@ -9,13 +9,14 @@ from accounts.models import User
 from exams.models import Exam, RetakeRequest, ChatMessage, SystemLog, Notification, Broadcast
 from . import grading_views, exam_views, notification_views
 from .forms import SchoolClassForm, StudentForm, ExamForm
-from exams.models import Exam, RetakeRequest, ChatMessage, SystemLog, Notification, SchoolClass, Broadcast
+from exams.models import Exam, RetakeRequest, ChatMessage, SystemLog, Notification, SchoolClass, Broadcast, ExamAttempt
 
 # ========================= AUTHENTICATION =========================
 def cbt_exam(request):
     return render(request, 'exams/cbt_home.html')
 
-login
+def about_page(request):
+    return render(request, 'exams/about.html')
 # ========================= DASHBOARDS =========================
 
 @login_required()
@@ -26,12 +27,16 @@ def admin_dashboard(request):
     # Stats for admin
     total_students = User.objects.filter(role=User.Role.STUDENT).count()
     total_teachers = User.objects.filter(role=User.Role.TEACHER).count()
-    total_exams = Exam.objects.count()
-    
+    total_exams = Exam.objects.all().count()
+    total_classes = SchoolClass.objects.all().count()
+
     context = {
+
+
         'total_students': total_students,
         'total_teachers': total_teachers,
         'total_exams': total_exams,
+        'total_classes': total_classes
     }
     return render(request, 'dashboards/admin/dashboard.html', context)
 
@@ -46,7 +51,48 @@ def teacher_dashboard(request):
 def student_dashboard(request):
     if request.user.role != User.Role.STUDENT:
         return redirect('accounts:dashboard_redirect')
-    return render(request, 'dashboards/student/dashboard.html')
+    
+    student = request.user
+    
+    # Get available exams (active, published, for student's class)
+    available_exams = Exam.objects.filter(
+        school_class=student.student_class,
+        is_published=True,
+        is_active=True
+    ).order_by('end_time')[:5]  # Show top 5 upcoming
+    
+    # Completed exams count
+    completed_attempts = ExamAttempt.objects.filter(
+        student=student, 
+        status='submitted'
+    )
+    completed_exams = completed_attempts.count()
+    
+    # Average Score
+    average_score = completed_attempts.aggregate(Avg('score'))['score__avg'] or 0
+    
+    # Simple Class Rank (based on average score of all students in class)
+    class_students = User.objects.filter(role=User.Role.STUDENT, student_class=student.student_class)
+    student_scores = []
+    for s in class_students:
+        s_avg = s.attempts.filter(status='submitted').aggregate(Avg('score'))['score__avg'] or 0
+        student_scores.append(s_avg)
+    
+    student_scores.sort(reverse=True)
+    try:
+        class_rank = student_scores.index(average_score) + 1
+    except ValueError:
+        class_rank = "-"
+        
+    context = {
+        'total_exams': Exam.objects.filter(school_class=student.student_class, is_published=True).count(),
+        'available_exams': available_exams,
+        'completed_exams': completed_exams,
+        'average_score': round(average_score, 1),
+        'class_rank': class_rank
+    }
+    
+    return render(request, 'dashboards/student/dashboard.html', context)
 
 @login_required()
 def parent_dashboard(request):
@@ -69,7 +115,7 @@ def admin_create_class(request):
         if form.is_valid():
             form.save()
             messages.success(request, 'Class created successfully.')
-            return redirect('dashboard:admin_classes_list')
+            return redirect('dashboards:admin_classes_list')
     else:
         form = SchoolClassForm()
     
@@ -109,7 +155,7 @@ def admin_delete_class(request, class_id):
     if request.method == 'POST':
         school_class.delete()
         messages.success(request, 'Class deleted successfully.')
-        return redirect('dashboard:admin_classes_list')
+        return redirect('dashboards:admin_classes_list')
     return render(request, 'dashboards/admin/class_confirm_delete.html', {'class': school_class})
 
 @login_required()
@@ -156,7 +202,7 @@ def admin_create_student(request):
         if form.is_valid():
             form.save()
             messages.success(request, 'Student created successfully.')
-            return redirect('dashboard:admin_students_list')
+            return redirect('dashboards:admin_students_list')
     else:
         form = StudentForm()
     
@@ -170,7 +216,7 @@ def admin_edit_student(request, student_id):
         if form.is_valid():
             form.save()
             messages.success(request, 'Student updated successfully.')
-            return redirect('dashboard:admin_students_list')
+            return redirect('dashboards:admin_students_list')
     else:
         form = StudentForm(instance=student)
         
@@ -182,14 +228,14 @@ def admin_delete_student(request, student_id):
     if request.method == 'POST':
         student.delete()
         messages.success(request, 'Student deleted successfully.')
-        return redirect('dashboard:admin_students_list')
+        return redirect('dashboards:admin_students_list')
     return render(request, 'dashboards/admin/student_confirm_delete.html', {'student': student})
 
 @login_required()
 def broadcast_center(request):
     if request.user.role not in [User.Role.ADMIN, User.Role.TEACHER]:
         messages.error(request, 'Access denied')
-        return redirect('dashboard:dashboard_redirect')
+        return redirect('dashboards:dashboard_redirect')
         
     if request.method == 'POST':
         title = request.POST.get('title')
@@ -230,7 +276,7 @@ def broadcast_center(request):
         Notification.objects.bulk_create(notifications)
         
         messages.success(request, 'Broadcast sent successfully.')
-        return redirect('dashboard:broadcast_center')
+        return redirect('dashboards:broadcast_center')
         
     broadcasts = Broadcast.objects.all().order_by('-created_at')
     classes = SchoolClass.objects.all()
@@ -382,7 +428,7 @@ def student_class_leaderboard(request):
     school_class = user.student_class
     if not school_class:
         messages.error(request, 'You are not assigned to any class.')
-        return redirect('dashboard:student_dashboard')
+        return redirect('dashboards:student_dashboard')
         
     students = User.objects.filter(role=User.Role.STUDENT, student_class=school_class)
     
@@ -436,7 +482,7 @@ def student_request_retake(request):
             RetakeRequest.objects.create(student=request.user, exam=exam, reason=reason)
             messages.success(request, 'Retake request submitted.')
             
-    return redirect('dashboard:student_dashboard')
+    return redirect('dashboards:student_dashboard')
 
 # ========================= PARENT ACTIONS =========================
 
@@ -470,6 +516,60 @@ def exam_detail(request, exam_id):
 @login_required()
 def create_exam(request):
     if request.method == 'POST':
+        # Check for JSON request (AJAX)
+        if request.content_type == 'application/json':
+            import json
+            from django.db import transaction
+            from django.http import JsonResponse
+            from django.urls import reverse
+            from exams.models import Question, Choice
+
+            try:
+                data = json.loads(request.body)
+                exam_data = data.get('exam', {})
+                questions_data = data.get('questions', [])
+                
+                form = ExamForm(exam_data)
+                
+                if form.is_valid():
+                    with transaction.atomic():
+                        exam = form.save(commit=False)
+                        exam.created_by = request.user
+                        exam.save()
+                        
+                        # Save Questions
+                        for index, q_data in enumerate(questions_data):
+                            question = Question.objects.create(
+                                exam=exam,
+                                text=q_data.get('text'),
+                                type=q_data.get('type'),
+                                marks=int(q_data.get('marks', 1)),
+                                order=index + 1
+                            )
+                            
+                            if question.type == 'objective':
+                                choices = q_data.get('choices', [])
+                                for c_data in choices:
+                                    Choice.objects.create(
+                                        question=question,
+                                        text=c_data.get('text'),
+                                        is_correct=c_data.get('is_correct', False)
+                                    )
+                                    
+                    redirect_url = reverse('dashboards:teacher_exams_list')
+                    if request.user.role == User.Role.ADMIN:
+                        redirect_url = reverse('dashboards:admin_exams_list')
+                        
+                    messages.success(request, 'Exam and questions created successfully.')
+                    return JsonResponse({'status': 'success', 'redirect_url': redirect_url})
+                else:
+                    return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
+            
+            except Exception as e:
+                import traceback
+                print(traceback.format_exc())
+                return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
         form = ExamForm(request.POST)
         if form.is_valid():
             exam = form.save(commit=False)
@@ -477,13 +577,14 @@ def create_exam(request):
             exam.save()
             messages.success(request, 'Exam created successfully.')
             if request.user.role == User.Role.ADMIN:
-                return redirect('dashboard:admin_exams_list')
+                return redirect('dashboards:admin_exams_list')
             else:
-                return redirect('dashboard:teacher_exams_list')
+                return redirect('dashboards:teacher_exams_list')
     else:
         form = ExamForm()
+    classes = SchoolClass.objects.all()
     
-    return render(request, 'exams/create_exam.html', {'form': form})
+    return render(request, 'exams/create_exam.html', {'form': form, 'classes': classes})
 
 @login_required()
 def edit_exam(request, exam_id):
@@ -511,7 +612,7 @@ def delete_exam(request, exam_id):
     exam = get_object_or_404(Exam, id=exam_id)
     if request.user != exam.created_by and request.user.role != User.Role.ADMIN:
         messages.error(request, 'Access denied')
-        return redirect('accounts:dashboard_redirect')
+        return redirect('accounts:dashboard')
         
     if request.method == 'POST':
         exam.delete()

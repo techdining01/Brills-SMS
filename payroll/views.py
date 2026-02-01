@@ -100,7 +100,6 @@ def manage_bank_account(request):
         messages.error(request, 'You do not have a payroll profile.')
         return redirect('payroll:payee_profile')
 
-        
     return render(request, 'payroll/bank_accounts.html', {'form': form, 'accounts': accounts})
 
 

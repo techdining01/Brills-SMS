@@ -10,7 +10,7 @@
             <h2><i class="bi bi-graph-up"></i> {{ exam.title }} - Analytics</h2>
         </div>
         <div class="col-md-4 text-end">
-            <a href="{% url 'exam_detail' exam.id %}" class="btn btn-outline-secondary">
+            <a href="{% url 'dashboards:exam_detail' exam.id %}" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left"></i> Back to Exam
             </a>
         </div>

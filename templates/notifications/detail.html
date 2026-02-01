@@ -32,9 +32,8 @@
                             <h6><i class="bi bi-file-earmark-text"></i> Related Exam</h6>
                             <p>
                                 <strong>{{ notification.related_exam.title }}</strong><br>
-                                <small class="text-muted">Class: {{ notification.related_exam.school_class.name }}</small>
                             </p>
-                            <a href="{% url 'exam_detail' notification.related_exam.id %}" class="btn btn-sm btn-primary">
+                            <a href="{% url 'dashboards:exam_detail' notification.id %}" class="btn btn-sm btn-primary">
                                 View Exam
                             </a>
                         </div>
@@ -47,7 +46,7 @@
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="{% url 'notifications_list' %}" class="btn btn-secondary">
+                    <a href="{% url 'dashboards:notifications_list' %}" class="btn btn-secondary">
                         <i class="bi bi-arrow-left"></i> Back to Notifications
                     </a>
                 </div>

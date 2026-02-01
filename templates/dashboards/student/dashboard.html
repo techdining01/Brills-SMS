@@ -82,7 +82,7 @@
                                         <th>Subject</th>
                                         <th>Duration</th>
                                         <th>Total Questions</th>
-                                        <th>Attempts Left</th>
+                                        <th>Passing Marks</th>
                                         <th>Action</th>
                                     </tr>
                                 </thead>
@@ -90,11 +90,11 @@
                                     {% for exam in available_exams %}
                                         <tr>
                                             <td><strong>{{ exam.title }}</strong></td>
-                                            <td>{{ exam.subject }}</td>
+                                            <td>{{ exam.title }}</td>
                                             <td>{{ exam.duration }} mins</td>
                                             <td>{{ exam.questions.count }}</td>
                                             <td>
-                                                <span class="badge bg-info">{{ exam.attempts_allowed }}</span>
+                                                <span class="badge bg-info">{{ exam.passing_marks }}</span>
                                             </td>
                                             <td>
                                                 <a href="{% url 'dashboards:start_exam' exam.id %}" class="btn btn-sm btn-success">

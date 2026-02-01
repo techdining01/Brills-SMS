@@ -20,8 +20,8 @@
             <form method="get" class="form-inline">
                 <div class="form-group mr-2 flex-grow-1">
                     <input type="text" name="search" class="form-control w-100" placeholder="Search exams..."
-                           value="{{ search_query }}">
-                </div>
+                           value="{{ search_query|default_if_none:'' }}">
+                </div><br>
                 <button type="submit" class="btn btn-primary">Search</button>
                 {% if search_query %}
                     <a href="{% url 'dashboards:student_available_exams' %}" class="btn btn-secondary ms-2">Clear</a>
@@ -43,7 +43,7 @@
                             <div class="exam-details mb-3">
                                 <small class="d-block"><strong>Class:</strong> {{ exam.school_class.name }}</small>
                                 <small class="d-block"><strong>Total Marks:</strong> {{ exam.total_marks }}</small>
-                                <small class="d-block"><strong>Duration:</strong> {{ exam.duration_minutes }} minutes</small>
+                                <small class="d-block"><strong>Duration:</strong> {{ exam.duration }} minutes</small>
                                 <small class="d-block"><strong>Created by:</strong> {{ exam.created_by.first_name }} {{ exam.created_by.last_name }}</small>
                             </div>
                             

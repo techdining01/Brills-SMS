@@ -8,7 +8,7 @@ from exams.models import Notification
 import json
 
 
-@login_required(login_url='login')
+@login_required()
 @require_http_methods(["GET"])
 def notifications_list(request):
     """List all notifications for the user"""
@@ -32,7 +32,7 @@ def notifications_list(request):
     return render(request, 'notifications/list.html', context)
 
 
-@login_required(login_url='login')
+@login_required()
 @require_http_methods(["GET"])
 def get_unread_notifications(request):
     """API endpoint to get unread notifications (AJAX)"""
@@ -61,7 +61,7 @@ def get_unread_notifications(request):
     return JsonResponse(data)
 
 
-@login_required(login_url='login')
+@login_required()
 @require_http_methods(["POST"])
 def mark_as_read(request):
     """Mark a notification as read"""
@@ -91,7 +91,7 @@ def mark_as_read(request):
         }, status=400)
 
 
-@login_required(login_url='login')
+@login_required()
 @require_http_methods(["POST"])
 def mark_all_as_read(request):
     """Mark all notifications as read"""
@@ -107,7 +107,7 @@ def mark_all_as_read(request):
     })
 
 
-@login_required(login_url='login')
+@login_required()
 @require_http_methods(["DELETE"])
 def delete_notification(request, notification_id):
     """Delete a notification"""
@@ -129,7 +129,7 @@ def delete_notification(request, notification_id):
         }, status=404)
 
 
-@login_required(login_url='login')
+@login_required()
 @require_http_methods(["GET"])
 def notification_detail(request, notification_id):
     """Get detail of a specific notification"""
