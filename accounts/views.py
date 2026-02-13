@@ -131,7 +131,7 @@ def dashboard_redirect(request):
     if user.role == "ADMIN":
         return redirect("admin_grand_dashboard")
     if user.role == 'PARENT':
-        return redirect('pickup:parent_dashboard')
+        return redirect('dashboards:parent_dashboard')
    
     # return redirect("accounts:login")
 
@@ -185,13 +185,14 @@ def approve_users(request):
 
     if role:
         users = users.filter(role=role)
-        if q:
-            users = users.filter(
-            Q(username__icontains=q) |
-            Q(first_name__icontains=q) |
-            Q(last_name__icontains=q) |
-            Q(email__icontains=q)
-            )
+    
+    if q:
+        users = users.filter(
+        Q(username__icontains=q) |
+        Q(first_name__icontains=q) |
+        Q(last_name__icontains=q) |
+        Q(email__icontains=q)
+        )
 
     if request.method == 'POST':
         ids = request.POST.getlist('users')    
