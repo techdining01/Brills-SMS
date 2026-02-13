@@ -37,11 +37,11 @@
                         <hr>
                         <div class="mb-3">
                             <small class="text-muted d-block mb-1">Exam Attempts</small>
-                            <h4 class="mb-0">0</h4>
+                            <h4 class="mb-0">{{ child.attempts_count|default:0 }}</h4>
                         </div>
                         <div class="mb-3">
                             <small class="text-muted d-block mb-1">Average Score</small>
-                            <h4 class="mb-0">0%</h4>
+                            <h4 class="mb-0">{{ child.avg_score|default:0|floatformat:1 }}%</h4>
                         </div>
                     </div>
                     <div class="card-footer bg-light">

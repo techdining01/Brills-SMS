@@ -28,7 +28,7 @@
                             </option>
                         {% endfor %}
                     </select>
-                </div>
+                </div><br>
                 <button type="submit" class="btn btn-primary">Filter</button>
                 {% if status_filter %}
                     <a href="{% url 'dashboards:student_attempt_history' %}" class="btn btn-secondary ms-2">Clear</a>
@@ -78,10 +78,9 @@
                                                     <h5 class="modal-title">Request Retake: {{ attempt.exam.title }}</h5>
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                 </div>
-                                                <form action="{% url 'dashboards:student_request_retake' %}" method="post">
+                                                <form action="{% url 'dashboards:student_request_retake' attempt.exam.id %}" method="post">
                                                     {% csrf_token %}
                                                     <div class="modal-body">
-                                                        <input type="hidden" name="exam_id" value="{{ attempt.exam.id }}">
                                                         <div class="mb-3">
                                                             <label for="reason{{ attempt.exam.id }}" class="form-label">Reason for Retake</label>
                                                             <textarea class="form-control" id="reason{{ attempt.exam.id }}" name="reason" rows="3" required placeholder="Please explain why you need to retake this exam..."></textarea>

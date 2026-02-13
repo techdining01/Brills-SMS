@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Certificate</title>
+    <style>
+        @page {
+            size: a4 landscape;
+            margin: 1cm;
+        }
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        /* Outer Frame */
+        .frame-outer {
+            border: 15px solid #1a237e; /* Navy Blue */
+            padding: 5px;
+        }
+        /* Inner Frame */
+        .frame-inner {
+            border: 2px solid #d4af37; /* Gold */
+            padding: 40px;
+            text-align: center;
+            background-color: #fff;
+        }
+        /* Decorative Corners */
+
+        .header-logo {
+            font-family: 'Times New Roman', serif;
+            font-size: 32px;
+            font-weight: bold;
+            color: #1a237e;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            margin-top: 20px;
+        }
+        
+        .certificate-title {
+            font-family: 'Times New Roman', serif;
+            font-size: 56px;
+            color: #d4af37; /* Gold */
+            margin: 20px 0;
+            font-style: italic;
+            font-weight: bold;
+            text-shadow: 1px 1px 0 #333; /* Simple shadow */
+        }
+        
+        .subtitle {
+            font-size: 18px;
+            color: #555;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+        
+        .student-name {
+            font-size: 42px;
+            font-weight: bold;
+            color: #1a237e;
+            margin: 20px auto;
+            border-bottom: 2px solid #d4af37;
+            display: inline-block;
+            min-width: 500px;
+            padding-bottom: 10px;
+            font-family: 'Times New Roman', serif;
+        }
+        
+        .achievement-text {
+            font-size: 18px;
+            margin: 20px 0;
+            line-height: 1.5;
+            color: #444;
+        }
+        
+        .course-name {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+            margin: 10px 0 30px 0;
+        }
+        
+        .grade-badge {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 10px 20px;
+            border-radius: 20px; /* xhtml2pdf support varies, but safe to try */
+            display: inline-block;
+            font-size: 16px;
+            color: #555;
+            margin-bottom: 40px;
+        }
+        
+        /* Signature Section using Tables for layout stability */
+        .footer-table {
+            width: 100%;
+            margin-top: 50px;
+        }
+        .signature-line {
+            width: 250px;
+            border-top: 1px solid #333;
+            margin: 0 auto;
+            padding-top: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #1a237e;
+        }
+        .signature-title {
+            font-size: 12px;
+            color: #777;
+            margin-top: 5px;
+        }
+        
+        .date-text {
+            font-size: 14px;
+            color: #555;
+            margin-top: 10px;
+        }
+
+        .seal {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: 3px double #d4af37;
+            color: #d4af37;
+            margin: 0 auto;
+            display: flex; /* xhtml2pdf ignores this */
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            /* Fallback for centering text in seal */
+            line-height: 100px; 
+            text-align: center;
+        }
+
+        .verification-footer {
+            margin-top: 40px;
+            font-size: 9px;
+            color: #999;
+            border-top: 1px dotted #ccc;
+            padding-top: 10px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="frame-outer">
+        <div class="frame-inner">
+            <div class="header-logo">
+                {{ template.school|default:"Brills School Management System" }}
+            </div>
+            
+            <div class="certificate-title">Certificate of Achievement</div>
+            
+            <div class="subtitle">This certificate is proudly presented to</div>
+            
+            <div class="student-name">
+                {{ certificate.student.first_name }} {{ certificate.student.last_name }}
+            </div>
+            
+            <div class="achievement-text">
+                In recognition of outstanding performance and successful completion of the examination
+            </div>
+            
+            <div class="course-name">
+                {{ certificate.exam.title }}
+            </div>
+            
+            <div class="grade-badge">
+                Score: {{ certificate.percentage|floatformat:1 }}% &nbsp;|&nbsp; Grade: {{ certificate.grade }}
+            </div>
+            
+            <table class="footer-table">
+                <tr>
+                    <td align="center" width="33%">
+                        <div class="date-text">
+                            <strong>Date Issued</strong><br>
+                            {{ issued_date }}
+                        </div>
+                    </td>
+                    <td align="center" width="33%">
+                        <!-- Seal Placeholder -->
+                        <div style="width: 80px; height: 80px; border: 4px double #d4af37; border-radius: 50%; text-align: center; line-height: 80px; color: #d4af37; font-weight: bold; font-size: 10px;">
+                            SEAL
+                        </div>
+                    </td>
+                    <td align="center" width="33%">
+                        <div style="height: 40px;">
+                            <!-- Signature image could go here -->
+                            <img src="" alt="" style="height: 40px; display: none;"> 
+                        </div>
+                        <div class="signature-line">
+                            Authorized Signature
+                        </div>
+                        <div class="signature-title">
+                            Exam Controller
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+            <div class="verification-footer">
+                Certificate ID: {{ certificate.certificate_number }} &bull; Verification Code: {{ certificate.verification_code }}<br>
+                This is a computer-generated document. No signature is required.
+            </div>
+        </div>
+    </div>
+</body>
+</html>

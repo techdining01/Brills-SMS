@@ -6,10 +6,10 @@
 <div class="p-3 flex-grow-1 overflow-auto">
   {% for item in cart.items.all %}
     <div class="d-flex gap-2 mb-3">
-      {% if item.image %}
-        <img src="{{ item.product.image.url }}"  width="60" height="60" class="rounded">
-        {% else %}
-        <img src="{% static 'images/default_product.png' %}"  width="60" height="60" class="rounded">
+      {% if item.product.image %}
+        <img src="{{ item.product.image.url }}"  width="60" height="60" class="rounded" style="object-fit: cover;">
+      {% else %}
+        <img src="{% static 'images/default_product.png' %}"  width="60" height="60" class="rounded" style="object-fit: cover;">
       {% endif %} 
    
     <div class="flex-grow-1">

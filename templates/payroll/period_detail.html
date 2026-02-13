@@ -16,6 +16,31 @@
         padding: 2rem;
     }
 
+    @media (max-width: 768px) {
+        .glass-card {
+            padding: 1rem;
+            border-radius: 15px;
+        }
+        
+        .header-actions {
+            flex-direction: column;
+            width: 100%;
+            gap: 10px !important;
+        }
+        
+        .header-actions .btn, 
+        .header-actions form,
+        .header-actions button {
+            width: 100%;
+        }
+
+        .period-header {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 20px;
+        }
+    }
+
     .detail-table th {
         background: rgba(248, 250, 252, 0.5);
         color: var(--secondary);
@@ -32,36 +57,127 @@
         border-bottom: 1px solid rgba(0, 0, 0, 0.03);
     }
 
+    /* Mobile Table to Card Layout */
+    @media (max-width: 768px) {
+        .detail-table thead {
+            display: none;
+        }
+        
+        .detail-table, .detail-table tbody, .detail-table tr, .detail-table td {
+            display: block;
+            width: 100%;
+        }
+        
+        .detail-table tr {
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(0,0,0,0.05);
+            border-radius: 12px;
+            padding: 10px;
+            background: white;
+        }
+        
+        .detail-table td {
+            text-align: right;
+            padding: 8px 15px;
+            border-bottom: 1px solid rgba(0,0,0,0.02);
+            position: relative;
+        }
+        
+        .detail-table td::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 15px;
+            width: 50%;
+            text-align: left;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.65rem;
+            color: #64748b;
+        }
+
+        .detail-table td:last-child {
+            border-bottom: none;
+            text-align: center;
+            padding-top: 15px;
+        }
+        
+        .detail-table td:last-child::before {
+            display: none;
+        }
+
+        .detail-table td:first-child {
+            text-align: left;
+            background: #f8fafc;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .detail-table td:first-child::before {
+            display: none;
+        }
+    }
+
     .status-badge {
         padding: 0.35rem 0.75rem;
         border-radius: 50px;
         font-size: 0.75rem;
         font-weight: 600;
     }
+
+    .btn-back {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        color: #64748b;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    }
+
+    .btn-back:hover {
+        background: #f8fafc;
+        color: #0f172a;
+        transform: translateX(-4px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        border-color: rgba(0, 0, 0, 0.15);
+    }
+
+    .btn-back i {
+        font-size: 1.25rem;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-5">
-        <div>
-            <h1 class="h3 fw-bold mb-1">Payroll Details</h1>
-            <p class="text-muted small mb-0">
-                Period: <span class="fw-bold text-dark">{{ period }}</span>
-                <span class="ms-2">
-                    {% if period.is_locked %}
-                    <span
-                        class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill">LOCKED</span>
-                    {% elif period.is_generated %}
-                    <span
-                        class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">GENERATED</span>
-                    {% else %}
-                    <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill">OPEN</span>
-                    {% endif %}
-                </span>
-            </p>
+    <div class="d-flex justify-content-between align-items-center mb-5 period-header">
+        <div class="d-flex align-items-center gap-3">
+            <a href="{% url 'payroll:payroll_list' %}" class="btn-back" title="Back to History">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <div>
+                <h1 class="h3 fw-bold mb-1">Payroll Details</h1>
+                <p class="text-muted small mb-0">
+                    Period: <span class="fw-bold text-dark">{{ period }}</span>
+                    <span class="ms-2">
+                        {% if period.is_locked %}
+                        <span
+                            class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill">LOCKED</span>
+                        {% elif period.is_generated %}
+                        <span
+                            class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">GENERATED</span>
+                        {% else %}
+                        <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill">OPEN</span>
+                        {% endif %}
+                    </span>
+                </p>
+            </div>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 header-actions">
             {% if user.role == "admin" or user.is_superuser %}
             {% if not period.is_locked %}
             <a href="{% url 'payroll:approve_lock_payroll' period.id %}"
@@ -69,13 +185,24 @@
                 <i class="bi bi-shield-check me-2"></i> Approve & Lock
             </a>
             {% else %}
-            <a href="{% url 'payroll:process_payments' period.id %}" class="btn btn-dark rounded-pill px-4 shadow-sm">
-                <i class="bi bi-credit-card me-2"></i> Process Payments
-            </a>
+            <form method="post" action="{% url 'payroll:process_payments' period.id %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-dark rounded-pill px-4 shadow-sm">
+                    <i class="bi bi-credit-card me-2"></i> Process Payments
+                </button>
+            </form>
             <a href="{% url 'payroll:payment_status' period.id %}" class="btn btn-outline-primary rounded-pill px-4">
                 <i class="bi bi-activity me-2"></i> Payment Status
             </a>
             {% endif %}
+            
+            <form method="post" action="{% url 'payroll:delete_payroll_period' period.id %}" class="d-inline" 
+                  onsubmit="return confirm('Are you sure you want to delete this entire payroll period? This will remove all associated records and cannot be undone.');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger rounded-pill px-4" {% if period.is_locked %}disabled title="Locked periods cannot be deleted"{% endif %}>
+                    <i class="bi bi-trash3 me-2"></i> Delete
+                </button>
+            </form>
             {% endif %}
         </div>
     </div>
@@ -96,31 +223,44 @@
                 <tbody>
                     {% for record in records %}
                     <tr>
-                        <td>
+                        <td data-label="Staff Member">
                             <div class="fw-bold text-dark">{{ record.payee.user.get_full_name }}</div>
                             <small class="text-muted">{{ record.payee.get_payee_type_display }}</small>
                         </td>
-                        <td>₦{{ record.gross_pay|default_if_none:"0.00"|intcomma }}</td>
-                        <td><span class="text-danger">-₦{{ record.total_deductions|default_if_none:"0.00"|intcomma}}</span></td>
-                        <td><span class="fw-bold text-success">₦{{ record.net_pay|default_if_none:"0.00"|intcomma}}</span></td>
-                        <td>
+                        <td data-label="Gross Pay">₦{{ record.gross_pay|default_if_none:"0.00"|intcomma }}</td>
+                        <td data-label="Deductions"><span class="text-danger">-₦{{ record.total_deductions|default_if_none:"0.00"|intcomma}}</span></td>
+                        <td data-label="Net Payable"><span class="fw-bold text-success">₦{{ record.net_pay|default_if_none:"0.00"|intcomma}}</span></td>
+                        <td data-label="Status">
                             {% if record.is_paid %}
                             <span class="status-badge bg-success-subtle text-success"><i
                                     class="bi bi-check2-circle me-1"></i> Paid</span>
+                            {% elif not record.is_processed %}
+                            <span class="status-badge bg-danger-subtle text-danger" title="{{ record.processing_error }}">
+                                <i class="bi bi-exclamation-triangle me-1"></i> Failed
+                            </span>
+                            <div class="small text-danger mt-1" style="font-size: 0.65rem;">{{ record.processing_error }}</div>
                             {% else %}
                             <span class="status-badge bg-warning-subtle text-warning"><i class="bi bi-clock me-1"></i>
                                 Pending</span>
                             {% endif %}
                         </td>
                         <td class="text-end">
-                            <div class="d-flex justify-content-end gap-2">
+                            <div class="d-flex justify-content-end gap-2 flex-wrap">
+                                {% if not record.is_processed and not period.is_locked %}
+                                <form method="post" action="{% url 'payroll:retry_payroll_record' record.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3" title="Retry generation">
+                                        <i class="bi bi-arrow-clockwise"></i> Retry
+                                    </button>
+                                </form>
+                                {% endif %}
                                 <a href="{% url 'payroll:payslip_view' record.id %}"
-                                    class="btn btn-sm btn-outline-dark rounded-pill px-3">
+                                    class="btn btn-sm btn-outline-dark rounded-pill px-3 {% if not record.is_processed %}disabled{% endif %}">
                                     <i class="bi bi-receipt me-1"></i> Slip
                                 </a>
                                 {% if not period.is_locked %}
                                 <form method="post" action="{% url 'payroll:delete_payroll_record' record.id %}"
-                                    onsubmit="return confirm('Remove this record?');">
+                                      onsubmit="return confirm('Remove this staff from this payroll period?');">
                                     {% csrf_token %}
                                     <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
                                         <i class="bi bi-trash"></i>

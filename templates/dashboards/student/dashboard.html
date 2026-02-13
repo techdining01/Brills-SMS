@@ -142,7 +142,7 @@
                                             <td>{{ result.started_at|date:"M d, Y" }}</td>
                                             <td>{{ result.total_score }}/{{ result.exam.total_marks }}</td>
                                             <td>
-                                                <span class="badge bg-{% if result.percentage >= 80 %}success{% elif result.percentage >= 60 %}warning{% else %}danger{% endif %}">
+                                                <span class="badge bg-{% if result.percentage >= 70 %}success{% elif result.percentage >= 50 %}warning{% else %}danger{% endif %}">
                                                     {{ result.percentage }}%
                                                 </span>
                                             </td>

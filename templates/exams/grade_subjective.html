@@ -396,7 +396,7 @@ function saveGrade(answerId, maxMarks) {
     }
     
     // Save via AJAX
-    fetch('{% url "submit_subjective_grade" %}', {
+    fetch('{% url "dashboards:submit_subjective_grade" %}', {
         method: 'POST',
         headers: {
             'X-CSRFToken': '{{ csrf_token }}',

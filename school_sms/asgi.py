@@ -3,8 +3,7 @@ from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 from django.urls import path, re_path
-from dashboards.routing import consumers
-
+from dashboards.routing import websocket_urlpatterns
 
 # Ensure this import path is correct for your consumer
 # from sms.consumers import PickupCodeConsumer 
@@ -13,16 +12,6 @@ from dashboards.routing import consumers
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'school_sms.settings')
 
 django_asgi_app = get_asgi_application()
-
-
-websocket_urlpatterns = [
-    # path('ws/pickup/', PickupCodeConsumer.as_asgi()), 
-]
-
-websocket_urlpatterns += [
-    re_path(r'ws/notifications/$', consumers.NotificationConsumer.as_asgi()),
-    re_path(r'ws/grading-notifications/$', consumers.GradingNotificationConsumer.as_asgi()),
-]
 
 application = ProtocolTypeRouter({
     "http": get_asgi_application(), 

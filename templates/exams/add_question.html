@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+
+{% block title %}Add Question - {{ exam.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Add Question to {{ exam.title }}</h5>
+                    <a href="{% url 'dashboards:edit_exam' exam.id %}" class="btn btn-sm btn-light">
+                        <i class="bi bi-arrow-left"></i> Back to Exam
+                    </a>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="questionForm">
+                        {% csrf_token %}
+                        
+                        <!-- Question Details -->
+                        <h6 class="text-primary mb-3">Question Details</h6>
+                        <div class="mb-3">
+                            <label for="{{ form.text.id_for_label }}" class="form-label">Question Text</label>
+                            {{ form.text }}
+                            {% if form.text.errors %}
+                                <div class="text-danger small">{{ form.text.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.type.id_for_label }}" class="form-label">Type</label>
+                                {{ form.type }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.marks.id_for_label }}" class="form-label">Marks</label>
+                                {{ form.marks }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.order.id_for_label }}" class="form-label">Order</label>
+                                {{ form.order }}
+                            </div>
+                        </div>
+
+                        <!-- Choices Section (Only for Objective Questions) -->
+                        <div id="choicesSection" class="mt-4" style="display: none;">
+                            <h6 class="text-primary mb-3 d-flex justify-content-between align-items-center">
+                                Answer Choices
+                                <small class="text-muted fw-normal">Select the correct answer(s)</small>
+                            </h6>
+                            
+                            {{ formset.management_form }}
+                            
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 70%">Choice Text</th>
+                                            <th style="width: 20%" class="text-center">Correct?</th>
+                                            <th style="width: 10%" class="text-center">Delete</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for form in formset %}
+                                        <tr>
+                                            <td>
+                                                {{ form.id }}
+                                                {{ form.text }}
+                                                {% if form.text.errors %}
+                                                    <div class="text-danger small">{{ form.text.errors.0 }}</div>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-center align-middle">
+                                                {{ form.is_correct }}
+                                            </td>
+                                            <td class="text-center align-middle">
+                                                {% if formset.can_delete %}
+                                                    {{ form.DELETE }}
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-plus-circle"></i> Add Question
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const typeSelect = document.getElementById('questionType');
+    const choicesSection = document.getElementById('choicesSection');
+    
+    function toggleChoices() {
+        if (typeSelect.value === 'objective') {
+            choicesSection.style.display = 'block';
+        } else {
+            choicesSection.style.display = 'none';
+        }
+    }
+    
+    typeSelect.addEventListener('change', toggleChoices);
+    toggleChoices(); // Initial check
+});
+</script>
+{% endblock %}

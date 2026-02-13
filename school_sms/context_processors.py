@@ -20,15 +20,22 @@ def school_context(request):
         ).count()
         
         # Get recent notifications (limit 5)
-        recent_notifications = Notification.objects.filter(
+        recent_notifications = list(Notification.objects.filter(
             recipient=request.user
-        ).order_by('-created_at')[:5]
+        ).order_by('-created_at')[:5])
+
+        # Get recent chat messages (limit 5)
+        recent_chats = list(ChatMessage.objects.filter(
+            recipient=request.user,
+            is_read=False
+        ).order_by('-created_at')[:5])
 
         context.update({
             'unread_notifications_count': unread_notifications,
             'unread_chats_count': unread_chats,
             'total_unread_count': unread_notifications + unread_chats,
-            'recent_notifications': recent_notifications
+            'recent_notifications': recent_notifications,
+            'recent_chats': recent_chats
         })
         
     return context

@@ -5,41 +5,117 @@
 
 {% block content %}
 <div class="container-fluid py-4">
-    <div class="row mb-4">
-        <div class="col-12">
-            <h2><i class="bi bi-trophy"></i> Class Leaderboards</h2>
-            <p class="text-muted">Select a class to view student performance rankings</p>
+    {% if selected_class %}
+        <!-- Leaderboard View -->
+        <div class="row mb-4">
+            <div class="col-12 d-flex justify-content-between align-items-center">
+                <div>
+                    <a href="{% url 'dashboards:admin_leaderboard' %}" class="btn btn-outline-secondary mb-2">
+                        <i class="bi bi-arrow-left"></i> Back to Classes
+                    </a>
+                    <h2><i class="bi bi-trophy text-warning"></i> {{ selected_class.name }} Leaderboard</h2>
+                    <p class="text-muted">Rankings based on average exam scores</p>
+                </div>
+            </div>
         </div>
-    </div>
 
-    <div class="row row-cols-1 row-cols-md-3 g-4">
-        {% for class in classes %}
-        <div class="col">
-            <div class="card h-100 shadow-sm hover-shadow transition-all">
-                <div class="card-body text-center py-5">
-                    <div class="avatar-lg bg-light rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
-                        <i class="bi bi-people fs-2 text-primary"></i>
-                    </div>
-                    <h4 class="card-title">{{ class.name }}</h4>
-                    <p class="card-text text-muted">Level: {{ class.level }}</p>
-                    <div class="mt-4">
-                        <a href="?class={{ class.id }}" class="btn btn-primary">
-                            View Leaderboard <i class="bi bi-arrow-right ms-1"></i>
-                        </a>
-                    </div>
-                </div>
-                <div class="card-footer bg-light text-center text-muted">
-                    <small>{{ class.students.count }} Students • {{ class.exams.count }} Exams</small>
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4" style="width: 10%;">Rank</th>
+                                <th style="width: 40%;">Student</th>
+                                <th class="text-center" style="width: 25%;">Exams Taken</th>
+                                <th class="text-center" style="width: 25%;">Average Score</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for student in leaderboard %}
+                            <tr>
+                                <td class="ps-4">
+                                    {% if forloop.counter == 1 %}
+                                        <i class="bi bi-trophy-fill text-warning fs-4"></i>
+                                    {% elif forloop.counter == 2 %}
+                                        <i class="bi bi-trophy-fill text-secondary fs-4"></i>
+                                    {% elif forloop.counter == 3 %}
+                                        <i class="bi bi-trophy-fill text-danger fs-4"></i> <!-- Bronze-ish -->
+                                    {% else %}
+                                        <span class="badge bg-light text-dark border rounded-pill px-3 py-2">{{ forloop.counter }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-sm bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                            <span class="text-primary fw-bold">{{ student.first_name|first }}{{ student.last_name|first }}</span>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0">{{ student.get_full_name }}</h6>
+                                            <small class="text-muted">{{ student.email }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-info bg-opacity-10 text-info px-3">{{ student.exams_taken }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="fw-bold fs-5">{{ student.average_score|floatformat:1 }}</span>
+                                    <span class="text-muted small">/ 100</span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-5 text-muted">
+                                    <i class="bi bi-clipboard-x fs-1 d-block mb-3"></i>
+                                    No performance data available for this class yet.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
-        {% empty %}
-        <div class="col-12">
-            <div class="alert alert-info">
-                <i class="bi bi-info-circle me-2"></i> No classes available.
+
+    {% else %}
+        <!-- Class Selection View -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2><i class="bi bi-trophy"></i> Class Leaderboards</h2>
+                <p class="text-muted">Select a class to view student performance rankings</p>
             </div>
         </div>
-        {% endfor %}
-    </div>
+
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            {% for class in classes %}
+            <div class="col">
+                <div class="card h-100 shadow-sm hover-shadow transition-all">
+                    <div class="card-body text-center py-5">
+                        <div class="avatar-lg bg-light rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+                            <i class="bi bi-people fs-2 text-primary"></i>
+                        </div>
+                        <h4 class="card-title">{{ class.name }}</h4>
+                        <p class="card-text text-muted">Level: {{ class.level }}</p>
+                        <div class="mt-4">
+                            <a href="?class={{ class.id }}" class="btn btn-primary">
+                                View Leaderboard <i class="bi bi-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-light text-center text-muted">
+                        <small>{{ class.students.count }} Students • {{ class.class_exam.count }} Exams</small>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i> No classes available.
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% endif %}
 </div>
 {% endblock %}

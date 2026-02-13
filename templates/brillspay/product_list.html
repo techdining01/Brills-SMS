@@ -43,12 +43,18 @@ body.cart-open{overflow:hidden}
             <div class="fw-semibold">{{ product.name }}</div>
             <div class="fw-bold">₦{{ product.price }}</div>
 
-            <button
-              class="btn btn-primary btn-sm w-100 btn-add-cart"
-              data-product="{{ product.id }}"
-              data-ward="{{ ward.id }}">
-              Add to Cart
-            </button>
+            {% if product.id in cart_product_ids %}
+              <button class="btn btn-success btn-sm w-100 disabled">
+                In Cart ✓
+              </button>
+            {% else %}
+              <button
+                class="btn btn-primary btn-sm w-100 btn-add-cart"
+                data-product="{{ product.id }}"
+                data-ward="{{ ward.id }}">
+                Add to Cart
+              </button>
+            {% endif %}
           </div>
 
         </div>

@@ -705,7 +705,7 @@
         }
 
         .scale-in {
-            animation: scaleIn 0.5s ease;
+            animation: scaleIn 0.5s ease forwards;
         }
 
         @keyframes scaleIn {
@@ -1148,10 +1148,60 @@
                             Pickups
                         </a></li>
 
-                    <li><a class="dropdown-item" href="{% url 'dashboards:admin_dashboard' %}"
-                            data-bs-dismiss="navbarContent">
+                    <li class="nav-item dropdown">
+                        <a class="dropdown-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
+                            aria-expanded="false" data-bs-auto-close="outside">
                             Exams
-                        </a></li>
+                        </a>
+
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'dashboards:admin_dashboard' %}"
+                                    data-bs-dismiss="navbarContent">
+                                    Dashboard
+                                </a></li>
+                                
+                            <li><a class="dropdown-item" href="{% url 'dashboards:admin_create_class' %}"
+                                    data-bs-dismiss="navbarContent">
+                                    Classes
+                                </a></li>
+
+                            <li><a class="dropdown-item" href="{% url 'dashboards:bulk_import' %}">
+                                    Bulk Exam
+                                </a></li>
+
+                            <li><a class="dropdown-item" href="{% url 'dashboards:notifications_list' %}">
+                                    Notification
+                                </a></li>
+
+                            <li><a class="dropdown-item" href="{% url 'dashboards:broadcast_center' %}">
+                                    Broadcast 
+                                </a></li>
+
+                            <li><a class="dropdown-item" href="{% url 'dashboards:chat_dashboard' %}">
+                                    Chat
+                                </a></li>
+
+                            <li><a class="dropdown-item" href="{% url 'dashboards:admin_results_dashboard' %}">
+                                    Granular Result
+                                </a></li>
+
+                            <li><a class="dropdown-item" href="{% url 'dashboards:admin_leaderboard' %}">
+                                    Leaderboard
+                                </a></li>
+
+                            <li><a class="dropdown-item" href="{% url 'dashboards:teacher_grading_dashboard' %}">
+                                    Grading
+                            </a></li>
+
+                            <li><a class="dropdown-item" href="{% url 'dashboards:certificate_list' %}">
+                                    Certificate
+                            </a></li>
+
+                            <li><a class="dropdown-item" href="{% url 'dashboards:analytics_dashboard' %}">
+                                    Analytics
+                            </a></li>
+                        </ul>
+                    </li>
 
                     <li><a class="dropdown-item" href="{% url 'loans:admin_loan_dashboard' %}"
                             data-bs-dismiss="navbarContent">
@@ -1205,17 +1255,17 @@
 
 
                     {% elif user.role in 'TEACHER PARENT' %}
-
-                    <li class="nav-item">
-                        <a class="nav-link" href="/brillspay/" data-bs-dismiss="navbarContent">
-                            BrillsPay
-                        </a>
-                    </li>
-
+                   
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'accounts:dashboard_redirect' %}"
                             data-bs-dismiss="navbarContent">
                             Dashboard
+                        </a>
+                    </li>
+
+                     <li class="nav-item">
+                        <a class="nav-link" href="/brillspay/" data-bs-dismiss="navbarContent">
+                            BrillsPay
                         </a>
                     </li>
 
@@ -1239,10 +1289,26 @@
                             Leave
                         </a>
                     </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'dashboards:chat_dashboard' %}" data-bs-dismiss="navbarContent">
+                            Chat
+                        </a>
+                    </li>
 
                     {% else %}
 
+                     <li class="nav-item">
+                        <a class="nav-link" href="{% url 'dashboards:parent_children_list' %}" data-bs-dismiss="navbarContent">
+                            Ward
+                        </a>
+                    </li>
 
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'pickup:parent_dashboard' %}" data-bs-dismiss="navbarContent">
+                            Pickup
+                        </a>
+                    </li>
 
                     {% endif %}
 
@@ -1257,6 +1323,12 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'dashboards:cbt' %}" data-bs-dismiss="navbarContent">
                             CBT
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'dashboards:student_dashboard' %}" data-bs-dismiss="navbarContent">
+                            Dashboard
                         </a>
                     </li>
 
@@ -1325,10 +1397,38 @@
                             </li>
                             {% endif %}
 
+                            {# --- Messages Section --- #}
+                            {% if recent_chats %}
+                                <li><h6 class="dropdown-header text-primary"><i class="bi bi-chat-dots me-1"></i> Messages</h6></li>
+                                {% for chat in recent_chats %}
+                                <li>
+                                    <a class="dropdown-item py-2 border-bottom {% if not chat.is_read %}bg-light bg-opacity-25{% endif %}" href="{% url 'dashboards:chat_list' %}">
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-3 text-success">
+                                                <i class="bi bi-person-circle"></i>
+                                            </div>
+                                            <div class="flex-grow-1 overflow-hidden">
+                                                <p class="mb-0 text-truncate small fw-bold">{{ chat.sender.get_full_name|default:chat.sender.username }}</p>
+                                                <p class="mb-0 text-muted small text-truncate">{{ chat.message }}</p>
+                                            </div>
+                                            <small class="text-muted ms-2" style="font-size: 0.65rem;">{{ chat.created_at|timesince }}</small>
+                                        </div>
+                                    </a>
+                                </li>
+                                {% endfor %}
+                                {% if recent_notifications %}
+                                    <li><hr class="dropdown-divider"></li>
+                                {% endif %}
+                            {% endif %}
+
+                            {# --- Notifications Section --- #}
                             {% if recent_notifications %}
+                                {% if recent_chats %}
+                                    <li><h6 class="dropdown-header text-primary"><i class="bi bi-bell me-1"></i> Notifications</h6></li>
+                                {% endif %}
                                 {% for notification in recent_notifications %}
                                 <li>
-                                    <a class="dropdown-item py-3 border-bottom {% if not notification.is_read %}bg-light bg-opacity-25{% endif %}" href="#">
+                                    <a class="dropdown-item py-3 border-bottom {% if not notification.is_read %}bg-light bg-opacity-25{% endif %}" href="{% url 'dashboards:notification_detail' notification.id %}">
                                         <div class="d-flex align-items-start">
                                             <div class="me-3 mt-1 text-primary">
                                                 <i class="bi bi-info-circle-fill"></i>
@@ -1342,7 +1442,10 @@
                                     </a>
                                 </li>
                                 {% endfor %}
-                            {% else %}
+                            {% endif %}
+
+                            {# --- Empty State --- #}
+                            {% if not recent_notifications and not recent_chats %}
                                 <li class="text-center p-4 text-muted">
                                     <i class="bi bi-bell-slash fs-4 d-block mb-2"></i>
                                     <small>No recent notifications</small>
@@ -1402,7 +1505,7 @@
 
         <!-- Messages -->
         {% if messages %}
-        <div class="container mt-4">
+        <div class="container mt-4 pt-3">
             {% for message in messages %}
             <div class="alert alert-{{ message.tags }} alert-dismissible fade show scale-in" role="alert">
                 <div class="d-flex align-items-center">
@@ -1424,7 +1527,7 @@
 
 
         <!-- Content -->
-        <div class="container">
+        <div class="{% block container_class %}container{% endblock %}">
             {% block content %}{% endblock %}
         </div>
     </main>
@@ -1530,6 +1633,71 @@
 
 <!-- JavaScript Libraries -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Global Confirmation Modal -->
+<div class="modal fade" id="globalConfirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirm Action</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="globalConfirmBody">
+        Are you sure?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="globalConfirmYesBtn">Yes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set current year
+        const yearEl = document.getElementById('currentYear');
+        if(yearEl) yearEl.textContent = new Date().getFullYear();
+
+        // Handle data-confirm
+        const modalEl = document.getElementById('globalConfirmModal');
+        if (modalEl) {
+            const modal = new bootstrap.Modal(modalEl);
+            const confirmBody = document.getElementById('globalConfirmBody');
+            const yesBtn = document.getElementById('globalConfirmYesBtn');
+            let targetUrl = '';
+            let targetForm = null;
+
+            document.body.addEventListener('click', function(e) {
+                const trigger = e.target.closest('[data-confirm]');
+                if (trigger) {
+                    e.preventDefault();
+                    const message = trigger.getAttribute('data-confirm');
+                    confirmBody.textContent = message || 'Are you sure?';
+                    
+                    if (trigger.tagName === 'A') {
+                        targetUrl = trigger.href;
+                        targetForm = null;
+                    } else if (trigger.tagName === 'BUTTON' && trigger.type === 'submit') {
+                        targetForm = trigger.closest('form');
+                        targetUrl = '';
+                    }
+                    
+                    modal.show();
+                }
+            });
+
+            yesBtn.addEventListener('click', function() {
+                if (targetUrl) {
+                    window.location.href = targetUrl;
+                } else if (targetForm) {
+                    targetForm.submit();
+                }
+                modal.hide();
+            });
+        }
+    });
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
@@ -1550,15 +1718,6 @@
         const navbarToggler = document.querySelector('.navbar-toggler');
         const heroTitle = document.querySelector('.gsap-hero-title');
         const heroSub = document.querySelector('.gsap-hero-sub');
-
-        // Auto-dismiss messages after 4 seconds
-        const alerts = document.querySelectorAll('.alert');
-        alerts.forEach(alert => {
-            setTimeout(() => {
-                const bsAlert = new bootstrap.Alert(alert);
-                bsAlert.close();
-            }, 4000); // 4 seconds
-        });
 
         // Initialize AOS
         AOS.init({
@@ -1682,13 +1841,8 @@
             });
         });
 
-        // Auto-hide alerts
-        setTimeout(() => {
-            document.querySelectorAll('.alert').forEach(alert => {
-                const bsAlert = new bootstrap.Alert(alert);
-                bsAlert.close();
-            });
-        }, 5000);
+        // Auto-hide alerts (Removed duplicate)
+
     });
 
 
@@ -1812,15 +1966,22 @@
             }
         };
 
-        /* ---------- AUTO DISMISS ALERTS ---------- */
+        /* ---------- AUTO DISMISS ALERTS (Consolidated) ---------- */
         document.addEventListener("DOMContentLoaded", () => {
-            document.querySelectorAll(".alert").forEach(alert => {
-                setTimeout(() => {
+            // Wait 4 seconds then dismiss
+            setTimeout(() => {
+                const alerts = document.querySelectorAll(".alert");
+                alerts.forEach(alert => {
                     try {
-                        new bootstrap.Alert(alert).close();
-                    } catch { }
-                }, 4000);
-            });
+                        // Use Bootstrap's alert close method
+                        const bsAlert = new bootstrap.Alert(alert);
+                        bsAlert.close();
+                    } catch (e) {
+                        // Fallback: simple remove
+                        alert.remove();
+                    }
+                });
+            }, 4000);
         });
 
         /* ===============================
@@ -1848,6 +2009,11 @@
                 cartOverlay.classList.remove("show");
                 document.body.classList.remove("cart-open");
                 refreshCartCount();
+
+                // Auto-refresh product list on dismissal to show updated "In Cart" states
+                if (window.location.pathname.includes("/brillspay/products/")) {
+                    location.reload();
+                }
             }
 
             function toggleCart() {

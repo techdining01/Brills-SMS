@@ -27,27 +27,14 @@ SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 
-DEBUG = True  # config('DEBUG', default=False, cast=bool)
+DEBUG = config('DEBUG', default=False, cast=bool)
 
 # Allowed hosts
-ALLOWED_HOSTS = [
-    "127.0.0.1",
-    "localhost",
-    "newsiest-interlineally-guy.ngrok-free.dev",
-]
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost').split(',')
 
 CSRF_TRUSTED_ORIGINS = [
     "https://*.ngrok-free.dev",
 ]
-
-
-# CSRF_TRUSTED_ORIGINS = [
-#     "https://newsiest-interlineally-guy.ngrok-free.dev",
-# ]
-
-# CSRF_TRUSTED_ORIGINS = [
-#     "https://*.ngrok-free.dev",
-# ]
 
 
 CSRF_COOKIE_SECURE = False
@@ -66,6 +53,7 @@ CSRF_FAILURE_VIEW = "brillspay.views.csrf_failure"
 
 INSTALLED_APPS = [
     'daphne',
+    'whitenoise.runserver_nostatic',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -78,6 +66,7 @@ INSTALLED_APPS = [
     'channels',
     'crispy_forms',
     'crispy_bootstrap5',
+    'storages',
     
 
     # Local Apps (The four pillars of this project)
@@ -94,6 +83,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -142,13 +132,24 @@ CHANNEL_LAYERS = {
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
+
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DB_NAME'),
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST'),
+       'PORT': config('DB_PORT'),
     }
-}
-
+} 
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -283,6 +284,11 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+
+# Use WhiteNoise only if not behind Nginx or for extra safety
+if not config('USE_NGINX', default=False, cast=bool):
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -324,27 +330,37 @@ PAYSTACK_CALLBACK_URL = config(
 )
 
 
-# --- AWS S3 CONFIGURATION (New Section) ---
-AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY')
-AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME')
-AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME')
+# AWS S3 CONFIGURATION
+USE_S3 = config('USE_S3', default=False, cast=bool)
+AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID', default=None)
+AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY', default=None)
+AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME', default=None)
+AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='eu-west-2')
 AWS_DEFAULT_ACL = config('AWS_DEFAULT_ACL', default='public-read')
-AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+AWS_BACKUP_FOLDER = 'backups'
 
-
-# Use local static/media in DEBUG, otherwise switch to S3 if configured
-if DEBUG:
-    STATIC_URL = "/static/"
-    STATICFILES_DIRS = [BASE_DIR / "static"]
-    MEDIA_URL = "/media/"
-    MEDIA_ROOT = BASE_DIR / "media"
-else:
-    # Allow deployment to override storage backends via env
-    STATICFILES_STORAGE = config("STATICFILES_STORAGE", default=f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com")
-    DEFAULT_FILE_STORAGE = config("DEFAULT_FILE_STORAGE", default=f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com")
+if USE_S3:
+    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+    AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
+    
+    # S3 Storage classes
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        },
+        "staticfiles": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        },
+    }
+    
     STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
     MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
+else:
+    STATIC_URL = '/static/'
+    MEDIA_URL = '/media/'
+    # Use WhiteNoise only if not behind Nginx or for extra safety
+    if not config('USE_NGINX', default=False, cast=bool):
+        STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # -----------------------------------------
 
@@ -355,6 +371,10 @@ EMAIL_HOST='smtp.gmail.com'
 EMAIL_PORT=587
 EMAIL_USE_TLS=True
 EMAIL_HOST_USER='your-email@gmail.com'
+
+# Telegram Bot Config
+TELEGRAM_BOT_TOKEN = config('TELEGRAM_BOT_TOKEN', default='')
+TELEGRAM_CHAT_ID = config('TELEGRAM_CHAT_ID', default='')
 EMAIL_HOST_PASSWORD='your-app-password'
 DEFAULT_FROM_EMAIL='noreply@schoolcommerce.com'
 
@@ -382,8 +402,9 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 3600.0,
     },
     'backup_project_daily': {
-        'task': 'core.tasks.backup_project_data',
+        'task': 'school_sms.task.backup_project_data',
         'schedule': 24*3600.0,  # daily
+        'kwargs': {'backup_type': 'aws'},
     },
 }
 

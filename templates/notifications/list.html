@@ -9,89 +9,143 @@
             <div class="card">
                 <div class="card-header bg-primary text-white">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0"><i class="bi bi-bell"></i> Notifications</h5>
+                        <h5 class="mb-0"><i class="bi bi-bell"></i> Notifications & Messages</h5>
                         {% if unread_count > 0 %}
-                            <button class="btn btn-sm btn-light" onclick="markAllAsRead()">
-                                <i class="bi bi-check-all"></i> Mark All as Read
+                            <button class="btn btn-sm btn-light" onclick="markAllAsRead('{{ active_tab }}')">
+                                <i class="bi bi-check-all"></i> Mark {{ active_tab|title }} as Read
                             </button>
                         {% endif %}
                     </div>
                 </div>
-                <div class="card-body">
-                    {% if notifications %}
-                        <div class="notification-list" id="notificationList">
-                            {% for notification in notifications %}
-                                <div class="notification-item {% if not notification.is_read %}unread{% endif %}" data-id="{{ notification.id }}">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div class="flex-grow-1">
-                                            <h6 class="notification-title">
-                                                <span class="badge badge-{{ notification.category }}">
-                                                    {% if notification.category == 'info' %}
-                                                        <i class="bi bi-info-circle"></i>
-                                                    {% elif notification.category == 'success' %}
-                                                        <i class="bi bi-check-circle"></i>
-                                                    {% elif notification.category == 'warning' %}
-                                                        <i class="bi bi-exclamation-triangle"></i>
-                                                    {% elif notification.category == 'error' %}
-                                                        <i class="bi bi-x-circle"></i>
+                
+                <div class="card-body p-0">
+                    <!-- Tabs -->
+                    <ul class="nav nav-tabs nav-fill" id="notificationTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link {% if active_tab == 'notifications' %}active{% endif %}" 
+                               href="?tab=notifications" 
+                               role="tab">
+                                <i class="bi bi-broadcast"></i> Notifications
+                                {% if unread_notifications_count > 0 %}
+                                    <span class="badge bg-danger rounded-pill">{{ unread_notifications_count }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link {% if active_tab == 'chats' %}active{% endif %}" 
+                               href="?tab=chats" 
+                               role="tab">
+                                <i class="bi bi-chat-dots"></i> Messages
+                                {% if unread_chats_count > 0 %}
+                                    <span class="badge bg-danger rounded-pill">{{ unread_chats_count }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                    </ul>
+                
+                    <div class="tab-content p-3">
+                        {% if notifications %}
+                            <div class="notification-list" id="notificationList">
+                                {% for item in notifications %}
+                                    <div class="notification-item {% if not item.is_read %}unread{% endif %}" data-id="{{ item.id }}" data-type="{{ item.type }}">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <h6 class="notification-title">
+                                                    <span class="badge badge-{{ item.category }}">
+                                                        {% if item.type == 'chat' %}
+                                                            <i class="bi bi-chat-dots"></i> Message
+                                                        {% elif item.category == 'info' %}
+                                                            <i class="bi bi-info-circle"></i> Info
+                                                        {% elif item.category == 'success' %}
+                                                            <i class="bi bi-check-circle"></i> Success
+                                                        {% elif item.category == 'warning' %}
+                                                            <i class="bi bi-exclamation-triangle"></i> Warning
+                                                        {% elif item.category == 'error' %}
+                                                            <i class="bi bi-x-circle"></i> Error
+                                                        {% endif %}
+                                                    </span>
+                                                    {{ item.title }}
+                                                    {% if not item.is_read %}
+                                                        <span class="unread-indicator"></span>
                                                     {% endif %}
-                                                </span>
-                                                {{ notification.title }}
-                                                {% if not notification.is_read %}
-                                                    <span class="unread-indicator"></span>
+                                                </h6>
+                                                <p class="notification-message mb-2">{{ item.message|truncatechars:100 }}</p>
+                                                <small class="text-muted">{{ item.created_at|timesince }} ago</small>
+                                            </div>
+                                            <div class="notification-actions">
+                                                {% if not item.is_read %}
+                                                    <button class="btn btn-sm btn-outline-secondary" onclick="markAsRead({{ item.id }}, '{{ item.type }}')">
+                                                        <i class="bi bi-check"></i> Read
+                                                    </button>
                                                 {% endif %}
-                                            </h6>
-                                            <p class="notification-message mb-2">{{ notification.message }}</p>
-                                            <small class="text-muted">{{ notification.created_at|timesince }} ago</small>
-                                        </div>
-                                        <div class="notification-actions">
-                                            {% if not notification.is_read %}
-                                                <button class="btn btn-sm btn-outline-secondary" onclick="markAsRead({{ notification.id }})">
-                                                    <i class="bi bi-check"></i> Read
-                                                </button>
-                                            {% endif %}
-                                            <a href="{% url 'dashboards:notification_detail' notification.id %}" class="btn btn-sm btn-outline-primary">
-                                                <i class="bi bi-arrow-right"></i> View
-                                            </a>
+                                                
+                                                {% if item.type == 'notification' %}
+                                                    <a href="{% url 'dashboards:notification_detail' item.id %}" class="btn btn-sm btn-outline-primary">
+                                                        <i class="bi bi-arrow-right"></i> View
+                                                    </a>
+                                                    <button class="btn btn-sm btn-outline-danger" 
+                                                            data-id="{{ item.id }}" 
+                                                            data-type="notification"
+                                                            onclick="openDeleteModal(this)">
+                                                        <i class="bi bi-trash"></i> Delete
+                                                    </button>
+                                                {% else %}
+                                                     <!-- Chat actions -->
+                                                     <button class="btn btn-sm btn-outline-primary" 
+                                                             data-id="{{ item.id }}"
+                                                             data-title="{{ item.title }}"
+                                                             data-message="{{ item.message }}"
+                                                             data-date="{{ item.created_at|date:'F j, Y, g:i a' }}"
+                                                             onclick="openMessageModal(this)">
+                                                        <i class="bi bi-eye"></i> View
+                                                     </button>
+                                                     <button class="btn btn-sm btn-outline-danger" 
+                                                             data-id="{{ item.id }}" 
+                                                             data-type="chat"
+                                                             onclick="openDeleteModal(this)">
+                                                        <i class="bi bi-trash"></i> Delete
+                                                     </button>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            {% endfor %}
-                        </div>
-                        
-                        <!-- Pagination -->
-                        {% if notifications.has_other_pages %}
-                            <nav aria-label="Page navigation">
-                                <ul class="pagination justify-content-center">
-                                    {% if notifications.has_previous %}
-                                        <li class="page-item">
-                                            <a class="page-link" href="?page=1">First</a>
+                                {% endfor %}
+                            </div>
+                            
+                            <!-- Pagination -->
+                            {% if notifications.has_other_pages %}
+                                <nav aria-label="Page navigation" class="mt-4">
+                                    <ul class="pagination justify-content-center">
+                                        {% if notifications.has_previous %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?tab={{ active_tab }}&page=1">First</a>
+                                            </li>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?tab={{ active_tab }}&page={{ notifications.previous_page_number }}">Previous</a>
+                                            </li>
+                                        {% endif %}
+                                        
+                                        <li class="page-item active">
+                                            <span class="page-link">Page {{ notifications.number }} of {{ notifications.paginator.num_pages }}</span>
                                         </li>
-                                        <li class="page-item">
-                                            <a class="page-link" href="?page={{ notifications.previous_page_number }}">Previous</a>
-                                        </li>
-                                    {% endif %}
-                                    
-                                    <li class="page-item active">
-                                        <span class="page-link">Page {{ notifications.number }} of {{ notifications.paginator.num_pages }}</span>
-                                    </li>
-                                    
-                                    {% if notifications.has_next %}
-                                        <li class="page-item">
-                                            <a class="page-link" href="?page={{ notifications.next_page_number }}">Next</a>
-                                        </li>
-                                        <li class="page-item">
-                                            <a class="page-link" href="?page={{ notifications.paginator.num_pages }}">Last</a>
-                                        </li>
-                                    {% endif %}
-                                </ul>
-                            </nav>
+                                        
+                                        {% if notifications.has_next %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?tab={{ active_tab }}&page={{ notifications.next_page_number }}">Next</a>
+                                            </li>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?tab={{ active_tab }}&page={{ notifications.paginator.num_pages }}">Last</a>
+                                            </li>
+                                        {% endif %}
+                                    </ul>
+                                </nav>
+                            {% endif %}
+                        {% else %}
+                            <div class="alert alert-info m-3">
+                                <i class="bi bi-inbox"></i> No {{ active_tab }} found.
+                            </div>
                         {% endif %}
-                    {% else %}
-                        <div class="alert alert-info">
-                            <i class="bi bi-inbox"></i> No notifications yet. Check back later!
-                        </div>
-                    {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -104,15 +158,27 @@
                 </div>
                 <div class="card-body">
                     <div class="stat-item mb-3">
-                        <h6>Unread</h6>
-                        <p class="h3 text-warning">{{ unread_count }}</p>
+                        <h6>Unread {{ active_tab|title }}</h6>
+                        <p class="h3 text-warning">
+                            {% if active_tab == 'notifications' %}
+                                {{ unread_notifications_count }}
+                            {% else %}
+                                {{ unread_chats_count }}
+                            {% endif %}
+                        </p>
                     </div>
                     <div class="stat-item">
-                        <h6>Total Notifications</h6>
+                        <h6>Total {{ active_tab|title }}</h6>
                         <p class="h3 text-primary">{{ notifications.paginator.count }}</p>
                     </div>
                     <hr>
-                    <small class="text-muted">Notifications are sent in real-time via WebSocket</small>
+                    <small class="text-muted">
+                        {% if active_tab == 'notifications' %}
+                            System notifications and broadcasts.
+                        {% else %}
+                            Direct messages and chat alerts.
+                        {% endif %}
+                    </small>
                 </div>
             </div>
         </div>
@@ -189,33 +255,102 @@
         text-transform: uppercase;
         font-weight: 600;
     }
+    
+    .nav-tabs .nav-link {
+        color: #495057;
+    }
+    
+    .nav-tabs .nav-link.active {
+        font-weight: bold;
+        color: #0d6efd;
+    }
 </style>
 
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete this item?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Message View Modal -->
+<div class="modal fade" id="messageViewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="msgModalTitle">Message Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <small class="text-muted" id="msgModalDate"></small>
+                </div>
+                <div class="p-3 bg-light rounded border" id="msgModalBody" style="white-space: pre-wrap;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-function markAsRead(notificationId) {
-    fetch('/api/notifications/mark-read/', {
+let itemToDeleteId = null;
+let itemToDeleteType = null;
+let deleteModal = null;
+let messageModal = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    deleteModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    messageModal = new bootstrap.Modal(document.getElementById('messageViewModal'));
+});
+
+function markAsRead(notificationId, type) {
+    fetch('{% url "dashboards:mark_as_read" %}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': '{{ csrf_token }}'
         },
         body: JSON.stringify({
-            notification_id: notificationId
+            notification_id: notificationId,
+            type: type
         })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            const item = document.querySelector(`[data-id="${notificationId}"]`);
-            item.classList.remove('unread');
-            item.querySelector('.notification-actions button').style.display = 'none';
-            location.reload(); // Refresh to update count
+            const item = document.querySelector(`.notification-item[data-id="${notificationId}"][data-type="${type}"]`);
+            if (item) {
+                item.classList.remove('unread');
+                const readBtn = item.querySelector('.notification-actions button');
+                if (readBtn) readBtn.style.display = 'none';
+            }
+            // Reload to update counts
+            location.reload(); 
         }
     });
 }
 
-function markAllAsRead() {
-    fetch('/api/notifications/mark-all-read/', {
+function markAllAsRead(type) {
+    let url = '{% url "dashboards:mark_all_as_read" %}';
+    if (type) {
+        url += `?type=${type}`;
+    }
+    
+    fetch(url, {
         method: 'POST',
         headers: {
             'X-CSRFToken': '{{ csrf_token }}'
@@ -228,5 +363,66 @@ function markAllAsRead() {
         }
     });
 }
+
+function openDeleteModal(btn) {
+    itemToDeleteId = btn.dataset.id;
+    itemToDeleteType = btn.dataset.type;
+    deleteModal.show();
+}
+
+function openMessageModal(btn) {
+    const id = btn.dataset.id;
+    const title = btn.dataset.title;
+    const message = btn.dataset.message;
+    const date = btn.dataset.date;
+    
+    document.getElementById('msgModalTitle').textContent = title;
+    document.getElementById('msgModalBody').textContent = message;
+    document.getElementById('msgModalDate').textContent = date;
+    
+    messageModal.show();
+    
+    // Auto mark as read when viewed
+    const item = btn.closest('.notification-item');
+    if (item && item.classList.contains('unread')) {
+        markAsRead(id, 'chat', true);
+    }
+}
+
+document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+    if (!itemToDeleteId) return;
+    
+    // Append type parameter
+    const deleteUrl = "{% url 'dashboards:delete_notification' 0 %}".replace('0', itemToDeleteId) + `?type=${itemToDeleteType}`;
+    
+    fetch(deleteUrl, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        }
+        throw new Error('Network response was not ok');
+    })
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error deleting item: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while deleting the item');
+    })
+    .finally(() => {
+        deleteModal.hide();
+        itemToDeleteId = null;
+        itemToDeleteType = null;
+    });
+});
 </script>
 {% endblock %}

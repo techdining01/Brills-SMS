@@ -6,11 +6,15 @@
             <h2>Approve Users</h2>
         </div>
         <div class="col-md-6 text-end">
-            <a href="{% url 'exams:admin_dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+            <a href="{% url 'dashboards:admin_dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
         </div>
     </div>
 
     <form method="get" class="row g-3 mb-4">
+        <div class="col-md-3">
+            <label for="search" class="form-label">Search</label>
+            <input type="text" name="q" id="search" class="form-control" placeholder="Search name, email..." value="{{ request.GET.q }}">
+        </div>
         <div class="col-md-3">
             <label for="role" class="form-label">Role</label>
             <select name="role" id="role" class="form-select">
@@ -19,11 +23,11 @@
                 <option value="{{ key }}" {% if request.GET.role == key %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
             </select>
-</div>
-<div class="col-md-3">
-    <button class="btn btn-primary w-100">Filter</button>
-</div>
-</form>
+        </div>
+        <div class="col-md-2 align-self-end">
+            <button class="btn btn-primary w-100">Filter</button>
+        </div>
+    </form>
 
 
 <form method="post">{% csrf_token %}

@@ -50,7 +50,7 @@
                         <td>{{ exam.school_class.name }}</td>
                         <td>{{ exam.created_at|date:"M d, Y" }}</td>
                         <td>
-                            <span class="badge bg-secondary">{{ exam.examattempt_set.count }}</span>
+                            <span class="badge bg-secondary">{{ exam.attempt_count }}</span>
                         </td>
                         <td>
                             <a href="{% url 'dashboards:exam_analytics_phase5' exam.id %}" class="btn btn-sm btn-outline-primary">
@@ -68,6 +68,45 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Pagination -->
+        {% if exams.has_other_pages %}
+        <nav aria-label="Exam list pagination" class="p-3 border-top">
+            <ul class="pagination justify-content-center mb-0">
+                {% if exams.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ exams.previous_page_number }}" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">&laquo;</span>
+                </li>
+                {% endif %}
+
+                {% for i in exams.paginator.page_range %}
+                    {% if exams.number == i %}
+                    <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                    {% else %}
+                    <li class="page-item"><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if exams.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ exams.next_page_number }}" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">&raquo;</span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

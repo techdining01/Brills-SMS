@@ -114,12 +114,16 @@
             <div id="formset-container">
                 {% for item_form in formset %}
                 <div class="component-row">
-                    <div class="row g-3">
+                    <div class="row g-3 align-items-center">
                         {% for field in item_form %}
                         {% if field.is_hidden %}
                         {{ field }}
+                        {% elif field.name == 'DELETE' %}
+                        <div class="d-none">
+                            {{ field }}
+                        </div>
                         {% else %}
-                        <div class="col-md-4">
+                        <div class="col-md-5">
                             <label class="form-label fw-bold small">{{ field.label }}</label>
                             {{ field }}
                             {% if field.errors %}
@@ -128,6 +132,13 @@
                         </div>
                         {% endif %}
                         {% endfor %}
+                        
+                        <div class="col-md-2 text-end">
+                            <label class="form-label d-block">&nbsp;</label>
+                            <button type="button" class="btn btn-outline-danger btn-sm rounded-circle p-2 delete-row-btn" title="Remove Item">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
@@ -163,25 +174,57 @@
         const taxCheckbox = document.querySelector('input[name="is_taxable"]');
         if (taxCheckbox) togglePackageTax(taxCheckbox);
 
+        const container = document.getElementById('formset-container');
+        const totalForms = document.getElementById('id_items-TOTAL_FORMS');
+
+        // Handle Delete Button
+        container.addEventListener('click', function(e) {
+            if (e.target.closest('.delete-row-btn')) {
+                const row = e.target.closest('.component-row');
+                const deleteInput = row.querySelector('input[name$="-DELETE"]');
+                
+                if (deleteInput) {
+                    deleteInput.checked = true;
+                    row.style.display = 'none';
+                } else {
+                    // Fallback if no delete input found (should not happen in standard formset)
+                    row.remove();
+                }
+            }
+        });
+
         document.getElementById('add-component-btn').addEventListener('click', function () {
-            const container = document.getElementById('formset-container');
-            const totalForms = document.getElementById('id_items-TOTAL_FORMS');
             const currentCount = parseInt(totalForms.value);
 
             const firstRow = container.querySelector('.component-row');
             const newRow = firstRow.cloneNode(true);
 
+            // Reset visibility in case we cloned a hidden/deleted row
+            newRow.style.display = 'block';
+
             // Clear inputs and update IDs/Names
             newRow.querySelectorAll('input, select').forEach(input => {
-                input.value = '';
-                input.name = input.name.replace('-0-', `-${currentCount}-`);
-                input.id = input.id.replace('-0-', `-${currentCount}-`);
+                if (input.type === 'checkbox' || input.type === 'radio') {
+                    input.checked = false; // Uncheck boxes, including DELETE
+                } else {
+                    input.value = '';
+                }
+                
+                // Update name and id
+                // Note: replace only the first occurrence of the index to avoid replacing parts of the name that might look like index
+                // Regex to find -0- or -1- etc.
+                const nameRegex = /-\d+-/g;
+                if (input.name) input.name = input.name.replace(nameRegex, `-${currentCount}-`);
+                if (input.id) input.id = input.id.replace(nameRegex, `-${currentCount}-`);
             });
 
             // Update labels
             newRow.querySelectorAll('label').forEach(label => {
                 if (label.getAttribute('for')) {
-                    label.setAttribute('for', label.getAttribute('for').replace('-0-', `-${currentCount}-`));
+                    const forAttr = label.getAttribute('for');
+                    // Simple replacement assuming standard Django ID format id_items-0-field
+                    const newFor = forAttr.replace(/-\d+-/, `-${currentCount}-`);
+                    label.setAttribute('for', newFor);
                 }
             });
 

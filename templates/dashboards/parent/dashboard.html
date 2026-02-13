@@ -101,8 +101,8 @@
                                     <thead>
                                         <tr>
                                             <th>Exam Name</th>
-                                            <th>Date</th>
-                                            <th>Score</th>
+                                            <th class="text-nowrap">Date</th>
+                                            <th class="text-nowrap">Score</th>
                                             <th>Percentage</th>
                                             <th>Grade</th>
                                             <th>Status</th>
@@ -112,9 +112,18 @@
                                     <tbody>
                                         {% for result in recent_results %}
                                             <tr>
-                                                <td><strong>{{ result.exam_attempt.exam.title }}</strong></td>
-                                                <td>{{ result.exam_attempt.started_at|date:"M d, Y" }}</td>
-                                                <td>{{ result.total_score }}/{{ result.exam_attempt.exam.total_marks }}</td>
+                                                <td class="align-middle">
+                                                    <div class="fw-bold text-primary">{{ result.exam.title }}</div>
+                                                    <small class="text-muted">{{ result.exam.school_class.name }}</small>
+                                                </td>
+                                                <td class="align-middle text-nowrap">
+                                                    <div>{{ result.started_at|date:"d M Y" }}</div>
+                                                    <small class="text-muted">{{ result.started_at|date:"h:i A" }}</small>
+                                                </td>
+                                                <td class="align-middle text-nowrap">
+                                                    <span class="fs-6 fw-bold text-dark">{{ result.total_score }}</span>
+                                                    <span class="text-muted">/ {{ result.exam.total_marks }}</span>
+                                                </td>
                                                 <td>
                                                     <span class="badge bg-{% if result.percentage >= 80 %}success{% elif result.percentage >= 60 %}warning{% else %}danger{% endif %}">
                                                         {{ result.percentage }}%
@@ -126,7 +135,7 @@
                                                     </strong>
                                                 </td>
                                                 <td>
-                                                    {% if result.is_graded %}
+                                                    {% if result.is_fully_graded %}
                                                         <span class="badge bg-success">Graded</span>
                                                     {% else %}
                                                         <span class="badge bg-warning">Pending</span>

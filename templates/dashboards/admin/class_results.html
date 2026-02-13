@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Results for {{ school_class.name }} - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboards:admin_results_dashboard' %}">Results</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ school_class.name }}</li>
+                </ol>
+            </nav>
+            <h2><i class="bi bi-mortarboard"></i> {{ school_class.name }} Results</h2>
+            <p class="text-muted">Select a student to view their detailed results.</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Admission Number</th>
+                            <th>Email</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-circle me-2 bg-primary text-white">
+                                        {{ student.first_name|first }}{{ student.last_name|first }}
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold">{{ student.get_full_name }}</div>
+                                        <div class="small text-muted">@{{ student.username }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ student.admission_number|default:"-" }}</td>
+                            <td>{{ student.email }}</td>
+                            <td>
+                                <a href="{% url 'dashboards:admin_student_result_detail' student.id %}" class="btn btn-sm btn-primary">
+                                    View Detailed Results
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center py-4 text-muted">
+                                No students found in this class.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

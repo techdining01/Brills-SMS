@@ -74,30 +74,39 @@
             <a href="{% url 'payroll:payroll_detail' period.id %}" class="btn btn-light rounded-pill px-4">
                 <i class="bi bi-arrow-left me-2"></i> Back
             </a>
-            {% if not payment_data.0.transaction %}
-            <a href="{% url 'payroll:process_payments' period.id %}"
-                class="btn btn-primary rounded-pill px-4 shadow-sm">
-                <i class="bi bi-rocket-takeoff me-2"></i> Initiate Transfers
-            </a>
+            {% if idle_count > 0 %}
+            <form method="post" action="{% url 'payroll:process_payments' period.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">
+                    <i class="bi bi-rocket-takeoff me-2"></i> Process Remaining ({{ idle_count }})
+                </button>
+            </form>
             {% endif %}
         </div>
     </div>
 
     <div class="row g-4 mb-5">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="summary-box h-100 d-flex flex-column justify-content-center">
                 <small class="text-primary fw-bold text-uppercase mb-2">Total Payees</small>
                 <div class="stat-val text-dark">{{ payment_data|length }}</div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="summary-box h-100 d-flex flex-column justify-content-center"
                 style="background: rgba(16, 185, 129, 0.08);">
                 <small class="text-success fw-bold text-uppercase mb-2">Successful</small>
                 <div class="stat-val text-success">{{ success_count|default:0 }}</div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
+            <div class="summary-box h-100 d-flex flex-column justify-content-center"
+                style="background: rgba(245, 158, 11, 0.08);">
+                <small class="text-warning fw-bold text-uppercase mb-2">Idle (Ready)</small>
+                <div class="stat-val text-warning">{{ idle_count|default:0 }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
             <div class="summary-box h-100 d-flex flex-column justify-content-center"
                 style="background: rgba(239, 68, 68, 0.08);">
                 <small class="text-danger fw-bold text-uppercase mb-2">Failed</small>
@@ -156,6 +165,12 @@
                             <span
                                 class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3 fw-bold">IDLE</span>
                             {% endif %}
+                            
+                            {% if item.failure_reason %}
+                            <div class="small text-danger mt-1" style="font-size: 0.7rem;">
+                                <i class="bi bi-info-circle me-1"></i>{{ item.failure_reason }}
+                            </div>
+                            {% endif %}
                         </td>
                         <td class="text-end pe-4">
                             {% if item.can_retry %}
@@ -164,6 +179,14 @@
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-sm btn-warning rounded-pill px-3 shadow-sm">
                                     <i class="bi bi-arrow-clockwise me-1"></i> Retry
+                                </button>
+                            </form>
+                            {% elif item.can_process %}
+                            <form method="post" action="{% url 'payroll:process_payments' period.id %}"
+                                class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm">
+                                    <i class="bi bi-play-fill me-1"></i> Process
                                 </button>
                             </form>
                             {% elif item.status == "success" %}

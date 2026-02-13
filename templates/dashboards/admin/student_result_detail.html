@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Results for {{ student.get_full_name }} - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboards:admin_results_dashboard' %}">Results</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'dashboards:admin_class_results' student.student_class.id %}">{{ student.student_class.name }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ student.get_full_name }}</li>
+                </ol>
+            </nav>
+            <h2><i class="bi bi-person-lines-fill"></i> Results: {{ student.get_full_name }}</h2>
+            <p class="text-muted">Admission No: {{ student.admission_number|default:"-" }} | Class: {{ student.student_class.name }}</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h3>{{ total_exams }}</h3>
+                    <p class="mb-0">Exams Taken</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h3>{{ passed_exams }}</h3>
+                    <p class="mb-0">Exams Passed</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h3>{{ total_exams|add:"0"|default:"0" }}</h3> <!-- Placeholder for average score if needed -->
+                    <p class="mb-0">Total Attempts</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Exam History</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Exam Title</th>
+                            <th>Date Taken</th>
+                            <th>Score</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for attempt in attempts %}
+                        <tr>
+                            <td>{{ attempt.exam.title }}</td>
+                            <td>{{ attempt.completed_at|date:"M d, Y H:i" }}</td>
+                            <td>
+                                {% if attempt.score >= attempt.exam.passing_marks %}
+                                <span class="text-success fw-bold">{{ attempt.score }} / {{ attempt.exam.total_marks }}</span>
+                                {% else %}
+                                <span class="text-danger fw-bold">{{ attempt.score }} / {{ attempt.exam.total_marks }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if attempt.status == 'submitted' %}
+                                <span class="badge bg-success">Submitted</span>
+                                {% elif attempt.status == 'in_progress' %}
+                                <span class="badge bg-warning">In Progress</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ attempt.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'dashboards:exam_result' attempt.id %}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                    View Script
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4 text-muted">
+                                No exam attempts found for this student.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

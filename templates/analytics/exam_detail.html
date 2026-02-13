@@ -53,10 +53,54 @@
 
     <div class="card">
         <div class="card-header">
-            <h5 class="mb-0">Detailed Statistics</h5>
+            <h5 class="mb-0">Question Performance Analysis</h5>
         </div>
         <div class="card-body">
-            <p class="text-muted">Analytics data will be displayed here</p>
+            {% if question_stats %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width: 40%">Question</th>
+                            <th>Type</th>
+                            <th class="text-center">Correct / Total</th>
+                            <th style="width: 25%">Accuracy</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in question_stats %}
+                        <tr>
+                            <td>
+                                <div class="text-wrap" style="max-height: 100px; overflow-y: auto;">
+                                    {{ stat.question.text|safe|truncatechars_html:150 }}
+                                </div>
+                            </td>
+                            <td><span class="badge bg-secondary">{{ stat.question.get_type_display }}</span></td>
+                            <td class="text-center">{{ stat.correct }} / {{ stat.total_attempts }}</td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="progress flex-grow-1 me-2" style="height: 20px;">
+                                        <div class="progress-bar {% if stat.accuracy >= 70 %}bg-success{% elif stat.accuracy >= 40 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                             role="progressbar" 
+                                             style="width: {{ stat.accuracy }}%;" 
+                                             aria-valuenow="{{ stat.accuracy }}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="100">
+                                            {{ stat.accuracy|floatformat:1 }}%
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <p class="text-muted mb-0">No detailed statistics available yet.</p>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>

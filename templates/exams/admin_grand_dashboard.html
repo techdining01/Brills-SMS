@@ -1,133 +1,354 @@
 {% extends "base.html" %}
-{% load static %}
-{% block title %}Admin Grand Dashboard{% endblock %}
+{% load static humanize %}
+
+{% block title %}Grand Admin Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        --warning-gradient: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+        --danger-gradient: linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
+        --info-gradient: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
+    }
+
+    .dashboard-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        overflow: hidden;
+        background: #fff;
+    }
+
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+    }
+
+    .stat-card {
+        color: white;
+        position: relative;
+    }
+
+    .stat-card .card-body {
+        position: relative;
+        z-index: 2;
+    }
+
+    .stat-card .bg-icon {
+        position: absolute;
+        right: -20px;
+        bottom: -20px;
+        font-size: 8rem;
+        opacity: 0.2;
+        transform: rotate(15deg);
+        z-index: 1;
+    }
+
+    .module-card {
+        border-left: 5px solid transparent;
+    }
+
+    .module-card:hover {
+        border-left-width: 5px;
+    }
+    
+    .module-card.academics { border-left-color: #667eea; }
+    .module-card.finance { border-left-color: #11998e; }
+    .module-card.users { border-left-color: #fda085; }
+    .module-card.admin { border-left-color: #ff9a9e; }
+
+    .quick-action-btn {
+        display: flex;
+        align-items: center;
+        padding: 12px 20px;
+        border-radius: 10px;
+        background-color: #f8f9fa;
+        color: #495057;
+        text-decoration: none;
+        transition: all 0.2s;
+        margin-bottom: 10px;
+        font-weight: 500;
+    }
+
+    .quick-action-btn:hover {
+        background-color: #e9ecef;
+        color: #212529;
+        transform: translateX(5px);
+    }
+
+    .quick-action-btn i {
+        margin-right: 15px;
+        font-size: 1.2rem;
+        width: 30px;
+        text-align: center;
+    }
+
+    .section-title {
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        font-weight: 700;
+        color: #adb5bd;
+        margin-bottom: 1.5rem;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
-
-    <h4 class="fw-bold mb-4">
-        <i class="bi bi-speedometer2"></i> Admin Grand Dashboard
-    </h4>
-
-    <!-- ===================== STATS ROW ===================== -->
-    <div class="row g-3">
-
-        <!-- USERS -->
-        <div class="col-md-3 col-sm-6">
-            <div class="card shadow-sm border-0">
-                <div class="card-body">
-                    <small class="text-muted">Total Users</small>
-                    <h3 class="fw-bold">{{ stats.total_users }}</h3>
-                    <span class="badge bg-warning">
-                        {{ stats.pending_users }} pending approval
-                    </span>
-                </div>
-            </div>
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <div>
+            <h1 class="fw-bold mb-1">Grand Admin Dashboard</h1>
+            <p class="text-muted mb-0">Overview of system performance and management modules.</p>
         </div>
-
-        <!-- STUDENTS -->
-        <div class="col-md-3 col-sm-6">
-            <div class="card shadow-sm border-0">
-                <div class="card-body">
-                    <small class="text-muted">Students</small>
-                    <h3 class="fw-bold">{{ stats.students }}</h3>
-                </div>
-            </div>
+        <div class="text-end d-none d-md-block">
+            <h5 class="fw-bold mb-0">{% now "l, F jS, Y" %}</h5>
+            <small class="text-muted">System Status: <span class="text-success fw-bold">Operational</span></small>
         </div>
-
-        <!-- EXAMS -->
-        <div class="col-md-3 col-sm-6">
-            <div class="card shadow-sm border-0">
-                <div class="card-body">
-                    <small class="text-muted">Active Exams</small>
-                    <h3 class="fw-bold">{{ stats.active_exams }}</h3>
-                    <small class="text-muted">
-                        {{ stats.attempts_today }} attempts today
-                    </small>
-                </div>
-            </div>
-        </div>
-
-        <!-- REVENUE -->
-        <div class="col-md-3 col-sm-6">
-            <div class="card shadow-sm border-0 bg-success text-white">
-                <div class="card-body">
-                    <small>Total Revenue</small>
-                    <h3 class="fw-bold">
-                        ₦{{ stats.total_revenue|floatformat:2 }}
-                    </h3>
-                </div>
-            </div>
-        </div>
-
     </div>
 
-    <!-- ===================== QUICK ACTIONS ===================== -->
-    <div class="row mt-4 g-3">
-
-        <div class="col-md-4">
-            <div class="list-group shadow-sm">
-                <a href="{% url 'accounts:approve_users' %}" class="list-group-item list-group-item-action">
-                    👤 Approve Users
-                    {% if stats.pending_users %}
-                        <span class="badge bg-danger float-end">
-                            {{ stats.pending_users }}
+    <!-- Top Stats Row -->
+    <div class="row g-4 mb-5">
+        <!-- Users -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card dashboard-card stat-card h-100" style="background: var(--primary-gradient);">
+                <div class="card-body">
+                    <h6 class="text-black-50 text-uppercase fw-bold mb-3">Total Users</h6>
+                    <h2 class="display-4 fw-bold mb-0">{{ stats.total_users }}</h2>
+                    <div class="mt-3">
+                        <span class="badge bg-white text-primary rounded-pill px-3 py-2">
+                            {{ stats.students }} Students
                         </span>
-                    {% endif %}
-                </a>
-                <a href="{% url 'dashboards:admin_exams_list' %}" class="list-group-item list-group-item-action">
-                    📝 Manage Exams
-                </a>
-                <a href="{% url 'dashboards:chat_list' %}" class="list-group-item list-group-item-action">
-                    🧑‍🤝‍🧑 Chat Room
-                    {% if stats.unread_count %}
-                        <span class="badge bg-warning float-end">
-                            {{ stats.unread_count }}
+                        {% if stats.pending_users > 0 %}
+                        <span class="badge bg-danger rounded-pill px-3 py-2 ms-1">
+                            {{ stats.pending_users }} Pending
                         </span>
-                    {% endif %}
-                </a>
+                        {% endif %}
+                    </div>
+                    <i class="bi bi-people-fill bg-icon"></i>
+                </div>
             </div>
         </div>
 
-        <div class="col-md-4">
-            <div class="list-group shadow-sm">
-                <a href="{% url 'brillspay:admin_payment_list' %}" class="list-group-item list-group-item-action">
-                    🛒 Orders
-                    {% if stats.pending_orders %}
-                        <span class="badge bg-info float-end">
-                            {{ stats.pending_orders }}
+        <!-- Revenue -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card dashboard-card stat-card h-100" style="background: var(--success-gradient);">
+                <div class="card-body">
+                    <h6 class="text-black-50 text-uppercase fw-bold mb-3">Total Revenue</h6>
+                    <h2 class="display-5 fw-bold mb-0">₦{{ stats.total_revenue|floatformat:0|intcomma }}</h2>
+                    <div class="mt-3">
+                         <span class="badge bg-white text-success rounded-pill px-3 py-2">
+                            {{ stats.pending_orders }} Pending Orders
                         </span>
-                    {% endif %}
-                </a>
-                <a href="{% url 'brillspay:admin_payment_list' %}" class="list-group-item list-group-item-action">
-                    💳 Transactions
-                </a>
-                <a href="{% url 'pickup:admin_dashboard' %}" class="list-group-item list-group-item-action">
-                    🎒 Pickup Verification
-                    {% if stats.active_pickups %}
-                        <span class="badge bg-danger float-end">
-                            {{ stats.active_pickups }}
-                        </span>
-                    {% endif %}
-                </a>
+                    </div>
+                    <i class="bi bi-wallet2 bg-icon"></i>
+                </div>
             </div>
         </div>
 
-        <div class="col-md-4">
-            <div class="list-group shadow-sm">
-                <a href="{% url 'dashboards:admin_system_logs' %}" class="list-group-item list-group-item-action">
-                    📜 System Logs
-                </a>
-                <a href="#" class="list-group-item list-group-item-action">
-                    📊 Analytics (Charts)
-                </a>
-                <a href="#" class="list-group-item list-group-item-action">
-                    ⚙️ Settings & Backups
-                </a>
+        <!-- Exams -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card dashboard-card stat-card h-100" style="background: var(--warning-gradient);">
+                <div class="card-body">
+                    <h6 class="text-black-50 text-uppercase fw-bold mb-3">Active Exams</h6>
+                    <h2 class="display-4 fw-bold mb-0">{{ stats.active_exams }}</h2>
+                    <div class="mt-3">
+                        <span class="badge bg-white text-warning rounded-pill px-3 py-2">
+                            {{ stats.attempts_today }} Attempts Today
+                        </span>
+                    </div>
+                    <i class="bi bi-journal-text bg-icon"></i>
+                </div>
             </div>
         </div>
 
+        <!-- Pending Actions -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card dashboard-card stat-card h-100" style="background: var(--danger-gradient);">
+                <div class="card-body">
+                    <h6 class="text-black-50 text-uppercase fw-bold mb-3">Attention Needed</h6>
+                    <h2 class="display-4 fw-bold mb-0">
+                        {{ stats.pending_users|add:stats.pending_leaves|add:stats.pending_loans|add:stats.pending_payroll }}
+                    </h2>
+                    <div class="mt-3">
+                        <small class="text-black-50 fw-bold">Approvals & Requests</small>
+                    </div>
+                    <i class="bi bi-exclamation-triangle-fill bg-icon"></i>
+                </div>
+            </div>
+        </div>
     </div>
 
+    <!-- Main Content Grid -->
+    <div class="row g-4">
+        <!-- Left Column: Quick Access & Modules -->
+        <div class="col-lg-8">
+            <!-- Quick Access Modules -->
+            <div class="row g-4 mb-4">
+                <!-- Academics -->
+                <div class="col-md-6">
+                    <div class="card dashboard-card module-card academics h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-4">
+                                <div class="bg-primary bg-opacity-10 p-3 rounded-circle me-3 text-primary">
+                                    <i class="bi bi-mortarboard fs-4"></i>
+                                </div>
+                                <h5 class="card-title fw-bold mb-0">Academics</h5>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'dashboards:admin_exams_list' %}" class="quick-action-btn">
+                                    <i class="bi bi-pencil-square text-primary"></i> Manage Exams
+                                </a>
+                                <a href="{% url 'dashboards:admin_subjects_list' %}" class="quick-action-btn">
+                                    <i class="bi bi-book text-primary"></i> Subjects & Classes
+                                </a>
+                                <a href="{% url 'dashboards:admin_results_dashboard' %}" class="quick-action-btn">
+                                    <i class="bi bi-graph-up text-primary"></i> View Results
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users & HR -->
+                <div class="col-md-6">
+                    <div class="card dashboard-card module-card users h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-4">
+                                <div class="bg-warning bg-opacity-10 p-3 rounded-circle me-3 text-warning">
+                                    <i class="bi bi-people fs-4"></i>
+                                </div>
+                                <h5 class="card-title fw-bold mb-0">Users & HR</h5>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'accounts:approve_users' %}" class="quick-action-btn">
+                                    <i class="bi bi-person-check text-warning"></i> Approve Users
+                                    {% if stats.pending_users %}
+                                    <span class="badge bg-danger ms-auto">{{ stats.pending_users }}</span>
+                                    {% endif %}
+                                </a>
+                                <a href="{% url 'leaves:admin_dashboard' %}" class="quick-action-btn">
+                                    <i class="bi bi-calendar-range text-warning"></i> Leave & Loans
+                                    {% if stats.pending_leaves or stats.pending_loans %}
+                                    <span class="badge bg-danger ms-auto">{{ stats.pending_leaves|add:stats.pending_loans }}</span>
+                                    {% endif %}
+                                </a>
+                                <a href="{% url 'payroll:admin_payee_list' %}" class="quick-action-btn">
+                                    <i class="bi bi-person-badge text-warning"></i> Manage Payees
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Finance -->
+                <div class="col-md-6">
+                    <div class="card dashboard-card module-card finance h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-4">
+                                <div class="bg-success bg-opacity-10 p-3 rounded-circle me-3 text-success">
+                                    <i class="bi bi-bank fs-4"></i>
+                                </div>
+                                <h5 class="card-title fw-bold mb-0">Finance</h5>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'brillspay:admin_payment_list' %}" class="quick-action-btn">
+                                    <i class="bi bi-credit-card text-success"></i> Transactions
+                                </a>
+                                <a href="{% url 'payroll:admin_dashboard' %}" class="quick-action-btn">
+                                    <i class="bi bi-wallet text-success"></i> Payroll Dashboard
+                                    {% if stats.pending_payroll %}
+                                    <span class="badge bg-danger ms-auto">{{ stats.pending_payroll }}</span>
+                                    {% endif %}
+                                </a>
+                                <a href="#" class="quick-action-btn">
+                                    <i class="bi bi-cart text-success"></i> Store Orders
+                                    {% if stats.pending_orders %}
+                                    <span class="badge bg-danger ms-auto">{{ stats.pending_orders }}</span>
+                                    {% endif %}
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System & Admin -->
+                <div class="col-md-6">
+                    <div class="card dashboard-card module-card admin h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-4">
+                                <div class="bg-danger bg-opacity-10 p-3 rounded-circle me-3 text-danger">
+                                    <i class="bi bi-gear fs-4"></i>
+                                </div>
+                                <h5 class="card-title fw-bold mb-0">System & Admin</h5>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'dashboards:admin_system_logs' %}" class="quick-action-btn">
+                                    <i class="bi bi-terminal text-danger"></i> System Logs
+                                </a>
+                                <a href="{% url 'pickup:admin_dashboard' %}" class="quick-action-btn">
+                                    <i class="bi bi-car-front text-danger"></i> Pickup Verification
+                                    {% if stats.active_pickups %}
+                                    <span class="badge bg-danger ms-auto">{{ stats.active_pickups }}</span>
+                                    {% endif %}
+                                </a>
+                                <a href="/admin/" class="quick-action-btn">
+                                    <i class="bi bi-shield-lock text-danger"></i> Django Admin
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Recent Activity & Communication -->
+        <div class="col-lg-4">
+            <!-- Chat / Communication -->
+            <div class="card dashboard-card mb-4">
+                <div class="card-header bg-white border-0 pt-4 pb-0">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold mb-0">Messages</h5>
+                        {% if stats.unread_count %}
+                        <span class="badge bg-danger rounded-pill">{{ stats.unread_count }} New</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                     <div class="text-center py-4">
+                        <div class="bg-light rounded-circle p-3 d-inline-block mb-3">
+                            <i class="bi bi-chat-dots fs-1 text-primary"></i>
+                        </div>
+                        <p class="text-muted">Stay connected with staff and parents.</p>
+                        <a href="{% url 'dashboards:chat_list' %}" class="btn btn-primary rounded-pill w-100">
+                            Open Chat Room
+                        </a>
+                     </div>
+                </div>
+            </div>
+
+            <!-- Quick Links / External -->
+            <div class="card dashboard-card bg-dark text-white mb-4">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-4">External Links</h5>
+                    <div class="d-flex flex-column gap-3">
+                        <a href="#" class="text-white-50 text-decoration-none d-flex align-items-center">
+                            <i class="bi bi-globe me-3"></i> School Website
+                        </a>
+                        <a href="#" class="text-white-50 text-decoration-none d-flex align-items-center">
+                            <i class="bi bi-envelope me-3"></i> Webmail
+                        </a>
+                        <a href="#" class="text-white-50 text-decoration-none d-flex align-items-center">
+                            <i class="bi bi-question-circle me-3"></i> Support Documentation
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}

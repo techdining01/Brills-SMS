@@ -45,6 +45,25 @@
     </div>
   </div>
 
+  <!-- QUICK ACTIONS -->
+  <div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-header fw-semibold">
+                <i class="bi bi-lightning"></i> Quick Actions
+            </div>
+            <div class="card-body">
+                <a href="{% url 'dashboards:admin_subjects_list' %}" class="btn btn-outline-primary me-2">
+                    <i class="bi bi-book"></i> Manage Subjects
+                </a>
+                <a href="{% url 'dashboards:admin_results_dashboard' %}" class="btn btn-outline-primary me-2">
+                    <i class="bi bi-bar-chart"></i> Results
+                </a>
+            </div>
+        </div>
+    </div>
+  </div>
+
   <!-- MANAGEMENT LINKS -->
   <div class="row g-4">
 

@@ -140,9 +140,9 @@
                   <div class="fw-bold text-dark">{{ loan.payee.user.get_full_name }}</div>
                   <small class="text-muted">{{ loan.created_at|date:"M d" }}</small>
                 </td>
-                <td><span class="fw-bold text-primary">₦{{ loan.amount|intcomma }}</span></td>
+                <td><span class="fw-bold text-primary">₦{{ loan.loan_amount|intcomma }}</span></td>
                 <td class="text-end">
-                  <button class="btn btn-sm btn-outline-primary rounded-pill px-3">View</button>
+                  <a href="{% url 'loans:admin_loan_detail' loan.id %}" class="btn btn-sm btn-outline-primary rounded-pill px-3">View</a>
                 </td>
               </tr>
               {% empty %}

@@ -42,7 +42,7 @@
                             <a href="{% url 'dashboards:admin_edit_class' class.id %}" class="btn btn-sm btn-outline-secondary" title="Edit">
                                 <i class="bi bi-pencil"></i>
                             </a>
-                            <a href="{% url 'dashboards:admin_delete_class' class.id %}" class="btn btn-sm btn-outline-danger" title="Delete" onclick="return confirm('Are you sure you want to delete this class?')">
+                            <a href="{% url 'dashboards:admin_delete_class' class.id %}" class="btn btn-sm btn-outline-danger" title="Delete" data-confirm="Are you sure you want to delete this class?">
                                 <i class="bi bi-trash"></i>
                             </a>
                         </td>

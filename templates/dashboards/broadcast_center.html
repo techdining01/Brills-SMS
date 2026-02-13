@@ -28,7 +28,7 @@
                         </div>
                         
                         <div class="mb-3">
-                            <label for="target_class" class="form-label">Target Audience</label>
+                            <label for="target_class" class="form-label">Target Class (Students)</label>
                             <select class="form-select" id="target_class" name="target_class">
                                 <option value="">All Students</option>
                                 {% for school_class in classes %}
@@ -36,6 +36,16 @@
                                 {% endfor %}
                             </select>
                             <div class="form-text">Leave as "All Students" to send to everyone.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="target_parents" class="form-label">Or Select Parents (optional)</label>
+                            <select multiple class="form-select" id="target_parents" name="target_parents">
+                                {% for parent in parents %}
+                                <option value="{{ parent.id }}">{{ parent.get_full_name }} ({{ parent.username }})</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Hold Ctrl/Cmd to select multiple parents. If parents are selected, the broadcast goes to parents only.</div>
                         </div>
                         
                         <div class="mb-3">
@@ -69,7 +79,9 @@
                         <div class="mt-2">
                             <span class="badge bg-light text-dark border">
                                 <i class="bi bi-people me-1"></i>
-                                {% if broadcast.target_class %}
+                                {% if broadcast.recipients.count %}
+                                    Parents ({{ broadcast.recipients.count }})
+                                {% elif broadcast.target_class %}
                                     {{ broadcast.target_class.name }}
                                 {% else %}
                                     All Students
@@ -87,6 +99,46 @@
                     </div>
                     {% endfor %}
                 </div>
+                
+                {% if broadcasts.has_other_pages %}
+                <div class="card-footer bg-white py-3">
+                    <nav aria-label="Broadcast pagination">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if broadcasts.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ broadcasts.previous_page_number }}" aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">&laquo;</span>
+                                </li>
+                            {% endif %}
+
+                            {% for i in broadcasts.paginator.page_range %}
+                                {% if broadcasts.number == i %}
+                                    <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                                {% else %}
+                                    <li class="page-item"><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if broadcasts.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ broadcasts.next_page_number }}" aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">&raquo;</span>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

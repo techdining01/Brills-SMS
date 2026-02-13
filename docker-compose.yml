@@ -1,27 +1,28 @@
-version: "3.9"
-
 services:
   web:
     build: .
-    ports:
-      - "8000:8000"
     volumes:
       - .:/app
-      - ./media:/app/media
-      - ./logs:/app/logs
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
     env_file:
       - .env
-    depends_on:
-      - db
+    expose:
+      - "8000"
+    restart: always
 
-  db:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: thebrills_db
-      POSTGRES_USER: thebrills_user
-      POSTGRES_PASSWORD: thebrills_db_password
+  nginx:
+    image: nginx:alpine
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+    restart: always
 
 volumes:
-  postgres_data:
+  static_volume:
+  media_volume:

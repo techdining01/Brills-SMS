@@ -35,33 +35,41 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for request in page_obj %}
+                    {% for retake_req in page_obj %}
                     <tr>
-                        <td>{{ request.created_at|date:"M d, Y H:i" }}</td>
+                        <td>{{ retake_req.created_at|date:"M d, Y H:i" }}</td>
                         <td>
-                            <div>{{ request.student.get_full_name }}</div>
-                            <small class="text-muted">{{ request.student.username }}</small>
+                            <div>{{ retake_req.student.get_full_name }}</div>
+                            <small class="text-muted">{{ retake_req.student.username }}</small>
                         </td>
-                        <td>{{ request.exam.title }}</td>
-                        <td>{{ request.reason|truncatechars:50 }}</td>
+                        <td>{{ retake_req.exam.title }}</td>
+                        <td>{{ retake_req.reason|truncatechars:50 }}</td>
                         <td>
-                            {% if request.status == 'approved' %}
+                            {% if retake_req.status == 'approved' %}
                             <span class="badge bg-success">Approved</span>
-                            {% elif request.status == 'denied' %}
+                            {% elif retake_req.status == 'denied' %}
                             <span class="badge bg-danger">Denied</span>
                             {% else %}
                             <span class="badge bg-warning text-dark">Pending</span>
                             {% endif %}
                         </td>
                         <td>
-                            {% if request.status == 'pending' %}
+                            {% if retake_req.status == 'pending' %}
                             <div class="btn-group btn-group-sm">
-                                <button class="btn btn-success" title="Approve">
-                                    <i class="bi bi-check-lg"></i>
-                                </button>
-                                <button class="btn btn-danger" title="Deny">
-                                    <i class="bi bi-x-lg"></i>
-                                </button>
+                                <form action="{% url 'dashboards:update_retake_request_status' retake_req.id %}" method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="approve">
+                                    <button type="submit" class="btn btn-success" title="Approve">
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                </form>
+                                <form action="{% url 'dashboards:update_retake_request_status' retake_req.id %}" method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="deny">
+                                    <button type="submit" class="btn btn-danger" title="Deny">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </form>
                             </div>
                             {% else %}
                             <small class="text-muted">-</small>

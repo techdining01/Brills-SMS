@@ -15,10 +15,11 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from .views import landing_page, admin_grand_dashboard, about_page
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.static import serve
 
 urlpatterns = [
     path('', landing_page, name='landing_page'),
@@ -35,9 +36,20 @@ urlpatterns = [
     # path('sms/', include('sms.urls')),
     # path('management/', include('management.urls')),
 ]
-# Serve media and static files locally when DEBUG=False
+
+# Media file serving for both DEBUG=True and DEBUG=False
+urlpatterns += [
+    re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
+]
+
+# Static file serving for DEBUG=True (WhiteNoise handles it when DEBUG=False)
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# Custom Error Handlers
+handler404 = 'django.views.defaults.page_not_found'
+handler500 = 'django.views.defaults.server_error'
+handler403 = 'django.views.defaults.permission_denied'
+handler400 = 'django.views.defaults.bad_request'
 
 

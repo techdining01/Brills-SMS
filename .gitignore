@@ -5,9 +5,11 @@ __pycache__/
 
 # C extensions
 *.so
-
+payrolls/
+examsx/
 .env
-.venv
+.venv/
+thebrills/
 # Distribution / packaging
 .Python
 build/

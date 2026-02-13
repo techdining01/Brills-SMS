@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Class Leaderboard{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-trophy"></i> Class Leaderboard</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        Leaderboard view is not yet implemented. This page is available to prevent errors.
+                    </div>
+                    <a href="{% url 'dashboards:student_dashboard' %}" class="btn btn-outline-primary">
+                        Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

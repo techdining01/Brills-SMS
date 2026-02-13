@@ -47,7 +47,17 @@
                                 <small class="d-block"><strong>Created by:</strong> {{ exam.created_by.first_name }} {{ exam.created_by.last_name }}</small>
                             </div>
                             
-                            <a href="{% url 'dashboards:start_exam' exam.id %}" class="btn btn-primary btn-sm">Start Exam</a>
+                            {% if exam.has_in_progress %}
+                                <a href="{% url 'dashboards:start_exam' exam.id %}" class="btn btn-warning btn-sm">Resume Exam</a>
+                            {% elif exam.can_retake %}
+                                <a href="{% url 'dashboards:start_exam' exam.id %}" class="btn btn-info btn-sm">Retake Exam</a>
+                            {% elif exam.can_request_retake %}
+                                <a href="{% url 'dashboards:student_request_retake' exam.id %}" class="btn btn-outline-primary btn-sm">Request Retake</a>
+                            {% elif exam.retake_status == 'pending' %}
+                                <button class="btn btn-secondary btn-sm" disabled>Pending Approval</button>
+                            {% else %}
+                                <a href="{% url 'dashboards:start_exam' exam.id %}" class="btn btn-primary btn-sm">Start Exam</a>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
