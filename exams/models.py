@@ -42,7 +42,7 @@ class SchoolClass(models.Model):
         ordering = ['name', 'academic_year']
     
     def __str__(self):
-        return self.name
+        return f'{self.name} ({self.academic_year})'    
 
 
 class Subject(models.Model):
@@ -407,6 +407,8 @@ class Notification(models.Model):
 class Broadcast(models.Model):
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='broadcasts')
     target_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, blank=True, null=True, related_name='broadcasts')
+    recipients = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='received_broadcasts')
+    target_role = models.CharField(max_length=20, blank=True, default='', help_text="Optional target role: 'students' or 'parents'")
     title = models.CharField(max_length=200)
     message = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -415,7 +417,8 @@ class Broadcast(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"Broadcast by {self.sender.username} to {self.target_class.name if self.target_class else 'All'}"
+        target = self.target_class.name if self.target_class else (self.target_role or 'All')
+        return f"Broadcast by {self.sender.username} to {target}"
     
 
 class SystemLog(models.Model):
@@ -442,6 +445,7 @@ class ChatMessage(models.Model):
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sent_messages')
     recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='received_messages')
     message = models.TextField()
+    attachment = models.FileField(upload_to='chat_attachments/', null=True, blank=True)
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 

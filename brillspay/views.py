@@ -57,10 +57,14 @@ def product_list(request):
     ward = get_object_or_404(User, id=ward_id, role="STUDENT")
     cart = get_or_create_cart(request.user, ward)
 
-    products = Product.objects.filter(
-        category__class_name=ward.student_class,
-        is_active=True
-    )
+    # If ward has a class, try to filter by category class_name
+    if ward.student_class:
+        products = Product.objects.filter(
+            category__class_name=ward.student_class.name,
+            is_active=True
+        )
+    else:
+        products = Product.objects.none()
 
     cart_product_ids = set(cart.items.values_list("product_id", flat=True))
 
@@ -240,6 +244,7 @@ def checkout(request):
         for item in cart.items.select_related("product"):
             OrderItem.objects.create(
                 order=order,
+                product=item.product,
                 product_name=item.product.name,
                 price=item.product.price,
                 quantity=item.quantity,

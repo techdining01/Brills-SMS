@@ -1,184 +1,149 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from exams.models import (
-    SchoolClass, Subject, Exam, Question, Choice,
-    ExamAccess, ExamAttempt, StudentAnswer, SubjectiveMark
-)
+from exams.models import SchoolClass, Subject, Exam, Question, Choice
+import datetime
 import random
 
 User = get_user_model()
 
-
 class Command(BaseCommand):
-    help = "Seed full examination system (classes, exams, questions, attempts, grading)"
+    help = 'Seeds the database with sample exam data for all classes'
 
     def handle(self, *args, **kwargs):
+        self.stdout.write('Starting seeding process...')
 
-        self.stdout.write("⏳ Seeding examination system...")
+        # 1. Clean existing data
+        self.stdout.write('Deleting existing exams...')
+        Exam.objects.all().delete()
+        # Note: Cascade deletes questions, choices, attempts
 
-        # ------------------------------------------------
-        # 1. CLASSES
-        # ------------------------------------------------
-        classes = []
-        for name in ["JSS1", "JSS2", "SSS1"]:
-            cls, _ = SchoolClass.objects.get_or_create(
+        # 2. Get Admin User
+        admin_user = User.objects.filter(is_superuser=True).first()
+        if not admin_user:
+            self.stdout.write('Creating superuser...')
+            admin_user = User.objects.create_superuser(
+                username='admin',
+                email='admin@example.com',
+                password='adminpassword',
+                role='ADMIN'
+            )
+
+        # 3. Ensure Classes Exist (Fetch all)
+        classes = SchoolClass.objects.all()
+        if not classes.exists():
+            self.stdout.write('No classes found. Creating defaults...')
+            default_classes = [
+                {'name': 'JSS 1', 'level': 'junior_secondary'},
+                {'name': 'JSS 2', 'level': 'junior_secondary'},
+                {'name': 'JSS 3', 'level': 'junior_secondary'},
+                {'name': 'SSS 1', 'level': 'senior_secondary'},
+                {'name': 'SSS 2', 'level': 'senior_secondary'},
+                {'name': 'SSS 3', 'level': 'senior_secondary'},
+            ]
+            for cls_data in default_classes:
+                SchoolClass.objects.create(
+                    name=cls_data['name'], 
+                    level=cls_data['level'],
+                    academic_year='2024/2025',
+                    teacher=admin_user
+                )
+            classes = SchoolClass.objects.all()
+
+        # 4. Ensure Subjects Exist
+        subject_names = [
+            'Mathematics', 'English Language', 'Basic Science', 
+            'Civic Education', 'Biology', 'Chemistry', 'Physics', 
+            'Economics', 'Government', 'Geography'
+        ]
+        
+        all_subjects = []
+        for name in subject_names:
+            sub, _ = Subject.objects.get_or_create(
                 name=name,
-                defaults={"level": "junior_secondary"}
-            )
-            classes.append(cls)
-
-        # ------------------------------------------------
-        # 2. TEACHER / ADMIN
-        # ------------------------------------------------
-        teacher = User.objects.filter(role="TEACHER").first()
-        admin = User.objects.filter(is_superuser=True).first()
-
-        examiner = teacher or admin
-        if not examiner:
-            self.stdout.write(self.style.ERROR("❌ No teacher/admin found"))
-            return
-
-        # ------------------------------------------------
-        # 3. SUBJECTS
-        # ------------------------------------------------
-        subject = Subject.objects.filter(
-            name="Mathematics"
-        ).first()
-
-        if not subject:
-            subject = Subject.objects.create(
-                name="Mathematics",
-                created_by=examiner
-            )
-
-        subject.classes.add(cls)
-
-        # ------------------------------------------------
-        # 4. STUDENTS
-        # ------------------------------------------------
-        students = User.objects.filter(role='STUDENT').all()
-
-        if not students.exists():
-            self.stdout.write(self.style.ERROR("❌ No students found"))
-            return
-
-        # ------------------------------------------------
-        # 5. EXAMS
-        # ------------------------------------------------
-        exams = []
-        for cls in classes:
-            exam, _ = Exam.objects.get_or_create(
-                title=f"{cls.name} Mathematics Test",
-                school_class=cls,
-                created_by=examiner,
                 defaults={
-                    "duration": 30,
-                    "start_time": timezone.now(),
-                    "end_time": timezone.now() + timezone.timedelta(days=7),
-                    "is_active": True,
-                    "is_published": True,
-                    "allow_retake": True,
+                    'description': f'{name} Subject',
+                    'created_by': admin_user
                 }
             )
-            exams.append(exam)
+            all_subjects.append(sub)
 
-        # ------------------------------------------------
-        # 6. QUESTIONS
-        # ------------------------------------------------
-        for exam in exams:
-            questions = []
+        # 5. Create Exams for EACH class
+        for school_class in classes:
+            self.stdout.write(f'Processing Class: {school_class.name}')
+            
+            # Ensure class has subjects attached
+            # (In many schemas M2M is explicit, here we just make sure there are subjects relevant)
+            # We will pick 3 random subjects for this class
+            
+            selected_subjects = random.sample(all_subjects, 3)
+            
+            for subject in selected_subjects:
+                # Add subject to class if not already (logic from original View/Model usually handles this, but doing it here for safety)
+                subject.classes.add(school_class)
 
-            # Objective
-            for i in range(5):
-                q = Question.objects.create(
-                    exam=exam,
-                    text=f"Objective Question {i+1}",
-                    type="objective",
-                    marks=2
+                # Create Exam
+                exam_title = f"{subject.name} - {school_class.name} Term 1 Exam"
+                
+                exam = Exam.objects.create(
+                    title=exam_title,
+                    school_class=school_class,
+                    created_by=admin_user,
+                    duration=60,
+                    start_time=timezone.now(),
+                    end_time=timezone.now() + datetime.timedelta(days=30),
+                    is_published=True,
+                    allow_retake=True,
+                    passing_marks=50
                 )
-                correct = random.randint(1, 4)
+                
+                self.add_questions(exam, subject.name)
+        
+        self.stdout.write(self.style.SUCCESS(f'Successfully seeded exams for {classes.count()} classes.'))
 
-                for j in range(1, 5):
-                    Choice.objects.create(
-                        question=q,
-                        text=f"Option {j}",
-                        is_correct=(j == correct)
-                    )
-
-                questions.append(q)
-
-            # Subjective
-            for i in range(2):
-                q = Question.objects.create(
-                    exam=exam,
-                    text=f"Subjective Question {i+1}",
-                    type="subjective",
-                    marks=10
+    def add_questions(self, exam, subject_name):
+        # Generic questions to seed
+        base_questions = [
+            {
+                'text': f'What is the basics of {subject_name}?',
+                'type': 'objective',
+                'marks': 5,
+                'choices': [
+                    {'text': 'Option A', 'is_correct': False},
+                    {'text': 'Option B', 'is_correct': True},
+                    {'text': 'Option C', 'is_correct': False},
+                    {'text': 'Option D', 'is_correct': False},
+                ]
+            },
+            {
+                'text': f'Explain the importance of {subject_name}.',
+                'type': 'subjective',
+                'marks': 10,
+                'choices': []
+            },
+            {
+                'text': 'True or False: This is a difficult subject?',
+                'type': 'objective',
+                'marks': 2,
+                'choices': [
+                    {'text': 'True', 'is_correct': True},
+                    {'text': 'False', 'is_correct': False},
+                ]
+            }
+        ]
+        
+        for idx, q_data in enumerate(base_questions):
+            question = Question.objects.create(
+                exam=exam,
+                text=q_data['text'],
+                type=q_data['type'],
+                marks=q_data['marks'],
+                order=idx + 1
+            )
+            
+            for choice_data in q_data['choices']:
+                Choice.objects.create(
+                    question=question,
+                    text=choice_data['text'],
+                    is_correct=choice_data['is_correct']
                 )
-                questions.append(q)
-
-        # ------------------------------------------------
-        # 7. EXAM ACCESS
-        # ------------------------------------------------
-        for exam in exams:
-            for student in students.filter(student_class=exam.school_class):
-                ExamAccess.objects.get_or_create(
-                    student=student,
-                    exam=exam,
-                    defaults={"via_payment": True}
-                )
-
-        # ------------------------------------------------
-        # 8. ATTEMPTS + ANSWERS + GRADING
-        # ------------------------------------------------
-        for exam in exams:
-            exam_questions = list(exam.question_set.all())
-
-            for student in students.filter(student_class=exam.school_class):
-                random.shuffle(exam_questions)
-
-                attempt = ExamAttempt.objects.create(
-                    student=student,
-                    exam=exam,
-                    status="submitted",
-                    is_submitted=True,
-                    score=0,
-                    question_order=[q.id for q in exam_questions],
-                    completed_at=timezone.now(),
-                    remaining_seconds = 10000
-                )
-
-                objective_score = 0
-
-                for q in exam_questions:
-                    if q.type == "objective":
-                        correct_choice = q.choice_set.filter(is_correct=True).first()
-                        chosen = random.choice(list(q.choice_set.all()))
-
-                        StudentAnswer.objects.create(
-                            attempt=attempt,
-                            question=q,
-                            selected_choice=chosen
-                        )
-
-                        if chosen == correct_choice:
-                            objective_score += q.marks
-
-                    else:
-                        ans = StudentAnswer.objects.create(
-                            attempt=attempt,
-                            question=q,
-                            answer_text="Sample subjective answer"
-                        )
-
-                        SubjectiveMark.objects.create(
-                            answer=ans,
-                            score=random.randint(4, q.marks),
-                            marked_by=exam.created_by
-                        )
-
-                attempt.score = objective_score
-                attempt.save(update_fields=["score"])
-
-        self.stdout.write(self.style.SUCCESS("✅ Full examination system seeded successfully"))
