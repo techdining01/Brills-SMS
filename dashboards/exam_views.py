@@ -275,18 +275,17 @@ def save_answer(request, attempt_id):
         with transaction.atomic():
             # Get or create student answer
             student_answer, created = StudentAnswer.objects.update_or_create(
-                exam_attempt=attempt,
+                attempt=attempt,
                 question=question,
                 defaults={
                     'selected_choice_id': selected_choice_id,
-                    'answer_text': data.get('answer_text', ''),
-                    'answered_at': timezone.now()
+                    'answer_text': data.get('answer_text', '')
                 }
             )
             
             # Update attempt last activity
-            attempt.last_activity = timezone.now()
-            attempt.save(update_fields=['last_activity'])
+            attempt.last_activity_at = timezone.now()
+            attempt.save(update_fields=['last_activity_at'])
         
         return JsonResponse({
             'success': True,
@@ -346,12 +345,14 @@ def submit_exam(request, attempt_id):
         return JsonResponse({'error': 'Unauthorized'}, status=403)
     
     if request.method == 'GET':
-        # Show submission confirmation
-        return render(request, 'exams/submit_confirmation.html', {
-            'attempt': attempt,
-            'answers_count': attempt.answers.all().count(),
-            'total_questions': attempt.exam.questions.count()
-        })
+        if request.GET.get('confirm') == 'true':
+            pass
+        else:
+            return render(request, 'exams/submit_confirmation.html', {
+                'attempt': attempt,
+                'answers_count': attempt.answers.all().count(),
+                'total_questions': attempt.exam.questions.count()
+            })
     
     # POST - Submit exam
     if attempt.status == 'submitted':
@@ -362,7 +363,7 @@ def submit_exam(request, attempt_id):
     with transaction.atomic():
         # Mark all questions as submitted
         attempt.status = 'submitted'
-        attempt.submitted_at = timezone.now()
+        attempt.completed_at = timezone.now()
         attempt.save()
         
         # Auto-grade objective questions
@@ -374,7 +375,7 @@ def submit_exam(request, attempt_id):
         for question in objective_questions:
             try:
                 student_answer = StudentAnswer.objects.get(
-                    exam_attempt=attempt,
+                    attempt=attempt,
                     question=question
                 )
                 
@@ -385,8 +386,7 @@ def submit_exam(request, attempt_id):
                 pass
         
         # Update attempt with objective score
-        attempt.objective_score = total_objective_score
-        attempt.total_score = total_objective_score
+        attempt.score = total_objective_score
         attempt.save()
         
         # Log system event
@@ -401,9 +401,9 @@ def submit_exam(request, attempt_id):
             Notification.objects.create(
                 sender=attempt.student,
                 recipient=attempt.exam.created_by,
-                notification_type='exam_submitted',
+                title='Exam Submitted',
                 message=f'{attempt.student.get_full_name()} submitted exam: {attempt.exam.title}',
-                related_exam=attempt.exam
+                related_exam=attempt.exam.id
             )
         
         return redirect('dashboards:exam_result', attempt_id=attempt.id)
@@ -421,77 +421,76 @@ def exam_result(request, attempt_id):
         id=attempt_id
     )
     
-    # Verify ownership (student or teacher of the exam)
-    if attempt.student != request.user and \
-       attempt.exam.created_by != request.user:
+    # Verify ownership (student, creator, admin, or parent)
+    is_student = (attempt.student == request.user)
+    is_creator = (attempt.exam.created_by == request.user)
+    is_admin = (request.user.role == User.Role.ADMIN)
+    is_parent = (request.user.role == User.Role.PARENT and attempt.student in request.user.children.all())
+    
+    if not (is_student or is_creator or is_admin or is_parent):
         return JsonResponse({'error': 'Unauthorized'}, status=403)
     
     # Get all answers with grading info
     answers = StudentAnswer.objects.filter(
-        exam_attempt=attempt
+        attempt=attempt
     ).select_related('question', 'selected_choice')
     
     # Separate objective and subjective
     objective_answers = []
     subjective_answers = []
+    answers_breakdown = []
     
     for answer in answers:
         answer_data = {
             'question': answer.question,
             'question_type': answer.question.type,
             'marks': answer.question.marks,
-            'answer': answer
+            'marks_for_question': answer.question.marks,
+            'answer': answer,
+            'answer_text': answer.answer_text,
+            'selected_choice': answer.selected_choice,
         }
         
         if answer.question.type == 'objective':
-            answer_data['is_correct'] = (
-                answer.selected_choice and answer.selected_choice.is_correct
-            )
+            is_correct = (answer.selected_choice and answer.selected_choice.is_correct)
+            answer_data['is_correct'] = is_correct
             answer_data['correct_choice'] = answer.question.choices.filter(
                 is_correct=True
             ).first()
+            answer_data['marks_obtained'] = answer.question.marks if is_correct else 0
             objective_answers.append(answer_data)
         else:
             # Get grading info if exists
             try:
                 grading = SubjectiveMark.objects.get(
-                    student_answer=answer
+                    answer=answer
                 )
                 answer_data['grading'] = grading
                 answer_data['is_graded'] = True
+                answer_data['marks_obtained'] = grading.score
             except SubjectiveMark.DoesNotExist:
                 answer_data['is_graded'] = False
+                answer_data['marks_obtained'] = 0
             
             subjective_answers.append(answer_data)
-    
-    # Calculate scores
-    objective_score = sum(
-        a['marks'] for a in objective_answers if a['is_correct']
-    )
-    
-    subjective_score = sum(
-        a['grading'].marks for a in subjective_answers if a['is_graded']
-    )
-    
-    total_marks = attempt.exam.questions.aggregate(
-        total=Count('id')
-    )['total'] or 0
-    
-    percentage = (objective_score + subjective_score) / (
-        total_marks * 5
-    ) * 100 if total_marks > 0 else 0
+        
+        answers_breakdown.append(answer_data)
     
     return render(request, 'exams/exam_result.html', {
         'attempt': attempt,
         'exam': attempt.exam,
         'objective_answers': objective_answers,
         'subjective_answers': subjective_answers,
-        'objective_score': objective_score,
-        'subjective_score': subjective_score,
-        'total_score': objective_score + subjective_score,
-        'total_marks': total_marks,
-        'percentage': percentage,
-        'grade': _calculate_grade(percentage)
+        'answers_breakdown': answers_breakdown,
+        'objective_score': attempt.score,
+        'subjective_score': attempt.subjective_score,
+        'total_score': attempt.total_score,
+        'total_obtained': attempt.total_score,
+        'total_marks': attempt.exam.total_marks,
+        'percentage': attempt.percentage,
+        'grade': attempt.grade,
+        'is_all_graded': attempt.is_fully_graded
+        
     })
 
 
@@ -526,23 +525,21 @@ def interrupt_exam(request, attempt_id):
 
 def _can_take_exam(student, exam):
     """Check if student has access to exam"""
-    # Check if exam is published
+    # 1. Exam must be published
     if not exam.is_published:
         return False
     
-    # Check student's class
-    if exam.school_class != student.student_class:
-        return False
+    # 2. If student belongs to the class, they have access
+    if exam.school_class == student.student_class:
+        return True
     
-    # Check if special exam access granted
-    if not exam.is_published:
-        has_access = ExamAccess.objects.filter(
-            user=student,
-            exam=exam
-        ).exists()
-        return has_access
+    # 3. Check if special exam access granted (e.g. mercy, payment, or different class)
+    has_access = ExamAccess.objects.filter(
+        student=student,
+        exam=exam
+    ).exists()
     
-    return True
+    return has_access
 
 
 def _calculate_grade(percentage):
@@ -565,5 +562,6 @@ def _get_time_remaining(attempt):
         return 0
     
     elapsed = (timezone.now() - attempt.started_at).total_seconds()
-    total_seconds = attempt.exam.duration_minutes * 60
+    # Fix: duration field is 'duration', not 'duration_minutes'
+    total_seconds = attempt.exam.duration * 60
     return max(0, total_seconds - elapsed)

@@ -57,6 +57,8 @@ class QuestionBank(models.Model):
     image = models.ImageField(upload_to='question_images/', blank=True, null=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     is_published = models.BooleanField(default=False)
+    school_class = models.ForeignKey('exams.SchoolClass', on_delete=models.SET_NULL, null=True, blank=True)
+    subject = models.ForeignKey('exams.Subject', on_delete=models.SET_NULL, null=True, blank=True)
     usage_count = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -498,3 +500,47 @@ class Notification(models.Model):
     
     def __str__(self):
         return f"{self.title} - {self.recipient.username}"
+
+# ==================== CHAT (CONFERENCE) MODELS ====================
+
+class ChatRoom(models.Model):
+    class RoomType(models.TextChoices):
+        GROUP = 'GROUP', 'Group Chat'
+        CONFERENCE = 'CONFERENCE', 'Conference Chat'
+
+    name = models.CharField(max_length=120, unique=True)
+    room_type = models.CharField(max_length=20, choices=RoomType.choices, default=RoomType.GROUP)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_chat_rooms')
+    participants = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='chat_rooms', blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['name']
+    
+    def __str__(self):
+        return self.name
+
+
+class ChatRoomMessage(models.Model):
+    room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    message = models.TextField()
+    attachment = models.FileField(upload_to='room_attachments/', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['created_at']
+    
+    def __str__(self):
+        return f"{self.room.name} - {self.sender.username}: {self.message[:20]}"
+
+class ChatRoomReadStatus(models.Model):
+    room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='read_statuses')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='room_read_statuses')
+    last_read_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('room', 'user')
+
+    def __str__(self):
+        return f"{self.user.username} read {self.room.name} at {self.last_read_at}"

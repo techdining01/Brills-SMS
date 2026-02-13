@@ -4,6 +4,8 @@ from . import exam_views
 from . import grading_views
 from . import notification_views
 from . import views_phase5
+from . import views_backup
+
 
 app_name = 'dashboards'
 
@@ -18,6 +20,13 @@ urlpatterns = [
     path('admin/classes/create/', views.admin_create_class, name='admin_create_class'),
     path('admin/classes/<int:class_id>/edit/', views.admin_edit_class, name='admin_edit_class'),
     path('admin/classes/<int:class_id>/delete/', views.admin_delete_class, name='admin_delete_class'),
+    path('admin/subjects/', views.admin_subjects_list, name='admin_subjects_list'),
+    path('admin/subjects/create/', views.admin_create_subject, name='admin_create_subject'),
+    path('admin/subjects/<int:subject_id>/edit/', views.admin_edit_subject, name='admin_edit_subject'),
+    path('admin/subjects/<int:subject_id>/delete/', views.admin_delete_subject, name='admin_delete_subject'),
+    path('admin/results/', views.admin_results_dashboard, name='admin_results_dashboard'),
+    path('admin/results/class/<int:class_id>/', views.admin_class_results, name='admin_class_results'),
+    path('admin/results/student/<int:student_id>/', views.admin_student_result_detail, name='admin_student_result_detail'),
     path('admin/exams/', views.admin_exams_list, name='admin_exams_list'),
     path('admin/students/', views.admin_students_list, name='admin_students_list'),
     path('admin/students/create/', views.admin_create_student, name='admin_create_student'),
@@ -25,7 +34,12 @@ urlpatterns = [
     path('admin/students/<int:student_id>/delete/', views.admin_delete_student, name='admin_delete_student'),
     path('broadcast/', views.broadcast_center, name='broadcast_center'),
     path('admin/retake-requests/', views.admin_retake_requests, name='admin_retake_requests'),
+    path('admin/retake-requests/<int:request_id>/update/', views.update_retake_request_status, name='update_retake_request_status'),
     path('admin/system-logs/', views.admin_system_logs, name='admin_system_logs'),
+    path('admin/backup-restore/', views_backup.admin_backup_restore, name='admin_backup_restore'),
+    path('admin/backup/trigger/', views_backup.trigger_backup, name='trigger_backup'),
+    path('admin/backup/restore/', views_backup.trigger_restore, name='trigger_restore'),
+    path('admin/backup/delete/', views_backup.delete_backup, name='delete_backup'),
     path('admin/leaderboard/', views.admin_leaderboard, name='admin_leaderboard'),
     
     # Teacher Dashboard
@@ -77,14 +91,21 @@ urlpatterns = [
     path('exam/<int:exam_id>/unpublish/', views.unpublish_exam, name='unpublish_exam'),
     path('exam/create/', views.create_exam, name='create_exam'),
     path('exam/<int:exam_id>/edit/', views.edit_exam, name='edit_exam'),
+    path('exam/<int:exam_id>/question/add/', views.add_question, name='add_question'),
+    path('question/<int:question_id>/edit/', views.edit_question, name='edit_question'),
+    path('question/<int:question_id>/delete/', views.delete_question, name='delete_question'),
     path('exam/<int:exam_id>/delete/', views.delete_exam, name='delete_exam'),
 
     # Student Retake
-    path('student/retake/create/', views.student_request_retake, name='student_request_retake'),
+    path('student/retake/create/<int:exam_id>/', views.student_request_retake, name='student_request_retake'),
 
     # Chat
-    path('chat/', views.chat_list, name='chat_list'),
-    path('chat/<int:user_id>/', views.chat_detail, name='chat_detail'),
+    path('chat/', views.chat_index, name='chat_list'), # Kept name for compatibility
+    path('chat/api/conversations/', views.chat_api_conversations, name='chat_api_conversations'),
+    path('chat/api/messages/<str:chat_type>/<int:target_id>/', views.chat_api_messages, name='chat_api_messages'),
+    path('chat/api/send/', views.chat_api_send, name='chat_api_send'),
+    path('chat/api/room/create/', views.chat_api_create_room, name='chat_api_create_room'),
+    path('chat/dashboard/', views.chat_index, name='chat_dashboard'), # Kept for backward compatibility
     
     # ========================= PHASE 3: GRADING & RESULTS =========================
     # Teacher grading
@@ -127,6 +148,7 @@ urlpatterns = [
     path('bulk/import/<int:job_id>/', views_phase5.bulk_import_job_detail, name='bulk_import_job_detail'),
     path('bulk/export/', views_phase5.bulk_export_view, name='bulk_export'),
     path('bulk/export/<int:job_id>/', views_phase5.bulk_export_job_detail, name='bulk_export_job_detail'),
+    path('bulk/template/<str:format_type>/', views_phase5.download_import_template, name='download_import_template'),
     
     # PERMISSION & ROLE MANAGEMENT VIEWS
     path('roles/', views_phase5.role_management, name='role_management'),

@@ -19,17 +19,18 @@ def update_exam_analytics(exam):
         return None
     
     total_attempts = attempts.count()
-    passed_count = attempts.filter(score__gte=exam.passing_marks).count()
     
     scores = [att.total_score for att in attempts]
+    passed_count = sum(1 for score in scores if score >= exam.passing_marks)
+    
     average_score = sum(scores) / len(scores) if scores else 0
     highest_score = max(scores) if scores else 0
     lowest_score = min(scores) if scores else 0
     
     time_taken_list = [
-        (att.completed_at - att.started_at).total_seconds()
+        max(0, (att.completed_at - att.started_at).total_seconds())
         for att in attempts
-        if att.completed_at
+        if att.completed_at and att.started_at
     ]
     average_time = sum(time_taken_list) / len(time_taken_list) if time_taken_list else 0
     
@@ -43,7 +44,7 @@ def update_exam_analytics(exam):
             'average_score': average_score,
             'highest_score': highest_score,
             'lowest_score': lowest_score,
-            'average_time_taken': int(average_time),
+            'average_time_taken': max(0, int(average_time)),
             'pass_rate': pass_rate,
         }
     )
@@ -146,7 +147,11 @@ def calculate_performance_metrics(attempt):
     if attempt.status != 'submitted':
         return None
     
-    time_taken = (attempt.completed_at - attempt.started_at).total_seconds()
+    if attempt.completed_at and attempt.started_at:
+        time_taken = max(0, (attempt.completed_at - attempt.started_at).total_seconds())
+    else:
+        time_taken = 0
+
     total_marks = sum([q.marks for q in attempt.exam.questions.all()])
     percentage = (attempt.total_score / total_marks * 100) if total_marks > 0 else 0
     

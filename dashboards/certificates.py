@@ -64,12 +64,6 @@ def create_certificate(student, exam, attempt, grade=None):
 
 def generate_certificate_pdf(certificate):
     """Generate PDF certificate using HTML template"""
-    try:
-        from weasyprint import HTML, CSS
-    except ImportError:
-        # Fallback if weasyprint not installed
-        return None
-    
     # Get certificate template or use default
     template = CertificateTemplate.objects.filter(is_default=True).first()
     
@@ -82,29 +76,158 @@ def generate_certificate_pdf(certificate):
             is_default=True,
         )
     
-    context = {
-        'certificate': certificate,
-        'template': template,
-        'issued_date': certificate.issued_at.strftime('%B %d, %Y'),
-    }
     
-    html_string = render_to_string('certificates/certificate_template.html', context)
-    
+    # Use ReportLab for high-quality PDF generation
     try:
-        html = HTML(string=html_string)
-        pdf_bytes = html.write_pdf()
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib import colors
+        from reportlab.lib.units import cm, inch
         
+        buffer = BytesIO()
+        
+        # Setup the canvas
+        c = canvas.Canvas(buffer, pagesize=landscape(A4))
+        width, height = landscape(A4)
+        
+        # Colors
+        navy_blue = colors.HexColor('#1a237e')
+        gold = colors.HexColor('#d4af37')
+        dark_grey = colors.HexColor('#333333')
+        light_grey = colors.HexColor('#555555')
+        
+        # --- Borders ---
+        # Outer Border (Navy Blue)
+        c.setStrokeColor(navy_blue)
+        c.setLineWidth(15)
+        c.rect(1*cm, 1*cm, width - 2*cm, height - 2*cm)
+        
+        # Inner Border (Gold)
+        c.setStrokeColor(gold)
+        c.setLineWidth(2)
+        # 1cm outer margin + 15pt border (~0.5cm) + 5px padding (~0.2cm) -> approx 1.7cm
+        # Let's adjust slightly for visual balance
+        c.rect(1.8*cm, 1.8*cm, width - 3.6*cm, height - 3.6*cm)
+        
+        # --- Content ---
+        center_x = width / 2
+        
+        # School Name
+        c.setFont("Times-Bold", 32)
+        c.setFillColor(navy_blue)
+        school_name = settings.SCHOOL_NAME
+        c.drawCentredString(center_x, height - 4*cm, school_name.upper())
+
+        # School Address
+        school_address = settings.SCHOOL_ADDRESS
+        c.setFont("Times-Bold", 12)
+        c.setFillColor(navy_blue)
+        c.drawCentredString(center_x, height - 5*cm, school_address)
+        
+    
+        
+        # Certificate Title
+        c.setFont("Times-BoldItalic", 56)
+        c.setFillColor(gold)
+        c.drawCentredString(center_x, height - 7*cm, "Certificate of Achievement")
+        
+        # Subtitle
+        c.setFont("Helvetica-Oblique", 18)
+        c.setFillColor(light_grey)
+        c.drawCentredString(center_x, height - 8.5*cm, "This is to certify that")
+        
+        # Student Name
+        c.setFont("Times-Bold", 42)
+        c.setFillColor(navy_blue)
+        student_name = f"{certificate.student.first_name} {certificate.student.last_name}"
+        c.drawCentredString(center_x, height - 10.5*cm, student_name)
+        
+        # Underline for Student Name
+        text_width = c.stringWidth(student_name, "Times-Bold", 42)
+        c.setStrokeColor(gold)
+        c.setLineWidth(2)
+        c.line(center_x - text_width/2 - 20, height - 10.7*cm, center_x + text_width/2 + 20, height - 10.7*cm)
+        
+        # Achievement Text
+        c.setFont("Helvetica", 18)
+        c.setFillColor(colors.HexColor('#444444'))
+        c.drawCentredString(center_x, height - 12.5*cm, "has successfully completed the exam")
+        
+        # Exam/Course Name
+        c.setFont("Helvetica-Bold", 28)
+        c.setFillColor(dark_grey)
+        exam_name = certificate.exam.title if certificate.exam else "Examination"
+        c.drawCentredString(center_x, height - 14*cm, exam_name)
+        
+        # Grade/Score
+        c.setFont("Helvetica", 16)
+        c.setFillColor(light_grey)
+        score_text = f"Score: {certificate.score}/{certificate.total_marks} ({certificate.percentage:.1f}%)"
+        if certificate.grade:
+            score_text += f" - Grade: {certificate.grade}"
+        c.drawCentredString(center_x, height - 15.5*cm, score_text)
+        
+        # --- Footer Section ---
+        footer_y = 3.5*cm
+        
+        # Date Issued (Left)
+        c.setFont("Helvetica-Bold", 12)
+        c.setFillColor(dark_grey)
+        c.drawString(3*cm, footer_y + 1*cm, "Date Issued")
+        c.setFont("Helvetica", 12)
+        c.drawString(3*cm, footer_y, certificate.issued_at.strftime('%B %d, %Y'))
+        
+        # Seal (Center)
+        seal_y = footer_y - 0.5*cm
+        c.setStrokeColor(gold)
+        c.setLineWidth(3)
+        c.circle(center_x, seal_y + 1*cm, 1.5*cm) # Outer circle
+        c.setLineWidth(1)
+        c.circle(center_x, seal_y + 1*cm, 1.3*cm) # Inner circle
+        
+        c.setFont("Times-Bold", 14)
+        c.setFillColor(gold)
+        c.drawCentredString(center_x, seal_y + 0.9*cm, "OFFICIAL")
+        c.drawCentredString(center_x, seal_y + 0.4*cm, "SEAL")
+        
+        # Signature (Right)
+        c.setStrokeColor(dark_grey)
+        c.setLineWidth(1)
+        c.line(width - 9*cm, footer_y + 0.5*cm, width - 3*cm, footer_y + 0.5*cm)
+        
+        c.setFont("Helvetica", 12)
+        c.setFillColor(dark_grey)
+        c.drawCentredString(width - 6*cm, footer_y, "Authorized Signature")
+        c.setFont("Helvetica-Oblique", 10)
+        c.drawCentredString(width - 6*cm, footer_y - 0.5*cm, "Exam Controller")
+        
+        # Verification Code (Bottom Center, small)
+        c.setFont("Helvetica", 8)
+        c.setFillColor(colors.lightgrey)
+        c.drawCentredString(center_x, 1*cm, f"Verification ID: {certificate.certificate_number} | Code: {certificate.verification_code}")
+
+        c.showPage()
+        c.save()
+        
+        pdf_content = buffer.getvalue()
+        buffer.close()
+        
+    except Exception as e:
+        print(f"Error generating PDF with ReportLab: {e}")
+        # Fallback to simple string if all else fails (should not happen if reportlab is installed)
+        return None
+
+    if pdf_content:
         filename = f"cert_{certificate.certificate_number}.pdf"
+        # Save to ContentFile
         certificate.pdf_file.save(
             filename,
-            ContentFile(pdf_bytes),
+            ContentFile(pdf_content),
             save=True
         )
-        
         return certificate.pdf_file
-    except Exception as e:
-        print(f"Error generating PDF: {e}")
-        return None
+        
+    return None
 
 
 def verify_certificate(certificate_number, verification_code):

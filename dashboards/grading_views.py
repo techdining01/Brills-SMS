@@ -6,6 +6,7 @@ PHASE 3: GRADING & RESULTS INTERFACE
 - Charts and analytics
 """
 
+from django.utils.text import slugify
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
@@ -42,23 +43,29 @@ def teacher_grading_dashboard(request):
     """
     teacher = request.user
     
-    # Get teacher's exams with ungraded subjective answers
-    exams = Exam.objects.filter(
-        created_by=teacher
-    ).annotate(
-        total_attempts=Count('exam_attempts', distinct=True),
+    # Get teacher's exams with subjective questions
+    all_teacher_exams = Exam.objects.filter(created_by=teacher)
+    
+    # Annotate exams that have subjective questions
+    exams_with_subjective = all_teacher_exams.filter(
+        questions__type='subjective'
+    ).distinct().annotate(
+        total_attempts=Count('exam_attempts', distinct=True, filter=Q(exam_attempts__status='submitted')),
         ungraded_count=Count(
             'exam_attempts__answers',
             distinct=True,
-            filter=Q(exam_attempts__answers__question__type='subjective',
-                    exam_attempts__answers__subjective_mark__isnull=True)
+            filter=Q(
+                exam_attempts__status='submitted',
+                exam_attempts__answers__question__type='subjective',
+                exam_attempts__answers__subjective_mark__isnull=True
+            )
         )
-    )
+    ).order_by('-ungraded_count', '-created_at')
     
     context = {
-        'exams': exams,
-        'total_exams': exams.count(),
-        'exams_with_pending': exams.filter(ungraded_count__gt=0).count()
+        'exams': exams_with_subjective,
+        'total_exams': all_teacher_exams.count(),
+        'exams_with_pending': exams_with_subjective.filter(ungraded_count__gt=0).count()
     }
     
     return render(request, 'exams/teacher_grading_dashboard.html', context)
@@ -95,32 +102,27 @@ def grade_subjective_answers(request, exam_id):
         
         for attempt in attempts:
             try:
-                answer = StudentAnswer.objects.select_related(
-                    'student_answer'
-                ).get(
-                    exam_attempt=attempt,
+                answer = StudentAnswer.objects.get(
+                    attempt=attempt,
                     question=question
                 )
                 
                 # Get grading if exists
                 try:
                     grading = SubjectiveMark.objects.get(
-                        student_answer=answer
+                        answer=answer
                     )
                     is_graded = True
-                    marks = grading.marks
-                    feedback = grading.feedback
+                    marks = grading.score
                 except SubjectiveMark.DoesNotExist:
                     is_graded = False
                     marks = None
-                    feedback = None
                 
                 question_data['answers'].append({
                     'answer': answer,
                     'student': attempt.student,
                     'is_graded': is_graded,
                     'marks': marks,
-                    'feedback': feedback,
                     'attempt_id': attempt.id
                 })
             except StudentAnswer.DoesNotExist:
@@ -141,7 +143,7 @@ def grade_subjective_answers(request, exam_id):
 def submit_subjective_grade(request):
     """
     Submit grade for a subjective answer (AJAX)
-    POST: Save marks and feedback
+    POST: Save marks
     """
     teacher = request.user
     
@@ -149,14 +151,13 @@ def submit_subjective_grade(request):
         data = json.loads(request.body)
         answer_id = data.get('answer_id')
         marks = int(data.get('marks', 0))
-        feedback = data.get('feedback', '')
         
         answer = StudentAnswer.objects.select_related(
-            'question', 'exam_attempt'
+            'question', 'attempt'
         ).get(id=answer_id)
         
         # Verify teacher access
-        if answer.exam_attempt.exam.created_by != teacher:
+        if answer.attempt.exam.created_by != teacher:
             return JsonResponse({
                 'error': 'Unauthorized'
             }, status=403)
@@ -170,54 +171,36 @@ def submit_subjective_grade(request):
         with transaction.atomic():
             # Create or update grading
             grading, created = SubjectiveMark.objects.update_or_create(
-                student_answer=answer,
+                answer=answer,
                 defaults={
-                    'marks': marks,
-                    'feedback': feedback,
+                    'score': marks,
                     'marked_by': teacher,
                     'marked_at': timezone.now()
                 }
             )
             
-            # Update exam attempt total score
-            attempt = answer.exam_attempt
-            objective_score = attempt.objective_score or 0
-            subjective_score = SubjectiveMark.objects.filter(
-                student_answer__exam_attempt=attempt
-            ).aggregate(
-                total=Sum('marks')
-            )['total'] or 0
-            
-            attempt.subjective_score = subjective_score
-            attempt.total_score = objective_score + subjective_score
-            attempt.save()
-            
             # Create notification
             Notification.objects.create(
                 sender=teacher,
-                recipient=answer.exam_attempt.student,
-                notification_type='exam_graded',
+                recipient=answer.attempt.student,
+                title='Exam Graded',
                 message=f'Your answer to "{answer.question.text[:50]}..." has been graded ({marks}/{answer.question.marks} marks)',
-                related_exam=answer.exam_attempt.exam
+                related_exam=answer.attempt.exam.id
             )
             
             # Log system event
             SystemLog.objects.create(
                 level='INFO',
-                message=f'{teacher.username} graded subjective answer (attempt {attempt.id})',
-                created_by=teacher
+                message=f'{teacher.username} graded subjective answer (attempt {answer.attempt.id})',
+                created_at=timezone.now()
             )
         
         return JsonResponse({
             'success': True,
             'message': 'Grade saved',
             'marks': marks,
-            'total_score': attempt.total_score,
-            'is_all_graded': not answer.exam_attempt.exam.questions.filter(
-                type='subjective',
-                studentanswer__exam_attempt=attempt,
-                studentanswer__subjective_marks__isnull=True
-            ).exists()
+            'total_score': answer.attempt.total_score,
+            'is_all_graded': answer.attempt.is_fully_graded
         })
     
     except Exception as e:
@@ -239,13 +222,15 @@ def student_result_detail(request, attempt_id):
     attempt = get_object_or_404(
         ExamAttempt.objects.select_related('exam', 'student'),
         id=attempt_id,
-        student=request.user,
-        status='submitted'
+        student=request.user
     )
+    
+    if attempt.status != 'submitted':
+        return redirect('dashboards:exam_result', attempt_id=attempt.id)
     
     # Get answers with grading
     answers = StudentAnswer.objects.filter(
-        exam_attempt=attempt
+        attempt=attempt
     ).select_related('question', 'selected_choice')
     
     # Calculate scores
@@ -273,11 +258,10 @@ def student_result_detail(request, attempt_id):
         else:
             # Get subjective grading
             try:
-                grading = SubjectiveMark.objects.get(student_answer=answer)
-                answer_data['marks_obtained'] = grading.marks
-                answer_data['feedback'] = grading.feedback
+                grading = SubjectiveMark.objects.get(answer=answer)
+                answer_data['marks_obtained'] = grading.score
                 answer_data['is_graded'] = True
-                subjective_score += grading.marks
+                subjective_score += grading.score
             except SubjectiveMark.DoesNotExist:
                 answer_data['marks_obtained'] = 0
                 answer_data['is_graded'] = False
@@ -285,9 +269,9 @@ def student_result_detail(request, attempt_id):
         answers_breakdown.append(answer_data)
     
     # Calculate total
-    total_marks = sum(a['marks_for_question'] for a in answers_breakdown)
+    total_marks = attempt.exam.total_marks
     total_obtained = objective_score + subjective_score
-    percentage = (total_obtained / total_marks * 100) if total_marks > 0 else 0
+    percentage = attempt.percentage
     
     return render(request, 'exams/student_result_detail.html', {
         'attempt': attempt,
@@ -297,11 +281,8 @@ def student_result_detail(request, attempt_id):
         'total_obtained': total_obtained,
         'total_marks': total_marks,
         'percentage': percentage,
-        'grade': _calculate_grade(percentage),
-        'is_all_graded': all(
-            a['marks_obtained'] > 0 or a['question_type'] == 'objective'
-            for a in answers_breakdown
-        )
+        'grade': attempt.grade,
+        'is_all_graded': attempt.is_fully_graded
     })
 
 
@@ -339,7 +320,7 @@ def parent_child_result(request, attempt_id):
                 objective_correct += 1
         else:
             try:
-                SubjectiveMark.objects.get(student_answer=answer)
+                SubjectiveMark.objects.get(answer=answer)
                 subjective_graded += 1
             except SubjectiveMark.DoesNotExist:
                 subjective_pending += 1
@@ -352,7 +333,7 @@ def parent_child_result(request, attempt_id):
         'subjective_graded': subjective_graded,
         'subjective_pending': subjective_pending,
         'total_score': attempt.total_score,
-        'percentage': (attempt.total_score / (attempt.exam.questions.count() * 5) * 100) if attempt.exam.questions.count() > 0 else 0
+        'percentage': attempt.percentage
     }
     
     return render(request, 'exams/parent_child_result.html', {
@@ -378,7 +359,11 @@ def download_result_pdf(request, attempt_id):
     )
     
     # Verify access
-    if attempt.student != request.user and attempt.exam.created_by != request.user:
+    is_student = (attempt.student == request.user)
+    is_creator = (attempt.exam.created_by == request.user)
+    is_admin = (request.user.role == User.Role.ADMIN)
+
+    if not (is_student or is_creator or is_admin):
         return JsonResponse({'error': 'Unauthorized'}, status=403)
     
     # Create PDF
@@ -423,7 +408,7 @@ def download_result_pdf(request, attempt_id):
         ['Student Name:', attempt.student.get_full_name()],
         ['Exam:', attempt.exam.title],
         ['Class:', str(attempt.student.student_class)],
-        ['Date:', attempt.submitted_at.strftime('%d-%m-%Y %H:%M')],
+        ['Date:', attempt.completed_at.strftime('%d-%m-%Y %H:%M') if attempt.completed_at else 'N/A'],
     ]
     
     info_table = Table(student_info, colWidths=[2*inch, 4*inch])
@@ -444,7 +429,7 @@ def download_result_pdf(request, attempt_id):
     elements.append(Paragraph('ANSWER BREAKDOWN', heading_style))
     
     answers = StudentAnswer.objects.filter(
-        exam_attempt=attempt
+        attempt=attempt
     ).select_related('question', 'selected_choice').order_by(
         'question__order'
     )
@@ -460,8 +445,8 @@ def download_result_pdf(request, attempt_id):
             status = '✓ Correct' if is_correct else '✗ Incorrect'
         else:
             try:
-                grading = SubjectiveMark.objects.get(student_answer=answer)
-                marks = grading.marks
+                grading = SubjectiveMark.objects.get(answer=answer)
+                marks = grading.score
                 status = f'{marks}/{answer.question.marks}'
             except SubjectiveMark.DoesNotExist:
                 marks = 0
@@ -485,11 +470,12 @@ def download_result_pdf(request, attempt_id):
     elements.append(Spacer(1, 0.2*inch))
     
     # Score Summary
-    total_marks = attempt.exam.questions.count() * 5
-    percentage = (attempt.total_score / total_marks * 100) if total_marks > 0 else 0
+    total_marks = attempt.exam.total_marks
+   
+    percentage = attempt.percentage
     
     score_data = [
-        ['Objective Score:', f'{attempt.objective_score or 0}'],
+        ['Objective Score:', f'{attempt.score or 0}'],
         ['Subjective Score:', f'{attempt.subjective_score or 0}'],
         ['Total Score:', f'{attempt.total_score}'],
         ['Total Marks:', str(total_marks)],
@@ -517,7 +503,7 @@ def download_result_pdf(request, attempt_id):
     
     # Return as attachment
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="{attempt.exam.slug}_{attempt.student.username}_result.pdf"'
+    response['Content-Disposition'] = f'attachment; filename="{slugify(attempt.exam.title)}_{attempt.student.username}_result.pdf"'
     
     return response
 
@@ -549,10 +535,10 @@ def exam_analytics(request, exam_id):
         
         # Get grade distribution
         grades = {'A': 0, 'B': 0, 'C': 0, 'D': 0, 'F': 0}
-        total_marks = exam.questions.count() * 5
+        total_marks = exam.total_marks
         
         for attempt in attempts:
-            percentage = (attempt.total_score / total_marks * 100) if total_marks > 0 else 0
+            percentage = attempt.percentage
             grade = _calculate_grade(percentage)
             grades[grade] += 1
         
@@ -560,7 +546,7 @@ def exam_analytics(request, exam_id):
         questions_perf = []
         for question in exam.questions.all():
             answers = StudentAnswer.objects.filter(
-                exam_attempt__in=attempts,
+                attempt__in=attempts,
                 question=question
             )
             

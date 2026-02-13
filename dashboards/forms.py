@@ -1,8 +1,20 @@
 from django import forms
 from django.contrib.auth import get_user_model
-from exams.models import SchoolClass, Exam
+from exams.models import SchoolClass, Exam, Question, Choice, Subject
 
 User = get_user_model()
+
+class SubjectForm(forms.ModelForm):
+    class Meta:
+        model = Subject
+        fields = ['name', 'classes', 'description', 'department', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Mathematics'}),
+            'classes': forms.SelectMultiple(attrs={'class': 'form-select', 'style': 'height: 150px;'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'department': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Science'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
 
 class SchoolClassForm(forms.ModelForm):
     class Meta:
@@ -40,14 +52,6 @@ class StudentForm(forms.ModelForm):
             'admission_number': forms.TextInput(attrs={'class': 'form-control'}),
             'phone_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 08012345678'}),
             'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
-            'username': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. jdoe123'}),
-            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control'}),
-            'student_class': forms.Select(attrs={'class': 'form-select'}),
-            'admission_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'phone_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
@@ -78,4 +82,24 @@ class ExamForm(forms.ModelForm):
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_published': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'allow_retake': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+class QuestionForm(forms.ModelForm):
+    class Meta:
+        model = Question
+        fields = ['text', 'type', 'marks', 'order']
+        widgets = {
+            'text': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Enter question text...'}),
+            'type': forms.Select(attrs={'class': 'form-select', 'id': 'questionType'}),
+            'marks': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
+            'order': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
+        }
+
+class ChoiceForm(forms.ModelForm):
+    class Meta:
+        model = Choice
+        fields = ['text', 'is_correct']
+        widgets = {
+            'text': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Choice text'}),
+            'is_correct': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }

@@ -3,10 +3,13 @@ Phase 5 Views - Analytics, Certificates, Bulk Operations, Permissions
 """
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, FileResponse, HttpResponseForbidden
+from django.http import JsonResponse, FileResponse, HttpResponseForbidden, HttpResponse
 from django.views.decorators.http import require_http_methods
 from django.db.models import Avg, Count, Q
 from django.utils import timezone
+from django.core.paginator import Paginator
+import csv
+import io
 from exams.models import Exam, ExamAttempt
 from .models import (
     ExamAnalytics, StudentPerformance, AttemptHistory,
@@ -21,7 +24,7 @@ from .analytics import (
 )
 from .certificates import (
     create_certificate, get_student_certificates,
-    batch_generate_certificates
+    batch_generate_certificates, generate_certificate_pdf
 )
 from .bulk_operations import BulkImporter, BulkExporter
 from .permissions import (
@@ -51,9 +54,19 @@ def analytics_dashboard(request):
     else:
         exams = Exam.objects.all()
     
+    # Annotate with attempt count
+    exams = exams.annotate(
+        attempt_count=Count('exam_attempts', filter=Q(exam_attempts__status='submitted'))
+    ).order_by('-created_at')
+
+    # Pagination
+    paginator = Paginator(exams, 10) # Show 10 exams per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     context = {
-        'exams': exams[:5],
-        'total_exams': exams.count(),
+        'exams': page_obj,
+        'total_exams': paginator.count,
     }
     
     return render(request, 'analytics/dashboard.html', context)
@@ -176,7 +189,7 @@ def rubric_create(request):
                     order=i,
                 )
         
-        return redirect('rubric_detail', rubric_id=rubric.id)
+        return redirect('dashboards:rubric_detail', rubric_id=rubric.id)
     
     return render(request, 'grading/rubric_create.html')
 
@@ -211,7 +224,7 @@ def schedule_exam_view(request, exam_id):
             notify_before_minutes=notify_before,
         )
         
-        return redirect('exam_detail', exam_id=exam.id)
+        return redirect('dashboards:exam_detail', exam_id=exam.id)
     
     schedule = get_schedule_info(exam)
     
@@ -228,10 +241,27 @@ def schedule_exam_view(request, exam_id):
 @login_required
 def certificate_list(request):
     """List certificates for current user"""
+    # Auto-generate certificates for eligible student attempts
+    if request.user.role == 'STUDENT':
+        attempts = ExamAttempt.objects.filter(
+            student=request.user,
+            status='submitted',
+            exam__is_published=True
+        ).select_related('exam')
+        
+        for attempt in attempts:
+            # Check if certificate already exists
+            if not Certificate.objects.filter(student=request.user, exam=attempt.exam).exists():
+                # Check if passed (using exam's passing_marks)
+                if attempt.total_score >= attempt.exam.passing_marks:
+                    create_certificate(request.user, attempt.exam, attempt)
+
     if request.user.role == 'STUDENT':
         certificates = Certificate.objects.filter(student=request.user)
     elif request.user.role == 'TEACHER':
         certificates = Certificate.objects.filter(exam__created_by=request.user)
+    elif request.user.role == 'PARENT':
+        certificates = Certificate.objects.filter(student__in=request.user.children.all())
     else:
         certificates = Certificate.objects.all()
     
@@ -240,9 +270,9 @@ def certificate_list(request):
 
 
 @login_required
-def certificate_detail(request, cert_id):
+def certificate_detail(request, certificate_id):
     """View certificate details"""
-    cert = get_object_or_404(Certificate, id=cert_id)
+    cert = get_object_or_404(Certificate, id=certificate_id)
     
     # Check permission
     if (request.user != cert.student and 
@@ -255,9 +285,9 @@ def certificate_detail(request, cert_id):
 
 
 @login_required
-def certificate_download(request, cert_id):
+def certificate_download(request, certificate_id):
     """Download certificate PDF"""
-    cert = get_object_or_404(Certificate, id=cert_id)
+    cert = get_object_or_404(Certificate, id=certificate_id)
     
     # Check permission
     if (request.user != cert.student and 
@@ -265,14 +295,31 @@ def certificate_download(request, cert_id):
         not request.user.is_staff):
         return HttpResponseForbidden("You don't have permission to download this certificate.")
     
-    if cert.pdf_file:
-        return FileResponse(
-            cert.pdf_file.open('rb'),
-            as_attachment=True,
-            filename=f"{cert.certificate_number}.pdf"
-        )
+    # Always regenerate the PDF to ensure the latest template is used
+    generate_certificate_pdf(cert)
+    cert.refresh_from_db()
     
-    return redirect('certificate_detail', cert_id=cert.id)
+    if cert.pdf_file:
+        try:
+            return FileResponse(
+                cert.pdf_file.open('rb'),
+                as_attachment=True,
+                filename=f"{cert.certificate_number}.pdf"
+            )
+        except FileNotFoundError:
+            # Should not happen since we just generated it, but just in case
+            generate_certificate_pdf(cert)
+            cert.refresh_from_db()
+            if cert.pdf_file:
+                return FileResponse(
+                    cert.pdf_file.open('rb'),
+                    as_attachment=True,
+                    filename=f"{cert.certificate_number}.pdf"
+                )
+
+    from django.contrib import messages
+    messages.error(request, "Could not generate certificate PDF. Please contact support.")
+    return redirect('dashboards:certificate_detail', certificate_id=cert.id)
 
 
 @login_required
@@ -296,7 +343,85 @@ def batch_issue_certificates(request, exam_id):
     return render(request, 'certificates/batch_issue.html', context)
 
 
+
 # ==================== BULK OPERATIONS VIEWS ====================
+
+@login_required
+def download_import_template(request, format_type):
+    """Download template for bulk import"""
+    if format_type not in ['csv', 'excel', 'word']:
+        return HttpResponseForbidden("Invalid format")
+
+    headers = [
+        'text', 'type', 'marks', 'class', 'subject', 
+        'choice_1', 'correct_1', 
+        'choice_2', 'correct_2', 
+        'choice_3', 'correct_3', 
+        'choice_4', 'correct_4'
+    ]
+
+    if format_type == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="question_template.csv"'
+        writer = csv.writer(response)
+        writer.writerow(headers)
+        return response
+
+    elif format_type == 'excel':
+        import openpyxl
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Question Template"
+        ws.append(headers)
+        
+        # Add a sample row
+        ws.append([
+            "Sample Question?", "objective", "1", "Primary 1", "Mathematics",
+            "Option A", "False",
+            "Option B", "True",
+            "", "", "", "" 
+        ])
+
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="question_template.xlsx"'
+        wb.save(response)
+        return response
+
+    elif format_type == 'word':
+        import docx
+        doc = docx.Document()
+        doc.add_heading('Question Import Template', 0)
+        
+        table = doc.add_table(rows=1, cols=len(headers))
+        table.style = 'Table Grid'
+        
+        # Add headers
+        hdr_cells = table.rows[0].cells
+        for i, header in enumerate(headers):
+            hdr_cells[i].text = header
+            
+        # Add sample row
+        row_cells = table.add_row().cells
+        sample_data = [
+            "Sample Question?", "objective", "1", "Primary 1", "Mathematics",
+            "Option A", "False",
+            "Option B", "True",
+            "", "", "", "" 
+        ]
+        for i, val in enumerate(sample_data):
+            row_cells[i].text = str(val)
+
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        response['Content-Disposition'] = 'attachment; filename="question_template.docx"'
+        
+        # Save to IO buffer
+        buffer = io.BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        response.write(buffer.getvalue())
+        return response
+
+    return HttpResponseForbidden("Unknown error")
 
 @login_required
 def bulk_import_view(request):
@@ -318,7 +443,7 @@ def bulk_import_view(request):
             category_id = request.POST.get('category_id')
             job = BulkImporter.import_questions(csv_file, request.user, category_id)
         
-        return redirect('bulk_import_job_detail', job_id=job.id)
+        return redirect('dashboards:bulk_import_job_detail', job_id=job.id)
     
     from exams.models import SchoolClass
     context = {
@@ -357,7 +482,7 @@ def bulk_export_view(request):
         job.exported_by = request.user
         job.save(update_fields=['exported_by'])
         
-        return redirect('bulk_export_job_detail', job_id=job.id)
+        return redirect('dashboards:bulk_export_job_detail', job_id=job.id)
     
     context = {'exams': Exam.objects.all()}
     return render(request, 'bulk/export.html', context)

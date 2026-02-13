@@ -116,3 +116,95 @@ class GradingNotificationConsumer(AsyncWebsocketConsumer):
             'pending_count': event['pending_count'],
             'message': event['message']
         }))
+
+
+class ChatConsumer(AsyncWebsocketConsumer):
+    """
+    WebSocket consumer for Enterprise Chat.
+    Handles real-time messaging for DMs and Rooms.
+    """
+    async def connect(self):
+        if self.scope['user'].is_authenticated:
+            self.user = self.scope['user']
+            # Join user's personal channel for DMs
+            self.user_group = f"chat_user_{self.user.id}"
+            await self.channel_layer.group_add(self.user_group, self.channel_name)
+            
+            # Join all rooms the user is part of (handled dynamically on message, or join all now)
+            # Better to join specific room channels when the user "enters" them on frontend?
+            # Or just broadcast to 'chat_room_{id}' and let the backend handle who receives it?
+            # For simplicity in this architecture:
+            # - DMs go to 'chat_user_{id}'
+            # - Room messages go to 'chat_room_{id}'
+            # User must subscribe to room updates. 
+            # For now, we will just rely on the user group for DMs. 
+            # For rooms, we might need a separate mechanism or just push to all participants' user groups.
+            # Pushing to user groups is safer for permission checks.
+            
+            await self.accept()
+        else:
+            await self.close()
+
+    async def disconnect(self, close_code):
+        if self.scope['user'].is_authenticated:
+            await self.channel_layer.group_discard(self.user_group, self.channel_name)
+            
+            # Leave room groups if we joined any
+            # (If we implement room joining logic)
+
+    async def receive(self, text_data):
+        """
+        Handle incoming WebSocket messages.
+        Supported types: 'typing', 'video_offer', 'video_answer', 'new_ice_candidate'
+        """
+        data = json.loads(text_data)
+        msg_type = data.get('type')
+        
+        if msg_type == 'typing':
+            # Broadcast typing status to the recipient
+            target_id = data.get('target_id')
+            if target_id:
+                await self.channel_layer.group_send(
+                    f"chat_user_{target_id}",
+                    {
+                        'type': 'chat_signal',
+                        'data': {
+                            'type': 'typing',
+                            'sender_id': self.user.id,
+                            'is_typing': data.get('is_typing', False)
+                        }
+                    }
+                )
+        
+        elif msg_type in ['video_offer', 'video_answer', 'new_ice_candidate']:
+            # Relay WebRTC signaling messages
+            target_id = data.get('target_id')
+            if target_id:
+                await self.channel_layer.group_send(
+                    f"chat_user_{target_id}",
+                    {
+                        'type': 'chat_signal',
+                        'data': {
+                            'type': msg_type,
+                            'sender_id': self.user.id,
+                            'payload': data.get('payload')
+                        }
+                    }
+                )
+
+    async def chat_signal(self, event):
+        """
+        Handler for signaling messages (typing, video calls).
+        """
+        await self.send(text_data=json.dumps(event['data']))
+
+    async def chat_message(self, event):
+        """
+        Standard event handler for sending chat data to the WebSocket.
+        Expected event structure:
+        {
+            'type': 'chat_message',
+            'data': { ... message payload ... }
+        }
+        """
+        await self.send(text_data=json.dumps(event['data']))

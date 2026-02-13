@@ -13,16 +13,35 @@ def send_notification(recipient, title, message, category='info', related_exam=N
         recipient: User object (recipient)
         title: Notification title
         message: Notification message
-        category: Type (info, success, warning, error)
+        category: Type (info, success, warning, error) - Ignored for exams.models.Notification
         related_exam: Optional exam object for context
     """
     # Create notification in database
+    # Using exams.models.Notification which has sender, recipient, title, message, is_read, related_exam (int)
+    # It does not have category
+    
+    related_exam_id = related_exam.id if related_exam and hasattr(related_exam, 'id') else related_exam
+    
+    # We need a sender. exams.models.Notification requires a sender.
+    # But this handler doesn't take a sender.
+    # We might need to make sender optional in the model or provide a default system user.
+    # For now, let's see if we can get away with it or if we need to modify the model.
+    # The model definition: sender = models.ForeignKey(..., on_delete=models.CASCADE)
+    # It is NOT NULL.
+    
+    # We need to fetch a system user or admin to be the sender.
+    from accounts.models import User
+    sender = User.objects.filter(is_superuser=True).first()
+    if not sender:
+        # Fallback if no admin exists (unlikely in prod but possible in test)
+        sender = recipient # Self-notification as fallback?
+        
     notification = Notification.objects.create(
+        sender=sender,
         recipient=recipient,
         title=title,
         message=message,
-        category=category,
-        related_exam=related_exam,
+        related_exam=related_exam_id,
         is_read=False
     )
     
@@ -80,20 +99,27 @@ def broadcast_notification(recipient_ids, title, message, category='info'):
         recipient_ids: List of user IDs
         title: Notification title
         message: Notification message
-        category: Type (info, success, warning, error)
+        category: Type (info, success, warning, error) - Ignored
     """
     from accounts.models import User
     
     channel_layer = get_channel_layer()
     
+    # Get default sender
+    sender = User.objects.filter(is_superuser=True).first()
+    
     for user_id in recipient_ids:
         try:
             recipient = User.objects.get(id=user_id)
+            # Use sender if available, else fallback to recipient (self-notification)
+            # This is a fallback for the schema requirement
+            msg_sender = sender if sender else recipient
+            
             notification = Notification.objects.create(
+                sender=msg_sender,
                 recipient=recipient,
                 title=title,
                 message=message,
-                category=category,
                 is_read=False
             )
             

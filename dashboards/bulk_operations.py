@@ -6,7 +6,7 @@ import io
 from django.utils import timezone
 from django.db import transaction
 from accounts.models import User
-from exams.models import Exam, Question, Choice, SchoolClass
+from exams.models import Exam, Question, Choice, SchoolClass, Subject
 from .models import (
     BulkImportJob, BulkExportJob, QuestionBank, 
     QuestionCategory, QuestionTag, StudentPerformance
@@ -92,7 +92,7 @@ class BulkImporter:
     
     @staticmethod
     def import_questions(csv_file, created_by, category_id=None):
-        """Import questions from CSV"""
+        """Import questions from CSV, Excel, or Word"""
         job = BulkImportJob.objects.create(
             import_type='questions',
             csv_file=csv_file,
@@ -105,38 +105,68 @@ class BulkImporter:
         successes = 0
         
         try:
-            file_content = csv_file.read().decode('utf-8')
-            reader = csv.DictReader(io.StringIO(file_content))
+            if hasattr(csv_file, 'seek'):
+                csv_file.seek(0)
+
+            filename = csv_file.name.lower()
+            questions_data = []
             
-            required_fields = ['text', 'type', 'marks']
-            if reader.fieldnames and not all(f in reader.fieldnames for f in required_fields):
-                job.status = 'failed'
-                job.error_log = f"Missing required fields. Expected: {', '.join(required_fields)}"
-                job.completed_at = timezone.now()
-                job.save()
-                return job
+            # Determine parser based on file extension
+            if filename.endswith('.xlsx'):
+                questions_data, parse_errors = BulkImporter._parse_excel_questions(csv_file)
+                errors.extend(parse_errors)
+            elif filename.endswith('.docx'):
+                questions_data, parse_errors = BulkImporter._parse_word_questions(csv_file)
+                errors.extend(parse_errors)
+            else:
+                # Default to CSV
+                questions_data, parse_errors = BulkImporter._parse_csv_questions(csv_file)
+                errors.extend(parse_errors)
             
+            if not questions_data and not errors:
+                 errors.append("No data found in file")
+
             category = None
             if category_id:
                 category = QuestionCategory.objects.get(id=category_id)
             
-            for row_num, row in enumerate(reader, start=2):
+            for row_num, row in enumerate(questions_data, start=1):
                 try:
                     text = row.get('text', '').strip()
                     q_type = row.get('type', '').lower()
                     marks = int(row.get('marks', '1'))
-                    difficulty = row.get('difficulty', 'medium').lower()
-                    
+                    class_name = row.get('class', '').strip()
+                    subject_name = row.get('subject', '').strip()
+
                     if not text or q_type not in ['objective', 'subjective', 'short_answer']:
                         errors.append(f"Row {row_num}: Invalid question type or missing text")
                         continue
+
+                    # Lookup Class and Subject
+                    school_class = None
+                    if class_name:
+                        try:
+                            school_class = SchoolClass.objects.get(name__iexact=class_name)
+                        except SchoolClass.DoesNotExist:
+                            errors.append(f"Row {row_num}: Class '{class_name}' not found")
+                            continue
+
+                    subject = None
+                    if subject_name:
+                        try:
+                            subject = Subject.objects.get(name__iexact=subject_name)
+                        except Subject.DoesNotExist:
+                            errors.append(f"Row {row_num}: Subject '{subject_name}' not found")
+                            continue
                     
                     question = QuestionBank.objects.create(
                         text=text,
                         question_type=q_type,
                         marks=marks,
-                        difficulty=difficulty,
+                        difficulty='medium',  # Default since removed from template
                         category=category,
+                        school_class=school_class,
+                        subject=subject,
                         created_by=created_by,
                         is_published=True,
                     )
@@ -144,8 +174,9 @@ class BulkImporter:
                     # Handle choices for objective questions
                     if q_type == 'objective':
                         for i in range(1, 5):
-                            choice_text = row.get(f'choice_{i}', '').strip()
-                            is_correct = row.get(f'correct_{i}', '').lower() == 'true'
+                            choice_text = row.get(f'choice_{i}', '')
+                            is_correct_val = str(row.get(f'correct_{i}', '')).lower().strip()
+                            is_correct = is_correct_val in ['true', '1', 'yes']
                             
                             if choice_text:
                                 from .models import QuestionChoice
@@ -161,7 +192,7 @@ class BulkImporter:
                 except Exception as e:
                     errors.append(f"Row {row_num}: {str(e)}")
             
-            job.status = 'completed'
+            job.status = 'completed' if not (successes == 0 and len(errors) > 0) else 'failed'
             job.total_rows = successes + len(errors)
             job.successful_rows = successes
             job.failed_rows = len(errors)
@@ -176,6 +207,103 @@ class BulkImporter:
             job.save()
         
         return job
+
+    @staticmethod
+    def _parse_csv_questions(file_obj):
+        """Parse CSV content"""
+        data = []
+        errors = []
+        try:
+            file_content = file_obj.read().decode('utf-8')
+            reader = csv.DictReader(io.StringIO(file_content))
+            
+            required = ['text', 'type', 'marks', 'class', 'subject']
+            if reader.fieldnames and not all(f in reader.fieldnames for f in required):
+                return [], [f"CSV Missing required fields: {', '.join(required)}"]
+
+            for row in reader:
+                data.append(row)
+        except Exception as e:
+            errors.append(f"CSV Parse Error: {str(e)}")
+        return data, errors
+
+    @staticmethod
+    def _parse_excel_questions(file_obj):
+        """Parse Excel content using openpyxl"""
+        import openpyxl
+        data = []
+        errors = []
+        try:
+            wb = openpyxl.load_workbook(file_obj, data_only=True)
+            sheet = wb.active
+            
+            # Read header
+            headers = [cell.value for cell in sheet[1]]
+            required = ['text', 'type', 'marks', 'class', 'subject']
+            if not all(field in headers for field in required):
+                 return [], [f"Excel Missing required headers: {', '.join(required)}"]
+
+            # Map headers to indices
+            header_map = {h: i for i, h in enumerate(headers) if h}
+
+            for row_idx, row in enumerate(sheet.iter_rows(min_row=2), start=2):
+                row_data = {}
+                has_content = False
+                for field, col_idx in header_map.items():
+                    val = row[col_idx].value
+                    if val is not None:
+                         row_data[field] = str(val).strip()
+                         has_content = True
+                    else:
+                         row_data[field] = ""
+                
+                if has_content:
+                    data.append(row_data)
+        except Exception as e:
+            errors.append(f"Excel Parse Error: {str(e)}")
+        return data, errors
+
+    @staticmethod
+    def _parse_word_questions(file_obj):
+        """Parse Word content using python-docx (Table based)"""
+        import docx
+        data = []
+        errors = []
+        try:
+            doc = docx.Document(file_obj)
+            if not doc.tables:
+                return [], ["No tables found in Word document"]
+            
+            table = doc.tables[0]
+            if not table.rows:
+                 return [], ["Empty table in Word document"]
+
+            # Header
+            headers = [cell.text.strip() for cell in table.rows[0].cells]
+            required = ['text', 'type', 'marks', 'class', 'subject']
+            if not all(field in headers for field in required):
+                 return [], [f"Word Table Missing required headers: {', '.join(required)}"]
+            
+            header_map = {h: i for i, h in enumerate(headers) if h}
+
+            for row_idx, row in enumerate(table.rows[1:], start=2):
+                row_data = {}
+                # Ensure row has enough cells
+                has_content = False
+                for field, col_idx in header_map.items():
+                    if col_idx < len(row.cells):
+                        val = row.cells[col_idx].text.strip()
+                        row_data[field] = val
+                        if val: has_content = True
+                    else:
+                        row_data[field] = ""
+                
+                if has_content:
+                    data.append(row_data)
+
+        except Exception as e:
+            errors.append(f"Word Parse Error: {str(e)}")
+        return data, errors
 
 
 class BulkExporter:
