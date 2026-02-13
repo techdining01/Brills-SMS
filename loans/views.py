@@ -15,7 +15,13 @@ from payroll.models import Payee
 
 @login_required
 def apply_for_loan(request):
-    payee = get_object_or_404(Payee, user=request.user)
+    # Check if user has a Payee profile using the correct related_name
+    try:
+        payee = request.user.payee_profile
+    except Payee.DoesNotExist:
+        messages.error(request, "You need a staff profile (Payee) to apply for a loan.")
+        return redirect("loans:staff_loan_dashboard")
+
     if request.method == "POST":
         form = LoanApplicationForm(request.POST)
         if form.is_valid():
@@ -25,6 +31,9 @@ def apply_for_loan(request):
             loan.save()
 
             messages.success(request, "Loan application submitted successfully.")
+            # Redirect admins back to admin dashboard, others to staff dashboard
+            if request.user.role in ["ADMIN", "BURSAR"]:
+                return redirect("loans:admin_loan_dashboard")
             return redirect("loans:staff_loan_dashboard")
     else:
         form = LoanApplicationForm()

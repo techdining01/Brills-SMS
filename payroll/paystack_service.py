@@ -134,69 +134,69 @@ def process_payroll_payments(payroll_period, user):
         raise ValueError("No payroll records with approved bank accounts found.")
     
     # Create payment batch
-    with transaction.atomic():
-        batch = PaymentBatch.objects.create(
-            payroll_period=payroll_period,
-            reference=f"BATCH-{uuid4().hex[:8].upper()}",
-            total_amount=sum(r.net_pay for r in records),
-            created_by=user
+    batch = PaymentBatch.objects.create(
+        payroll_period=payroll_period,
+        reference=f"BATCH-{uuid4().hex[:8].upper()}",
+        total_amount=sum(r.net_pay for r in records),
+        created_by=user
+    )
+    
+    success_count = 0
+    failed_records = []
+    
+    for record in records:
+        # Get primary approved bank
+        bank = record.payee.bank_accounts.filter(is_primary=True, is_approved=True).first()
+        
+        # Check if already paid or pending
+        if record.transactions.filter(status__in=['success', 'pending']).exists():
+            continue
+        
+        # Create transaction record immediately so it's no longer "Idle"
+        reference = f"PAY-{record.id}-{uuid4().hex[:6].upper()}"
+        payment_tx = PaymentTransaction.objects.create(
+            payroll_record=record,
+            batch=batch,
+            amount=record.net_pay,
+            currency="NGN",
+            paystack_reference=reference,
+            status='pending'
         )
+
+        if not bank:
+            payment_tx.status = 'failed'
+            payment_tx.failure_reason = 'No approved primary bank account'
+            payment_tx.save()
+            failed_records.append({'record': record, 'reason': payment_tx.failure_reason})
+            continue
         
-        success_count = 0
-        failed_records = []
-        
-        for record in records:
-            # Get primary approved bank
-            bank = record.payee.bank_accounts.filter(is_primary=True, is_approved=True).first()
-            
-            if not bank:
-                failed_records.append({
-                    'record': record,
-                    'reason': 'No approved primary bank account'
-                })
-                continue
-            
-            # Check if already paid
-            if record.transactions.filter(status='success').exists():
-                continue  # Skip already paid
-            
-            # Ensure recipient code exists
-            if not bank.recipient_code:
-                recipient_code = paystack.create_transfer_recipient(bank)
-                if recipient_code:
+        # Ensure recipient code exists
+        if not bank.recipient_code:
+            recipient_code = paystack.create_transfer_recipient(bank)
+            if recipient_code:
+                with transaction.atomic():
                     bank.recipient_code = recipient_code
                     bank.save()
-                else:
-                    failed_records.append({
-                        'record': record,
-                        'reason': 'Failed to create Paystack recipient'
-                    })
-                    continue
-            
-            # Generate unique reference
-            reference = f"PAY-{record.id}-{uuid4().hex[:6].upper()}"
-            
-            # Create transaction record (pending)
-            payment_tx = PaymentTransaction.objects.create(
-                payroll_record=record,
-                batch=batch,
-                amount=record.net_pay,
-                currency="NGN",
-                paystack_reference=reference,
-                status='pending'
-            )
-            
-            # Initiate transfer
-            success, transfer_code, message = paystack.initiate_transfer(
-                recipient_code=bank.recipient_code,
-                amount=record.net_pay,
-                reference=reference,
-                reason=f"Salary - {payroll_period}"
-            )
-            
+            else:
+                payment_tx.status = 'failed'
+                payment_tx.failure_reason = 'Failed to create Paystack recipient'
+                payment_tx.save()
+                failed_records.append({'record': record, 'reason': payment_tx.failure_reason})
+                continue
+        
+        # Initiate transfer (Network call outside transaction)
+        success, transfer_code, message = paystack.initiate_transfer(
+            recipient_code=bank.recipient_code,
+            amount=record.net_pay,
+            reference=reference,
+            reason=f"Salary - {payroll_period}"
+        )
+        
+        with transaction.atomic():
+            payment_tx.refresh_from_db()
             if success:
                 payment_tx.transfer_code = transfer_code
-                payment_tx.status = 'success'  # Will be updated by webhook
+                payment_tx.status = 'success'
                 payment_tx.response_data = {'message': message, 'transfer_code': transfer_code}
                 payment_tx.save()
                 success_count += 1
@@ -228,9 +228,9 @@ def process_payroll_payments(payroll_period, user):
                     object_id=str(record.id),
                     description=f"Transfer failed: {message}"
                 )
-        
-        batch.is_processed = True
-        batch.save()
+    
+    batch.is_processed = True
+    batch.save()
     
     return batch, success_count, failed_records
 
@@ -256,19 +256,23 @@ def retry_failed_payment(transaction_id, user):
     # Generate new reference
     new_reference = f"RETRY-{record.id}-{uuid4().hex[:6].upper()}"
     
+    # Update to pending first to release lock during network call
+    payment_tx.paystack_reference = new_reference
+    payment_tx.status = 'pending'
+    payment_tx.failure_reason = 'Processing retry...'
+    payment_tx.save()
+    
+    # Retry transfer (Outside transaction)
+    success, transfer_code, message = paystack.initiate_transfer(
+        recipient_code=bank.recipient_code,
+        amount=record.net_pay,
+        reference=new_reference,
+        reason=f"Retry - Salary {record.payroll_period}"
+    )
+    
     with transaction.atomic():
-        # Update existing transaction
-        payment_tx.paystack_reference = new_reference
-        payment_tx.status = 'pending'
-        payment_tx.failure_reason = ''
-        
-        # Retry transfer
-        success, transfer_code, message = paystack.initiate_transfer(
-            recipient_code=bank.recipient_code,
-            amount=record.net_pay,
-            reference=new_reference,
-            reason=f"Retry - Salary {record.payroll_period}"
-        )
+        # Re-fetch to ensure we have latest state
+        payment_tx.refresh_from_db()
         
         if success:
             payment_tx.transfer_code = transfer_code

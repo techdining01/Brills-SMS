@@ -162,6 +162,10 @@ class PayrollRecord(models.Model):
     total_deductions = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     net_pay = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
 
+    # Processing Info
+    is_processed = models.BooleanField(default=False)
+    processing_error = models.TextField(blank=True, null=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

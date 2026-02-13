@@ -50,6 +50,10 @@ def admin_dashboard(request):
 
 @login_required
 def staff_dashboard(request):
+    if request.user.role != "TEACHER":
+        messages.error(request, "You do not have permission to access this page.")
+        return redirect("leaves:admin_dashboard")
+
     payee = get_object_or_404(Payee, user=request.user)
 
     leaves = LeaveRequest.objects.filter(payee=payee).order_by("-start_date")
@@ -137,18 +141,18 @@ def approve_leave(request, leave_id):
     )
 
     if leave.duration() > balance["remaining"]:
-        messages.error(
+        messages.warning(
             request,
-            f"Insufficient leave balance. Remaining: {balance['remaining']} days, Required: {leave.duration()} days"
+            f"Leave approved with insufficient balance. Remaining: {balance['remaining']} days, Required: {leave.duration()} days"
         )
-        return redirect("leaves:admin_dashboard")
+    else:
+        messages.success(request, f"Leave approved for {leave.payee.user.get_full_name()}.")
 
     leave.status = "approved"
     leave.reviewed_by = request.user
     leave.reviewed_at = timezone.now()
     leave.save()
 
-    messages.success(request, f"Leave approved for {leave.payee.user.get_full_name()}.")
     return redirect("leaves:admin_dashboard")
 
 

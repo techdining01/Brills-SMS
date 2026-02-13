@@ -15,12 +15,107 @@ from .models import (
     AuditLog, SalaryComponent
 )
 from django.conf import settings
-from .forms import PayeeForm, BankAccountForm, SalaryStructureForm, SalaryItemFormSet, PayrollGenerationForm
+from .forms import (
+    PayeeForm, BankAccountForm, SalaryStructureForm, SalaryItemFormSet, 
+    PayrollGenerationForm, SalaryComponentForm, PayeeSalaryStructureForm
+)
 from .admin_forms import AdminPayeeCreationForm
-from .utils import get_loan_deduction
+from .utils import get_loan_deduction, notify_payee_payment_success
 from .paystack_service import process_payroll_payments, retry_failed_payment, PaystackService
 from decimal import Decimal
 
+
+@login_required
+@user_passes_test(lambda u: u.role == 'admin' or u.is_superuser)
+def edit_payee_salary_structure(request, payee_id):
+    payee = get_object_or_404(Payee, id=payee_id)
+    assignment = getattr(payee, 'salary_assignment', None)
+    
+    if request.method == 'POST':
+        form = PayeeSalaryStructureForm(request.POST, instance=assignment)
+        if form.is_valid():
+            new_assignment = form.save(commit=False)
+            new_assignment.payee = payee
+            new_assignment.save()
+            messages.success(request, f"Salary structure updated for {payee.user.get_full_name()}")
+            return redirect('payroll:admin_payee_list')
+    else:
+        form = PayeeSalaryStructureForm(instance=assignment)
+    
+    return render(request, 'payroll/admin/edit_payee_structure.html', {
+        'form': form,
+        'payee': payee
+    })
+
+@login_required
+@user_passes_test(lambda u: u.role == 'admin' or u.is_superuser)
+@require_POST
+def retry_payroll_record(request, record_id):
+    record = get_object_or_404(PayrollRecord, id=record_id)
+    period = record.payroll_period
+    payee = record.payee
+    
+    if period.is_locked:
+        messages.error(request, "Cannot retry payroll for a locked period.")
+        return redirect('payroll:payroll_detail', period_id=period.id)
+    
+    error_msg = None
+    if not payee.has_salary_structure():
+        error_msg = "Missing salary structure"
+    elif not payee.has_primary_bank():
+        error_msg = "No primary bank account assigned"
+    
+    if error_msg:
+        record.is_processed = False
+        record.processing_error = error_msg
+        record.save()
+        messages.error(request, f"Retry failed for {payee.user.get_full_name()}: {error_msg}")
+        return redirect('payroll:payroll_detail', period_id=period.id)
+        
+    try:
+        structure = payee.salary_assignment.salary_structure
+        gross_pay = Decimal("0.00")
+        line_item_deductions = Decimal("0.00")
+        
+        record.line_items.all().delete()
+        
+        for item in structure.items.all():
+            comp_amount = item.amount 
+            is_earning = (item.component.component_type == 'earning')
+            
+            if is_earning:
+                gross_pay += comp_amount
+            else:
+                line_item_deductions += comp_amount
+            
+            PayrollLineItem.objects.create(
+                payroll_record=record,
+                name=item.component.name,
+                amount=comp_amount,
+                is_deduction=not is_earning
+            )
+        
+        tax_deductions = Decimal("0.00")
+        if structure.is_taxable:
+            tax_deductions = (gross_pay * structure.tax_rate) / Decimal("100")
+
+        record.gross_pay = gross_pay
+        record.loan_deductions = get_loan_deduction(payee, period.month, period.year)
+        record.tax_deductions = tax_deductions 
+        record.other_deductions = line_item_deductions
+        
+        record.calculate_net_pay()
+        record.is_processed = True
+        record.processing_error = None
+        record.save()
+        messages.success(request, f"Payroll re-generated successfully for {payee.user.get_full_name()}.")
+    except Exception as e:
+        record.is_processed = False
+        record.processing_error = str(e)
+        record.save()
+        messages.error(request, f"Retry failed for {payee.user.get_full_name()}: {str(e)}")
+        
+    return redirect('payroll:payroll_detail', period_id=period.id)
 
 @login_required
 def dashboard(request):
@@ -221,51 +316,77 @@ def generate_payroll(request):
                 return redirect('payroll:generate_payroll')
 
             count = 0
+            skipped_payees = []
             for payee in payees:
+                error_msg = None
                 if not payee.has_salary_structure():
-                    continue
+                    error_msg = "Missing salary structure"
+                elif not payee.has_primary_bank():
+                    error_msg = "No primary bank account assigned"
                 
                 record, created = PayrollRecord.objects.get_or_create(payee=payee, payroll_period=period)
                 
-                structure = payee.salary_assignment.salary_structure
-                gross_pay = Decimal("0.00")
+                if error_msg:
+                    record.is_processed = False
+                    record.processing_error = error_msg
+                    record.save()
+                    skipped_payees.append(f"{payee.user.get_full_name()} ({error_msg})")
+                    continue
                 
-                record.line_items.all().delete()
-                
-                for item in structure.items.all():
-                    comp_amount = item.amount 
-                    is_earning = (item.component.component_type == 'earning')
+                try:
+                    structure = payee.salary_assignment.salary_structure
+                    gross_pay = Decimal("0.00")
+                    line_item_deductions = Decimal("0.00")
                     
-                    if is_earning:
-                        gross_pay += comp_amount
+                    record.line_items.all().delete()
                     
-                    PayrollLineItem.objects.create(
-                        payroll_record=record,
-                        name=item.component.name,
-                        amount=comp_amount,
-                        is_deduction=not is_earning
-                    )
-                
-                # Calculate tax at package level
-                tax_deductions = Decimal("0.00")
-                if structure.is_taxable:
-                    tax_deductions = (gross_pay * structure.tax_rate) / Decimal("100")
+                    for item in structure.items.all():
+                        comp_amount = item.amount 
+                        is_earning = (item.component.component_type == 'earning')
+                        
+                        if is_earning:
+                            gross_pay += comp_amount
+                        else:
+                            line_item_deductions += comp_amount
+                        
+                        PayrollLineItem.objects.create(
+                            payroll_record=record,
+                            name=item.component.name,
+                            amount=comp_amount,
+                            is_deduction=not is_earning
+                        )
+                    
+                    # Calculate tax at package level
+                    tax_deductions = Decimal("0.00")
+                    if structure.is_taxable:
+                        tax_deductions = (gross_pay * structure.tax_rate) / Decimal("100")
 
-                record.gross_pay = gross_pay
-                record.loan_deductions = get_loan_deduction(payee, period.month, period.year)
-                record.tax_deductions = tax_deductions 
-                
-                record.calculate_net_pay()
-                record.save()
-                count += 1
+                    record.gross_pay = gross_pay
+                    record.loan_deductions = get_loan_deduction(payee, period.month, period.year)
+                    record.tax_deductions = tax_deductions 
+                    record.other_deductions = line_item_deductions
+                    
+                    record.calculate_net_pay()
+                    record.is_processed = True
+                    record.processing_error = None
+                    record.save()
+                    count += 1
+                except Exception as e:
+                    record.is_processed = False
+                    record.processing_error = str(e)
+                    record.save()
+                    skipped_payees.append(f"{payee.user.get_full_name()} (Error: {str(e)})")
             
             if count == 0:
-                messages.warning(request, 'No payroll records generated. Ensure payees have salary structures assigned.')
+                messages.warning(request, f'No payroll records successfully generated. Reasons: {", ".join(skipped_payees)}')
                 return redirect('payroll:generate_payroll')
 
             period.is_generated = True
             period.save()
-            messages.success(request, f'Payroll Generated for {count} payees.')
+            msg = f'Payroll Generated for {count} payees.'
+            if skipped_payees:
+                msg += f' {len(skipped_payees)} payees were skipped due to errors.'
+            messages.success(request, msg)
             return redirect('payroll:payroll_detail', period_id=period.id)
     else:
         form = PayrollGenerationForm()
@@ -282,7 +403,14 @@ def payroll_list(request):
 @login_required
 def payroll_detail(request, period_id):
     period = get_object_or_404(PayrollPeriod, id=period_id)
-    records = period.records.all()
+    
+    # Sync payees: Ensure all active payees have a record in this period if it's not locked
+    if not period.is_locked:
+        active_payees = Payee.objects.filter(is_active=True)
+        for payee in active_payees:
+            PayrollRecord.objects.get_or_create(payee=payee, payroll_period=period)
+            
+    records = period.records.all().select_related('payee__user')
     return render(request, 'payroll/period_detail.html', {'period': period, 'records': records})
 
 @login_required
@@ -346,13 +474,30 @@ def delete_payroll_record(request, record_id):
         name = record.payee.user.get_full_name()
         record.delete()
         messages.success(request, f"Removed {name} from this payroll period.")
-    
     return redirect('payroll:payroll_detail', period_id=period_id)
+
+@login_required
+@user_passes_test(lambda u: u.role == 'admin' or u.is_superuser)
+@require_POST
+def delete_payroll_period(request, period_id):
+    period = get_object_or_404(PayrollPeriod, id=period_id)
+    
+    if period.is_locked:
+        messages.error(request, "Cannot delete a locked payroll period.")
+    else:
+        period_str = str(period)
+        # Delete associated records first to avoid ProtectedError
+        period.records.all().delete()
+        period.delete()
+        messages.success(request, f"Payroll period {period_str} has been deleted.")
+    
+    return redirect('payroll:payroll_list')
 
 
 
 @login_required
 @user_passes_test(lambda u: u.role == 'admin' or u.is_superuser)
+@require_POST
 def process_payments(request, period_id):
     """Initiate Paystack transfers for a payroll period."""
     period = get_object_or_404(PayrollPeriod, id=period_id)
@@ -391,28 +536,45 @@ def payment_status(request, period_id):
     payment_data = []
     success_count = 0
     failed_count = 0
+    idle_count = 0
     
     for record in records:
         latest_tx = record.transactions.order_by('-created_at').first()
         status = latest_tx.status if latest_tx else 'not_initiated'
         
-        if status == 'success':
-            success_count += 1
+        # Determine failure reason if idle/failed
+        failure_reason = None
+        if not latest_tx:
+            idle_count += 1
+            # Check why it wasn't initiated
+            bank = record.payee.bank_accounts.filter(is_primary=True).first()
+            if not bank:
+                failure_reason = "No primary bank account"
+            elif not bank.is_approved:
+                failure_reason = "Bank account not approved"
+            else:
+                failure_reason = "Ready for processing"
         elif status == 'failed':
             failed_count += 1
-        
+            failure_reason = latest_tx.failure_reason or "Transfer failed at Paystack"
+        elif status == 'success':
+            success_count += 1
+
         payment_data.append({
             'record': record,
             'transaction': latest_tx,
             'status': status,
-            'can_retry': latest_tx and latest_tx.status == 'failed'
+            'failure_reason': failure_reason,
+            'can_retry': latest_tx and latest_tx.status == 'failed',
+            'can_process': not latest_tx and failure_reason == "Ready for processing"
         })
     
     return render(request, 'payroll/payment_status.html', {
         'period': period,
         'payment_data': payment_data,
         'success_count': success_count,
-        'failed_count': failed_count
+        'failed_count': failed_count,
+        'idle_count': idle_count
     })
     
 
@@ -455,6 +617,9 @@ def paystack_webhook(request):
                     tx.status = 'success'
                     tx.response_data = data
                     tx.save()
+                    
+                    # Notify payee via Telegram
+                    notify_payee_payment_success(tx)
                     
                     AuditLog.objects.create(
                         user=None,

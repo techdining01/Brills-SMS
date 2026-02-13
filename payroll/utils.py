@@ -1,86 +1,78 @@
-from decimal import Decimal
 import requests
 from django.conf import settings
-from payroll.models import PayrollPeriod
-from loans.models import LoanApplication
-from django.db.models import Sum
+from decimal import Decimal
+import logging
+
+logger = logging.getLogger(__name__)
 
 def get_loan_deduction(payee, month, year):
     """
-    Fetch loan deduction for a payee for a specific month.
-    This is a placeholder for the separate Loan App integration.
-    
-    Returns:
-        Decimal: Amount to deduct.
+    Calculate the total loan deduction for a payee in a given month/year.
     """
-    # Check if payroll period exists for this month/year
-    if not PayrollPeriod.objects.filter(month=month, year=year).exists():
-        return Decimal("0.00")
+    from loans.models import LoanApplication
     
-    # Get active loan applications for the payee
-    payee_loans = LoanApplication.objects.filter(payee=payee)
+    # Get all approved loans for this payee that still have a balance
+    loans = LoanApplication.objects.filter(
+        payee=payee, 
+        status='approved',
+        outstanding_balance__gt=0
+    )
     
-    if not payee_loans.exists():
-        return Decimal("0.00")
-    
-    # Calculate total monthly deduction from all active loans
-    total_deduction = payee_loans.aggregate(
-        total=Sum('monthly_deduction')
-    )['total'] or Decimal("0.00")
-    
-    # Update loan tenure for each active loan
-    for loan in payee_loans:
-        loan.tenure_months -= 1
-        if loan.tenure_months <= 0:
-            loan.active = False
-        loan.save()
-    
+    total_deduction = Decimal('0.00')
+    for loan in loans:
+        # If remaining balance is less than monthly deduction, take only the balance
+        deduction = min(loan.monthly_deduction, loan.outstanding_balance)
+        total_deduction += deduction
+            
     return total_deduction
 
-
-
-def initialize_paystack_transaction(email, amount, reference, callback_url):
+def send_telegram_notification(message):
     """
-    Initialize a transaction with Paystack.
+    Sends a notification message to a Telegram chat via a Bot.
+    Requires TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in settings.
     """
-    url = "https://api.paystack.co/transaction/initialize"
-    headers = {
-        "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
-        "Content-Type": "application/json",
+    token = getattr(settings, 'TELEGRAM_BOT_TOKEN', None)
+    chat_id = getattr(settings, 'TELEGRAM_CHAT_ID', None)
+
+    if not token or not chat_id:
+        logger.warning("Telegram Bot Token or Chat ID not configured. Notification skipped.")
+        return False
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = {
+        'chat_id': chat_id,
+        'text': message,
+        'parse_mode': 'HTML'
     }
-    data = {
-        "email": email,
-        "amount": int(amount * 100), # Amount in kobo
-        "reference": reference,
-        "callback_url": callback_url
-    }
-    
+
     try:
-        response = requests.post(url, headers=headers, json=data)
-        return response.json()
+        response = requests.post(url, data=payload, timeout=10)
+        response.raise_for_status()
+        return True
     except requests.exceptions.RequestException as e:
-        return {"status": False, "message": str(e)}
+        logger.error(f"Failed to send Telegram notification: {e}")
+        return False
 
-def create_transfer_recipient(name, account_number, bank_code):
+def notify_payee_payment_success(transaction):
     """
-    Create a transfer recipient on Paystack.
+    Specific notification for a successful payroll payment.
     """
-    url = "https://api.paystack.co/transferrecipient"
-    headers = {
-        "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
-        "Content-Type": "application/json",
-    }
-    data = {
-        "type": "nuban",
-        "name": name,
-        "account_number": account_number,
-        "bank_code": bank_code,
-        "currency": "NGN"
-    }
+    record = transaction.payroll_record
+    payee = record.payee
+    user = payee.user
     
-    try:
-        response = requests.post(url, headers=headers, json=data)
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        return {"status": False, "message": str(e)}
-
+    payee_name = user.get_full_name() if user else "Payee"
+    amount = transaction.amount
+    period = record.payroll_period
+    
+    message = (
+        f"<b>Payment Successful!</b>\n\n"
+        f"Hello {payee_name},\n"
+        f"Your payment for <b>{period}</b> has been processed successfully.\n\n"
+        f"<b>Amount:</b> {settings.CURRENCY_SYMBOL}{amount:,.2f}\n"
+        f"<b>Reference:</b> {transaction.paystack_reference}\n"
+        f"<b>Status:</b> PAID\n\n"
+        f"Thank you for your service to {settings.SCHOOL_NAME}!"
+    )
+    
+    return send_telegram_notification(message)

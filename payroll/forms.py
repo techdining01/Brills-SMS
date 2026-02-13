@@ -1,6 +1,14 @@
 from django import forms
 from django.forms import inlineformset_factory
-from .models import Payee, BankAccount, SalaryStructure, SalaryStructureItem, PayrollPeriod, SalaryComponent
+from .models import Payee, BankAccount, SalaryStructure, SalaryStructureItem, PayrollPeriod, SalaryComponent, PayeeSalaryStructure
+
+class PayeeSalaryStructureForm(forms.ModelForm):
+    class Meta:
+        model = PayeeSalaryStructure
+        fields = ['salary_structure']
+        widgets = {
+            'salary_structure': forms.Select(attrs={'class': 'form-select'}),
+        }
 
 class SalaryComponentForm(forms.ModelForm):
     class Meta:

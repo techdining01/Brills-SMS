@@ -118,7 +118,7 @@ def generate_pickup_code(request):
 @login_required
 @user_passes_test(lambda u: u.role == "PARENT")
 def parent_pickup_history(request):
-    pickups = PickupAuthorization.objects.filter(parent=request.user).prefetch_related('students__student')
+    pickups = PickupAuthorization.objects.filter(parent=request.user).prefetch_related('students__student').order_by('-expires_at')
     return render(
         request,
         "pickups/parent/history.html",

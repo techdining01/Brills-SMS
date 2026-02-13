@@ -28,5 +28,8 @@ urlpatterns = [
     path('payees/', views.admin_payee_list, name='admin_payee_list'),
     path('payee/<int:payee_id>/toggle/', views.toggle_payee_status, name='toggle_payee_status'),
     path('payee/<int:payee_id>/delete/', views.delete_payee, name='delete_payee'),
+    path('payee/<int:payee_id>/salary-structure/', views.edit_payee_salary_structure, name='edit_payee_salary_structure'),
     path('record/<int:record_id>/delete/', views.delete_payroll_record, name='delete_payroll_record'),
+    path('record/<int:record_id>/retry/', views.retry_payroll_record, name='retry_payroll_record'),
+    path('period/<int:period_id>/delete/', views.delete_payroll_period, name='delete_payroll_period'),
 ]
