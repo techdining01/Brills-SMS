@@ -80,20 +80,20 @@
 {% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-5">
+<div class="container-fluid py-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
         <div>
             <h1 class="h3 fw-bold mb-1">Payee Registry</h1>
             <p class="text-muted small mb-0">Manage staff payroll profiles and account statuses.</p>
         </div>
         <a href="{% url 'payroll:admin_create_payee' %}" class="btn btn-primary rounded-pill px-4 shadow-sm">
-            <i class="bi bi-person-plus-fill me-2"></i> Register New Payee
+            <i class="bi bi-person-plus-fill me-2"></i> <span class="d-none d-sm-inline">Register New Payee</span><span class="d-sm-none">Add Payee</span>
         </a>
     </div>
 
-    <div class="glass-card mb-4">
-        <form method="get" class="row g-3">
-            <div class="col-md-10">
+    <div class="glass-card mb-4 p-3 p-md-4">
+        <form method="get" class="row g-2">
+            <div class="col-12 col-md-10">
                 <div class="input-group">
                     <span class="input-group-text bg-transparent border-0 text-muted ps-0">
                         <i class="bi bi-search"></i>
@@ -102,16 +102,17 @@
                         placeholder="Search by name, reference or type..." value="{{ request.GET.q }}">
                 </div>
             </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-dark w-100 rounded-pill py-2 fw-bold">Filter Results</button>
+            <div class="col-12 col-md-2">
+                <button type="submit" class="btn btn-dark w-100 rounded-pill py-2 fw-bold">Filter</button>
             </div>
         </form>
     </div>
 
+    <!-- Responsive Table -->
     <div class="glass-card overflow-hidden p-0">
         <div class="table-responsive">
-            <table class="table payee-table mb-0">
-                <thead>
+            <table class="table payee-table mb-0 table-responsive-stack">
+                <thead class="thead-light">
                     <tr>
                         <th class="ps-4">Staff Member</th>
                         <th>Reference</th>
@@ -124,7 +125,7 @@
                 <tbody>
                     {% for payee in payees %}
                     <tr {% if not payee.is_active %}style="opacity: 0.7;" {% endif %}>
-                        <td class="ps-4">
+                        <td data-label="Staff Member" class="ps-4">
                             <div class="d-flex align-items-center">
                                 {% if payee.user.profile_picture %}
                                 <img src="{{ payee.user.profile_picture.url }}" alt="" class="avatar-circle me-3">
@@ -133,20 +134,20 @@
                                     {{ payee.user.first_name|first }}{{ payee.user.last_name|first }}
                                 </div>
                                 {% endif %}
-                                <div>
+                                <div class="text-start">
                                     <div class="fw-bold text-dark">{{ payee.user.get_full_name }}</div>
                                     <div class="small text-muted">{{ payee.user.email }}</div>
                                 </div>
                             </div>
                         </td>
-                        <td><code class="text-primary fw-bold">{{ payee.reference_code }}</code></td>
-                        <td>
+                        <td data-label="Reference"><code class="text-primary fw-bold">{{ payee.reference_code }}</code></td>
+                        <td data-label="Category">
                             <span
                                 class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3">
                                 {{ payee.get_payee_type_display }}
                             </span>
                         </td>
-                        <td>
+                        <td data-label="Bank Account">
                             {% if payee.has_primary_bank %}
                             <span class="status-badge-pill bg-info-subtle text-info">
                                 <i class="bi bi-bank me-1"></i> CONNECTED
@@ -157,7 +158,7 @@
                             </span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-label="Account Status">
                             {% if payee.is_active %}
                             <span class="status-badge-pill bg-success-subtle text-success">
                                 <i class="bi bi-check-circle-fill me-1"></i> ACTIVE
@@ -168,7 +169,7 @@
                             </span>
                             {% endif %}
                         </td>
-                        <td class="text-end pe-4">
+                        <td data-label="Actions" class="text-end pe-4">
                             <div class="dropdown">
                                 <button class="btn btn-sm btn-light rounded-circle shadow-sm" type="button"
                                     data-bs-toggle="dropdown">
@@ -210,7 +211,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center py-5">
+                        <td colspan="6" class="text-center py-5">
                             <div class="text-muted">
                                 <i class="bi bi-people fs-1 mb-3 d-block opacity-25"></i>
                                 <p class="mb-0">No staff members match the current filter.</p>
@@ -222,5 +223,7 @@
             </table>
         </div>
     </div>
+
+    <!-- Mobile View Removed - Replaced by Responsive Stack Table -->
 </div>
 {% endblock %}

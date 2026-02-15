@@ -45,8 +45,8 @@
                 </div>
             </form>
         </div>
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
+        <div class="table-responsive p-0">
+            <table class="table table-hover table-responsive-stack mb-0">
                 <thead class="table-light">
                     <tr>
                         <th>Question</th>
@@ -61,16 +61,16 @@
                     {% if questions %}
                         {% for question in questions %}
                         <tr>
-                            <td>
+                            <td data-label="Question">
                                 <small>{{ question.text|truncatewords:15 }}</small>
                             </td>
-                            <td>
+                            <td data-label="Category">
                                 <span class="badge bg-secondary">{{ question.category.name }}</span>
                             </td>
-                            <td>
+                            <td data-label="Type">
                                 <span class="badge bg-info">{{ question.get_question_type_display }}</span>
                             </td>
-                            <td>
+                            <td data-label="Difficulty">
                                 {% if question.difficulty == 'easy' %}
                                     <span class="badge bg-success">Easy</span>
                                 {% elif question.difficulty == 'medium' %}
@@ -79,14 +79,14 @@
                                     <span class="badge bg-danger">Hard</span>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td data-label="Status">
                                 {% if question.is_published %}
                                     <span class="badge bg-success">Published</span>
                                 {% else %}
                                     <span class="badge bg-warning">Draft</span>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td data-label="Actions">
                                 <a href="{% url 'dashboards:question_bank_detail' question.id %}" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-eye"></i>
                                 </a>

@@ -5,16 +5,20 @@
 
 
     <div class="card shadow-sm">
-        <div class="card-body table-responsive">
-            <table class="table table-hover align-middle">
-                <tr><th>User</th><th>Action</th><th>Date</th></tr>
-                {% for log in logs %}
-                <tr>
-                <td>{{ log.user }}</td>
-                <td>{{ log.action }}</td>
-                <td>{{ log.created_at }}</td>
-                </tr>
-                {% endfor %}
+        <div class="card-body table-responsive p-0">
+            <table class="table table-hover align-middle table-responsive-stack mb-0">
+                <thead>
+                    <tr><th>User</th><th>Action</th><th>Date</th></tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td data-label="User">{{ log.user }}</td>
+                        <td data-label="Action">{{ log.action }}</td>
+                        <td data-label="Date">{{ log.created_at|date:"M d, Y H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
             </table>
         </div>
     </div>

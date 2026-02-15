@@ -17,50 +17,69 @@
 {% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <div class="d-flex justify-content-between align-items-center mb-5" data-aos="fade-down">
+<div class="container-fluid py-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 mb-md-5" data-aos="fade-down">
         <div>
             <h1 class="h2 fw-bold text-dark mb-1">Leave Utilization Heatmap</h1>
-            <p class="text-muted small">Visualizing staff absence patterns over time</p>
+            <p class="text-muted small mb-0">Visualizing staff absence patterns over time</p>
         </div>
-        <a href="{% url 'leaves:admin_dashboard' %}" class="btn btn-outline-primary rounded-pill px-4">
-            <i class="bi bi-arrow-left me-2"></i>Admin Dashboard
+        <a href="{% url 'leaves:admin_dashboard' %}" class="btn btn-outline-primary rounded-pill px-4 btn-sm py-2 align-self-start align-self-md-center">
+            <i class="bi bi-arrow-left me-1"></i>Back
         </a>
     </div>
 
-    <div class="glass-card mb-5" data-aos="fade-up">
-        <canvas id="heatmapChart" style="max-height: 400px;"></canvas>
+    <div class="glass-card mb-5 p-2 p-md-5 shadow-sm border" data-aos="fade-up">
+        <div style="position: relative; height: 350px; width: 100%;">
+            <canvas id="heatmapChart"></canvas>
+        </div>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    new Chart(document.getElementById('heatmapChart'), {
-        type: 'line',
-        data: {
-            labels: {{ data.keys | safe |default: "[]" }},
-        datasets: [{
-            label: 'Total Leave Days',
-            data: {{ data.values | safe |default: "[]" }},
-        fill: true,
-        backgroundColor: 'rgba(37, 99, 235, 0.1)',
-        borderColor: 'rgba(37, 99, 235, 1)',
-        tension: 0.4,
-        pointRadius: 6,
-        pointBackgroundColor: 'white',
-        pointBorderWidth: 2
-            }]
-        },
-        options: {
-        responsive: true,
-        plugins: {
-            legend: { display: false }
-        },
-        scales: {
-            y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
-            x: { grid: { display: false } }
-        }
+    const ctx = document.getElementById('heatmapChart');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: {{ data.keys|safe|default:"[]" }},
+                datasets: [{
+                    label: 'Total Leave Days',
+                    data: {{ data.values|safe|default:"[]" }},
+                    fill: true,
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                    borderColor: 'rgba(37, 99, 235, 1)',
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: 'white',
+                    pointBorderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { 
+                        beginAtZero: true, 
+                        grid: { color: 'rgba(0,0,0,0.05)' },
+                        ticks: {
+                            font: { size: 10 }
+                        }
+                    },
+                    x: { 
+                        grid: { display: false },
+                        ticks: {
+                            font: { size: 10 },
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    }
+                }
+            }
+        });
     }
-    });
 </script>
 {% endblock %}

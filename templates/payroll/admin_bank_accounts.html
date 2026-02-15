@@ -82,10 +82,11 @@
             <div class="glass-card h-100">
                 <h3 class="h5 fw-bold mb-4">Existing Accounts</h3>
                 {% if accounts %}
-                <div class="table-responsive">
-                    <table class="table bank-table table-borderless">
+                <div class="table-responsive p-0">
+                    <table class="table table-responsive-stack bank-table table-borderless mb-0">
                         <thead>
                             <tr>
+                                <th>Payee</th>
                                 <th>Bank Details</th>
                                 <th>Account Holder</th>
                                 <th>Status</th>
@@ -94,16 +95,29 @@
                         <tbody>
                             {% for acc in accounts %}
                             <tr>
-                                <td>
+                                <td data-label="Payee">
+                                    <div class="fw-bold text-dark">{{ acc.payee.user.get_full_name }}</div>
+                                    <div class="small text-muted">{{ acc.payee.reference_code }}</div>
+                                </td>
+                                <td data-label="Bank Details">
                                     <div class="fw-bold text-dark">{{ acc.bank_name }}</div>
                                     <div class="small text-muted">{{ acc.account_number }}</div>
                                 </td>
-                                <td><span class="text-muted small">{{ acc.account_name }}</span></td>
-                                <td>
+                                <td data-label="Account Holder"><span class="text-muted small">{{ acc.account_name }}</span></td>
+                                <td data-label="Status">
                                     {% if acc.is_primary %}
                                     <span class="badge-primary-acc">Primary</span>
+                                    <div class="small text-muted mt-1">Used for payroll</div>
+                                    <form method="post" action="{% url 'payroll:toggle_primary_bank_account' acc.id %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill mt-2">Unset Primary</button>
+                                    </form>
                                     {% else %}
                                     <span class="badge-secondary-acc">Secondary</span>
+                                    <form method="post" action="{% url 'payroll:toggle_primary_bank_account' acc.id %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill mt-2">Make Primary</button>
+                                    </form>
                                     {% endif %}
                                 </td>
                             </tr>

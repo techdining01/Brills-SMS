@@ -32,8 +32,8 @@
                 </div>
             </div>
         </div>
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
+        <div class="table-responsive p-0">
+            <table class="table table-hover table-responsive-stack mb-0">
                 <thead class="table-light">
                     <tr>
                         <th>Certificate #</th>
@@ -49,19 +49,19 @@
                     {% if certificates %}
                         {% for cert in certificates %}
                         <tr>
-                            <td><code>{{ cert.certificate_number }}</code></td>
-                            <td>{{ cert.student.first_name }} {{ cert.student.last_name }}</td>
-                            <td>{{ cert.exam.title }}</td>
-                            <td><strong>{{ cert.grade }}</strong></td>
-                            <td><small>{{ cert.issued_date|date:"M d, Y" }}</small></td>
-                            <td>
+                            <td data-label="Certificate #"><code>{{ cert.certificate_number }}</code></td>
+                            <td data-label="Student">{{ cert.student.first_name }} {{ cert.student.last_name }}</td>
+                            <td data-label="Exam">{{ cert.exam.title }}</td>
+                            <td data-label="Grade"><strong>{{ cert.grade }}</strong></td>
+                            <td data-label="Issued"><small>{{ cert.issued_date|date:"M d, Y" }}</small></td>
+                            <td data-label="Status">
                                 {% if cert.is_revoked %}
                                     <span class="badge bg-danger">Revoked</span>
                                 {% else %}
                                     <span class="badge bg-success">Active</span>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td data-label="Actions">
                                 <a href="{% url 'dashboards:certificate_detail' cert.id %}" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-eye"></i>
                                 </a>

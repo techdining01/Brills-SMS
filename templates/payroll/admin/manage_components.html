@@ -43,28 +43,40 @@
 {% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <div class="row g-5">
+<div class="container-fluid py-4">
+    <div class="row g-4 g-lg-5">
         <!-- Add Form -->
         <div class="col-lg-4">
             <div class="mb-4">
                 <h1 class="h3 fw-bold mb-1">Library</h1>
-                <p class="text-muted small">Add types of pay (Basic, Housing, etc.)</p>
+                <p class="text-muted small mb-0">Add types of pay (Basic, Housing, etc.)</p>
             </div>
 
-            <div class="glass-card">
+            <div class="glass-card p-3 p-md-4 shadow-sm border">
                 <form method="post">
                     {% csrf_token %}
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Component Name</label>
-                        {{ form.name }}
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0"><i class="bi bi-tag text-primary"></i></span>
+                            {{ form.name }}
+                        </div>
+                        {% if form.name.errors %}
+                        <div class="text-danger small mt-1">{{ form.name.errors }}</div>
+                        {% endif %}
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Type</label>
-                        {{ form.component_type }}
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0"><i class="bi bi-layers text-primary"></i></span>
+                            {{ form.component_type }}
+                        </div>
+                        {% if form.component_type.errors %}
+                        <div class="text-danger small mt-1">{{ form.component_type.errors }}</div>
+                        {% endif %}
                     </div>
                     <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold py-2 shadow-sm">
-                        Save Component
+                        <i class="bi bi-plus-circle me-1"></i>Save Component
                     </button>
                 </form>
             </div>
@@ -74,19 +86,19 @@
         <div class="col-lg-8">
             <div class="mb-4">
                 <h2 class="h4 fw-bold mb-1">Defined Components</h2>
-                <p class="text-muted small">You can use these components when building Salary Structures.</p>
+                <p class="text-muted small mb-0">You can use these components when building Salary Structures.</p>
             </div>
 
-            <div class="glass-card">
+            <div class="glass-card p-3 p-md-4 shadow-sm border">
                 {% if components %}
                 <ul class="list-group list-group-flush">
                     {% for comp in components %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <div class="me-3">
                             <span class="fw-bold d-block">{{ comp.name }}</span>
                         </div>
                         <span
-                            class="component-badge {% if comp.component_type == 'earning' %}badge-earning{% else %}badge-deduction{% endif %}">
+                            class="component-badge flex-shrink-0 {% if comp.component_type == 'earning' %}badge-earning{% else %}badge-deduction{% endif %}">
                             {{ comp.get_component_type_display }}
                         </span>
                     </li>
@@ -94,7 +106,7 @@
                 </ul>
                 {% else %}
                 <div class="text-center py-5">
-                    <i class="bi bi-collection text-muted display-4"></i>
+                    <i class="bi bi-collection text-muted display-4 opacity-25"></i>
                     <p class="text-muted mt-3">No components defined yet.</p>
                 </div>
                 {% endif %}

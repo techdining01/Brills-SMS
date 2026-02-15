@@ -18,21 +18,26 @@
 
 <h5>Order Items</h5>
 
-<table class="table table-bordered">
-<tr>
-  <th>Product</th>
-  <th>Ward</th>
-  <th>Price</th>
-</tr>
-
-{% for item in tx.order.items.all %}
-<tr>
-  <td>{{ item.product.name }}</td>
-  <td>{{ tx.order.ward.get_full_name }}</td>
-  <td>₦{{ item.price }}</td>
-</tr>
-{% endfor %}
-</table>
+<div class="table-responsive">
+    <table class="table table-bordered table-responsive-stack">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Ward</th>
+                <th>Price</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in tx.order.items.all %}
+            <tr>
+                <td data-label="Product">{{ item.product.name }}</td>
+                <td data-label="Ward">{{ tx.order.ward.get_full_name }}</td>
+                <td data-label="Price">₦{{ item.price }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 
 <h5 class="mt-4">Raw Paystack Response</h5>
 <pre class="bg-light p-3 small">

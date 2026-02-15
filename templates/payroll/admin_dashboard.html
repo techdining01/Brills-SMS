@@ -60,70 +60,70 @@
 
 {% block content %}
 <div class="container-fluid py-4">
-    <div class="dash-header d-flex justify-content-between align-items-center">
+    <div class="dash-header d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
         <div>
-            <h1>Payroll Dashboard</h1>
-            <p class="text-muted">Manage your organization's payroll at a glance.</p>
+            <h1 class="h2 fw-bold mb-1">Payroll Dashboard</h1>
+            <p class="text-muted mb-0">Manage your organization's payroll at a glance.</p>
         </div>
-        <div class="d-none d-md-block">
-            <span class="badge bg-primary-subtle text-primary px-3 py-2 rounded-pill">
+        <div class="d-flex align-items-center">
+            <span class="badge bg-primary-subtle text-primary px-3 py-2 rounded-pill w-100 text-center">
                 <i class="bi bi-calendar-event me-1"></i> {% now "F Y" %}
             </span>
         </div>
     </div>
 
-    <div class="row g-4 mb-4">
-        <div class="col-md-3">
-            <div class="glass-card h-100">
-                <div class="stat-icon icon-orange">
+    <div class="row g-3 mb-4 mt-2">
+        <div class="col-6 col-md-3">
+            <div class="glass-card h-100 p-3 p-md-4">
+                <div class="stat-icon icon-orange mb-3">
                     <i class="bi bi-bank"></i>
                 </div>
-                <h3 class="h5">Action Required</h3>
-                <p class="text-muted small mb-4">{{ pending_banks }} Bank Accounts waiting for approval.</p>
+                <h3 class="h6 fw-bold mb-2">Approvals</h3>
+                <p class="text-muted small mb-3 d-none d-md-block">{{ pending_banks }} Bank Accounts waiting for approval.</p>
                 <a href="{% url 'payroll:approve_bank_accounts' %}"
                     class="btn btn-warning btn-sm w-100 rounded-pill fw-bold">
-                    Review Requests
+                    Review
                 </a>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="glass-card h-100">
-                <div class="stat-icon icon-blue">
+        <div class="col-6 col-md-3">
+            <div class="glass-card h-100 p-3 p-md-4">
+                <div class="stat-icon icon-blue mb-3">
                     <i class="bi bi-people"></i>
                 </div>
-                <h3 class="h5">Staff Onboarding</h3>
-                <p class="text-muted small mb-4">Onboard new staff and assign categories.</p>
+                <h3 class="h6 fw-bold mb-2">Onboarding</h3>
+                <p class="text-muted small mb-3 d-none d-md-block">Onboard new staff and assign categories.</p>
                 <a href="{% url 'payroll:admin_create_payee' %}"
                     class="btn btn-outline-primary btn-sm w-100 rounded-pill fw-bold">
-                    Add Payee
+                    Add Staff
                 </a>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="glass-card h-100" style="background: rgba(99, 102, 241, 0.05);">
-                <div class="stat-icon" style="background: rgba(99, 102, 241, 0.1); color: #6366f1;">
+        <div class="col-6 col-md-3">
+            <div class="glass-card h-100 p-3 p-md-4" style="background: rgba(99, 102, 241, 0.05);">
+                <div class="stat-icon mb-3" style="background: rgba(99, 102, 241, 0.1); color: #6366f1;">
                     <i class="bi bi-layers"></i>
                 </div>
-                <h3 class="h5">Pay Packages</h3>
-                <p class="text-muted small mb-4">Define Salary Structures and global Pay Components.</p>
-                <div class="d-flex gap-2">
+                <h3 class="h6 fw-bold mb-2">Packages</h3>
+                <p class="text-muted small mb-3 d-none d-md-block">Define Salary Structures and global Pay Components.</p>
+                <div class="d-flex flex-column flex-lg-row gap-2">
                     <a href="{% url 'payroll:manage_salary_components' %}"
-                        class="btn btn-light btn-sm w-50 rounded-pill fw-bold">Library</a>
+                        class="btn btn-light btn-sm flex-grow-1 rounded-pill fw-bold">Library</a>
                     <a href="{% url 'payroll:create_salary_structure' %}"
-                        class="btn btn-outline-dark btn-sm w-50 rounded-pill fw-bold">New</a>
+                        class="btn btn-outline-dark btn-sm flex-grow-1 rounded-pill fw-bold">New</a>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="glass-card h-100">
-                <div class="stat-icon icon-green">
+        <div class="col-6 col-md-3">
+            <div class="glass-card h-100 p-3 p-md-4">
+                <div class="stat-icon icon-green mb-3">
                     <i class="bi bi-cash-stack"></i>
                 </div>
-                <h3 class="h5">Process Payroll</h3>
-                <p class="text-muted small mb-4">Generate and process payroll for the current period.</p>
+                <h3 class="h6 fw-bold mb-2">Process</h3>
+                <p class="text-muted small mb-3 d-none d-md-block">Generate and process payroll for the current period.</p>
                 <a href="{% url 'payroll:generate_payroll' %}"
                     class="btn btn-primary btn-sm w-100 rounded-pill fw-bold">
                     Run Payroll
@@ -134,6 +134,7 @@
 
     <div class="row">
         <div class="col-12">
+            {% if has_payment_data %}
             <div class="glass-card">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h3 class="h5 mb-0">Payroll History <small class="text-muted ms-2">(Net Payout)</small></h3>
@@ -147,14 +148,26 @@
                     <canvas id="payoutChart"></canvas>
                 </div>
             </div>
+            {% else %}
+            <div class="glass-card text-center">
+                <div class="mb-3 text-muted display-6">
+                    <i class="bi bi-graph-down"></i>
+                </div>
+                <h3 class="h5 fw-bold mb-2">No Completed Payroll Yet</h3>
+                <p class="text-muted mb-0">Generate and complete a payroll period to see payout trends.</p>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
+{% if has_payment_data %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const ctx = document.getElementById('payoutChart').getContext('2d');
+        const canvas = document.getElementById('payoutChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
         const chartData = JSON.parse('{{ chart_data|escapejs }}');
 
         const gradient = ctx.createLinearGradient(0, 0, 0, 400);
@@ -225,4 +238,5 @@
         });
     });
 </script>
+{% endif %}
 {% endblock %}

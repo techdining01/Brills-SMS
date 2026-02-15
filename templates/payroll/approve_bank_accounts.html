@@ -74,29 +74,29 @@
     <div class="glass-card">
         <h3 class="h5 fw-bold mb-4">Pending Requests</h3>
         {% if accounts %}
-        <div class="table-responsive">
-            <table class="table approve-table table-borderless">
+        <div class="table-responsive p-0">
+            <table class="table table-responsive-stack approve-table table-borderless mb-0">
                 <thead>
                     <tr>
-                        <th>Payee</th>
+                        <th class="ps-4">Payee</th>
                         <th>Bank</th>
                         <th>Account Details</th>
-                        <th class="text-end">Actions</th>
+                        <th class="text-end pe-4">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for acc in accounts %}
                     <tr>
-                        <td>
+                        <td data-label="Payee" class="ps-4">
                             <div class="fw-bold text-dark">{{ acc.payee.user.get_full_name }}</div>
                             <div class="badge bg-secondary-subtle text-secondary small">{{ acc.payee.get_payee_type_display }}</div>
                         </td>
-                        <td><span class="text-muted">{{ acc.bank_name }}</span></td>
-                        <td>
+                        <td data-label="Bank"><span class="text-muted">{{ acc.bank_name }}</span></td>
+                        <td data-label="Account Details">
                             <div class="fw-bold text-dark">{{ acc.account_number }}</div>
                             <div class="small text-muted">{{ acc.account_name }}</div>
                         </td>
-                        <td class="text-end">
+                        <td data-label="Actions" class="text-end pe-4">
                             <form method="post" class="d-inline-flex gap-2">
                                 {% csrf_token %}
                                 <input type="hidden" name="account_id" value="{{ acc.id }}">

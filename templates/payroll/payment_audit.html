@@ -73,9 +73,9 @@
         </a>
     </div>
 
-    <div class="glass-card mb-5">
+    <div class="glass-card mb-5 p-0 overflow-hidden">
         <div class="table-responsive">
-            <table class="table audit-table mb-0">
+            <table class="table table-responsive-stack audit-table mb-0">
                 <thead>
                     <tr>
                         <th class="ps-4">Payee</th>
@@ -88,12 +88,12 @@
                 <tbody>
                     {% for item in audit_data %}
                     <tr>
-                        <td class="ps-4">
+                        <td data-label="Payee" class="ps-4">
                             <div class="fw-bold">{{ item.record.payee.user.get_full_name }}</div>
                             <code class="text-muted small">{{ item.record.payee.reference_code }}</code>
                         </td>
-                        <td><span class="text-success fw-bold">₦{{ item.record.net_pay|floatformat:2 }}</span></td>
-                        <td>
+                        <td data-label="Net Amount"><span class="text-success fw-bold">₦{{ item.record.net_pay|floatformat:2 }}</span></td>
+                        <td data-label="Bank Account">
                             {% if item.bank %}
                             <div class="fw-bold small">{{ item.bank.bank_name }}</div>
                             <div class="text-muted small">{{ item.bank.account_number }}</div>
@@ -102,7 +102,7 @@
                                     class="bi bi-exclamation-octagon me-1"></i>MISSING</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-label="Verification">
                             {% if item.status == "Ready for Transfer" %}
                             <span class="status-pill bg-success-subtle text-success">READY</span>
                             {% elif "Failed" in item.status %}
@@ -111,7 +111,7 @@
                             <span class="status-pill bg-warning-subtle text-warning">INCOMPLETE</span>
                             {% endif %}
                         </td>
-                        <td class="pe-4">
+                        <td data-label="Processing Pathway" class="pe-4">
                             <ul class="step-list">
                                 {% for step in item.steps %}
                                 <li>{{ step }}</li>

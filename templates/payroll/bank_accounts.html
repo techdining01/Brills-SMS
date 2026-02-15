@@ -82,8 +82,8 @@
             <div class="glass-card h-100">
                 <h3 class="h5 fw-bold mb-4">Existing Accounts</h3>
                 {% if accounts %}
-                <div class="table-responsive">
-                    <table class="table bank-table table-borderless">
+                <div class="table-responsive p-0">
+                    <table class="table table-responsive-stack bank-table table-borderless mb-0">
                         <thead>
                             <tr>
                                 <th>Bank Details</th>
@@ -94,12 +94,12 @@
                         <tbody>
                             {% for acc in accounts %}
                             <tr>
-                                <td>
+                                <td data-label="Bank Details">
                                     <div class="fw-bold text-dark">{{ acc.bank_name }}</div>
                                     <div class="small text-muted">{{ acc.account_number }}</div>
                                 </td>
-                                <td><span class="text-muted small">{{ acc.account_name }}</span></td>
-                                <td>
+                                <td data-label="Account Holder"><span class="text-muted small">{{ acc.account_name }}</span></td>
+                                <td data-label="Status">
                                     {% if acc.is_primary %}
                                     <span class="badge-primary-acc">Primary</span>
                                     {% else %}

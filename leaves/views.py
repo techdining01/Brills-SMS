@@ -228,6 +228,7 @@ def leave_calendar_feed(request):
 
 from django.utils.timezone import now
 
+@user_passes_test(lambda u: u.role == "ADMIN" or u.is_superuser, login_url="leaves:staff_dashboard")
 @login_required
 def leave_calendar(request):
     year = now().year

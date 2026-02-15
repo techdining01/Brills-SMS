@@ -43,8 +43,8 @@
                             <i class="bi bi-info-circle me-2"></i>Note: Editing criteria is handled separately or currently locked to preserve grading integrity. Update the main rubric details here.
                         </div>
 
-                        <div class="table-responsive mb-4">
-                            <table class="table table-bordered">
+                        <div class="table-responsive p-0 mb-4">
+                            <table class="table table-bordered table-responsive-stack">
                                 <thead class="table-light">
                                     <tr>
                                         <th>Criterion</th>
@@ -55,9 +55,9 @@
                                 <tbody>
                                     {% for criterion in criteria %}
                                     <tr>
-                                        <td>{{ criterion.name }}</td>
-                                        <td>{{ criterion.description|truncatechars:50 }}</td>
-                                        <td>{{ criterion.max_points }}</td>
+                                        <td data-label="Criterion">{{ criterion.name }}</td>
+                                        <td data-label="Description">{{ criterion.description|truncatechars:50 }}</td>
+                                        <td data-label="Max Points">{{ criterion.max_points }}</td>
                                     </tr>
                                     {% empty %}
                                     <tr>

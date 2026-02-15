@@ -1,3 +1,5 @@
+psycopg2-binary==2.9.10
+psycopg2==2.9.10
 amqp==5.3.1
 asgiref==3.11.1
 attrs==25.4.0

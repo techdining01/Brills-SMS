@@ -101,31 +101,30 @@
 {% endblock %}
 
 {% block content %}
-<div class="container py-4 gsap-hero">
+<div class="container-fluid py-4 gsap-hero">
   <!-- Hero Section -->
-  <div class="row align-items-center mb-5">
-    <div class="col-md-7">
-      <h1 class="fw-bold h2 mb-2">My Loans</h1>
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+      <h1 class="fw-bold h2 mb-1">My Loans</h1>
       <p class="text-muted mb-0">Track your loan applications and repayment progress.</p>
     </div>
-    <div class="col-md-5 text-md-end mt-4 mt-md-0">
-      <a href="{% url 'loans:apply_loan' %}" class="btn btn-primary btn-lg rounded-pill shadow-lg px-4">
-        <i class="fas fa-plus-circle me-2"></i>Apply for New Loan
-      </a>
-    </div>
+    <a href="{% url 'loans:apply_loan' %}" class="btn btn-primary rounded-pill shadow px-4">
+      <i class="fas fa-plus-circle me-2"></i>Apply for New Loan
+    </a>
   </div>
 
   <!-- Loan List Card -->
-  <div class="glass-card p-0 overflow-hidden" style="animation-delay: 0.2s">
-    <div class="p-4 border-bottom bg-white d-flex justify-content-between align-items-center">
+  <div class="glass-card p-0 overflow-hidden shadow-sm border">
+    <div class="p-3 p-md-4 border-bottom bg-white d-flex justify-content-between align-items-center">
       <h5 class="fw-bold mb-0">Application History</h5>
-      <span class="badge bg-light text-dark rounded-pill px-3 py-2 border">
+      <span class="badge bg-light text-dark rounded-pill px-3 py-2 border d-none d-sm-inline">
         Total Applications: {{ loans.paginator.count }}
       </span>
     </div>
 
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
+    <!-- Unified Responsive View -->
+    <div class="table-responsive p-0">
+      <table class="table table-hover align-middle mb-0 table-responsive-stack">
         <thead class="bg-light">
           <tr>
             <th class="ps-4">Type</th>
@@ -140,27 +139,27 @@
         <tbody>
           {% for loan in loans %}
           <tr class="loan-row">
-            <td class="ps-4">
+            <td class="ps-4" data-label="Type">
               <div class="d-flex align-items-center">
-                <div class="rounded-circle bg-primary-soft p-2 me-3 d-flex align-items-center justify-content-center"
+                <div class="rounded-circle bg-primary-soft p-2 me-3 d-flex align-items-center justify-content-center d-none d-md-flex"
                   style="width: 38px; height: 38px; background: rgba(37,99,235,0.1)">
                   <i class="fas fa-file-invoice-dollar text-primary"></i>
                 </div>
                 <span class="fw-600 text-dark text-capitalize">{{ loan.loan_type }}</span>
               </div>
             </td>
-            <td>
+            <td data-label="Loan Amount">
               <span class="fw-bold text-dark">₦{{ loan.loan_amount|intcomma }}</span>
             </td>
-            <td>
+            <td data-label="Outstanding">
               <span class="text-danger">₦{{ loan.outstanding_balance|intcomma }}</span>
             </td>
-            <td>
+            <td data-label="Status">
               <span class="status-badge badge-{{ loan.status }}">
                 {{ loan.status }}
               </span>
             </td>
-            <td style="min-width: 150px;">
+            <td style="min-width: 150px;" data-label="Progress">
               <div class="d-flex align-items-center gap-2">
                 <div class="progress-custom flex-grow-1">
                   <div class="progress-bar-custom" style="width: {{ loan.progress }}%"></div>
@@ -168,10 +167,10 @@
                 <small class="fw-bold text-primary">{{ loan.progress }}%</small>
               </div>
             </td>
-            <td class="text-muted small">
+            <td class="text-muted small" data-label="Applied On">
               {{ loan.applied_at|date:"M d, Y" }}
             </td>
-            <td class="pe-4 text-end">
+            <td class="pe-4 text-end" data-label="Details">
               <button class="btn btn-light btn-sm rounded-circle" title="View Repayments">
                 <i class="fas fa-history text-secondary"></i>
               </button>
@@ -196,7 +195,7 @@
 
     <!-- Pagination -->
     {% if loans.has_other_pages %}
-    <div class="p-4 border-top bg-white">
+    <div class="p-3 p-md-4 border-top bg-white">
       <nav aria-label="Page navigation">
         <ul class="pagination pagination-rounded justify-content-center mb-0">
           {% if loans.has_previous %}
@@ -206,7 +205,7 @@
             </a>
           </li>
           {% endif %}
-
+          
           {% for num in loans.paginator.page_range %}
           <li class="page-item {% if loans.number == num %}active{% endif %}">
             <a class="page-link" href="?page={{ num }}">{{ num }}</a>

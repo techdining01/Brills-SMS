@@ -23,42 +23,44 @@
   <div class="card shadow-sm mb-4">
     <div class="card-body">
 
-      <table class="table align-middle">
-        <thead>
-          <tr>
-            <th>Product</th>
-            <th>Qty</th>
-            <th class="text-end">Subtotal</th>
-          </tr>
-        </thead>
+      <div class="table-responsive">
+        <table class="table align-middle table-responsive-stack">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Qty</th>
+              <th class="text-end">Subtotal</th>
+            </tr>
+          </thead>
 
-        <tbody>
-          {% for item in order.items.all %}
-          <tr>
-            <td class="d-flex align-items-center gap-3">
-              {% if item.product and item.product.image %}
-                <img src="{{ item.product.image.url }}"
-                     class="rounded"
-                     width="50"
-                     height="50"
-                     style="object-fit:cover">
-              {% else %}
-                <img src="{% static 'images/default_product.png' %}"
-                     width="50"
-                     height="50">
-              {% endif %}
-              <div>
-                <div class="fw-semibold">{{ item.product_name }}</div>
-                <small class="text-muted">₦{{ item.price }}</small>
-              </div>
-            </td>
+          <tbody>
+            {% for item in order.items.all %}
+            <tr>
+              <td data-label="Product" class="d-flex align-items-center gap-3">
+                {% if item.product and item.product.image %}
+                  <img src="{{ item.product.image.url }}"
+                       class="rounded"
+                       width="50"
+                       height="50"
+                       style="object-fit:cover">
+                {% else %}
+                  <img src="{% static 'images/default_product.png' %}"
+                       width="50"
+                       height="50">
+                {% endif %}
+                <div>
+                  <div class="fw-semibold">{{ item.product_name }}</div>
+                  <small class="text-muted">₦{{ item.price }}</small>
+                </div>
+              </td>
 
-            <td>{{ item.quantity }}</td>
-            <td class="text-end">₦{{ item.subtotal|floatformat:2 }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+              <td data-label="Qty">{{ item.quantity }}</td>
+              <td data-label="Subtotal" class="text-end">₦{{ item.subtotal|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
 
       <hr>
 

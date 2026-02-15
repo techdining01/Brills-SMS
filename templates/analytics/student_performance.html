@@ -56,8 +56,8 @@
         <div class="card-header bg-white">
             <h5 class="mb-0">Exam History</h5>
         </div>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+        <div class="table-responsive p-0">
+            <table class="table table-hover align-middle mb-0 table-responsive-stack">
                 <thead class="table-light">
                     <tr>
                         <th>Exam</th>
@@ -70,19 +70,19 @@
                 <tbody>
                     {% for attempt in performance.recent_attempts %}
                     <tr>
-                        <td>{{ attempt.exam.title }}</td>
-                        <td>{{ attempt.completed_at|date:"M d, Y H:i" }}</td>
-                        <td>
+                        <td data-label="Exam">{{ attempt.exam.title }}</td>
+                        <td data-label="Date">{{ attempt.completed_at|date:"M d, Y H:i" }}</td>
+                        <td data-label="Score">
                             <strong>{{ attempt.score }}</strong> / {{ attempt.exam.total_marks }}
                         </td>
-                        <td>
+                        <td data-label="Status">
                             {% if attempt.status == 'submitted' %}
                                 <span class="badge bg-success">Completed</span>
                             {% else %}
                                 <span class="badge bg-warning text-dark">{{ attempt.status }}</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-label="Grade">
                             {% if attempt.score >= attempt.exam.pass_mark %}
                                 <span class="badge bg-success">Pass</span>
                             {% else %}

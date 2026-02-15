@@ -2,71 +2,145 @@
 {% load static %}
 
 {% block content %}
-<div class="container mt-4">
-    <h3 class="mb-3">My Pickup History</h3>
+<style>
+    .qr-hover-container {
+        position: relative;
+        display: inline-block;
+        cursor: zoom-in;
+        z-index: 1;
+    }
+    .qr-hover-container:hover {
+        z-index: 1050;
+    }
+    .qr-thumbnail {
+        border: 2px solid #2563eb !important;
+        transition: all 0.2s ease;
+    }
+    .qr-hover-container:hover .qr-thumbnail {
+        border-color: #1d4ed8 !important;
+        opacity: 0.8;
+    }
+    .qr-zoom-box {
+        display: none;
+        position: absolute;
+        top: 0;
+        right: 105%;
+        z-index: 1060;
+        background: white;
+        padding: 10px;
+        border-radius: 12px;
+        width: 200px;
+        text-align: center;
+        border: 1px solid rgba(0,0,0,0.1);
+        pointer-events: none;
+        box-shadow: 0 1rem 3rem rgba(0,0,0,0.2) !important;
+    }
+    .qr-hover-container:hover .qr-zoom-box {
+        display: block;
+        animation: zoomIn 0.2s ease-out forwards;
+    }
+    @keyframes zoomIn {
+        from { opacity: 0; transform: translate(20px, 0) scale(0.8); }
+        to { opacity: 1; transform: translate(0, 0) scale(1); }
+    }
+    .table-responsive, .card {
+        overflow: visible !important;
+    }
+    /* Mobile adjustment */
+    @media (max-width: 768px) {
+        .qr-zoom-box {
+            bottom: auto;
+            top: 50%;
+            right: auto;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        @keyframes zoomIn {
+            from { opacity: 0; transform: translate(-50%, -40%) scale(0.8); }
+            to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+    }
+</style>
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold mb-0">My Pickup History</h3>
+        <a href="{% url 'pickup:generate_pickup' %}" class="btn btn-primary d-md-none">
+            <i class="bi bi-plus-lg"></i>
+        </a>
+    </div>
 
-    <table class="table table-bordered align-middle">
-        <thead>
-            <tr>
-                <th>Reference</th>
-                <th>Students</th>
-                <th>Bearer</th>
-                <th>Status</th>
-                <th>QR</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for pickup in pickups %}
-            <tr>
-                <td>{{ pickup.reference|slice:":8"  }}</td>
-
-
-                <td>
-                    {% for student in pickup.students.all %}
-                        <div class="d-flex align-items-center gap-2 mb-1">
-                            <img
-                                src="{{ student.student.profile_picture.url }}"
-                                width="35"
-                                height="35"
-                                style="border-radius:50%;"
-                            >
-                            <div>
-                                <strong>{{ student.student.get_full_name }}</strong><br>
-                                <small>{{ student.student.student_class }}</small>
-                            </div>
-                        </div>
-                    {% endfor %}
-                </td>
-
-                <td>
-                    <b>{{ pickup.bearer_name }}</b><br>
-                    <small>{{ pickup.relationship }}</small>
-                </td>
-
-                <td>
-                    {% if pickup.is_used %}
-                        <span class="badge bg-secondary">USED</span>
-                    {% elif pickup.is_expired %}
-                        <span class="badge bg-danger">EXPIRED</span>
-                    {% else %}
-                        <span class="badge bg-success">ACTIVE</span>
-                    {% endif %}
-                </td>
-
-                <td>
-                    {% if pickup.qrcode_image %}
-                        <img src="{{ pickup.qrcode_image.url }}" width="60">
-                    {% endif %}
-                </td>
-            </tr>
-        {% empty %}
-            <tr>
-                <td colspan="5" class="text-center text-muted">
-                    No pickup history found
-                </td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+    <!-- Unified Responsive View -->
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive p-0">
+            <table class="table table-hover align-middle mb-0 table-responsive-stack">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="ps-4">Reference</th>
+                        <th>Students</th>
+                        <th>Bearer Details</th>
+                        <th>Status</th>
+                        <th class="pe-4">QR Code</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for pickup in pickups %}
+                    <tr>
+                        <td class="ps-4" data-label="Reference">
+                            <span class="font-monospace fw-bold text-primary">{{ pickup.reference|slice:":8" }}</span>
+                        </td>
+                        <td data-label="Students">
+                            {% for student in pickup.students.all %}
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    {% if student.student.profile_picture %}
+                                        <img src="{{ student.student.profile_picture.url }}" width="32" height="32" class="rounded-circle object-fit-cover shadow-sm">
+                                    {% else %}
+                                        <div class="bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px;">
+                                            <i class="bi bi-person-fill small"></i>
+                                        </div>
+                                    {% endif %}
+                                    <div>
+                                        <div class="fw-semibold small">{{ student.student.get_full_name }}</div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">{{ student.student.student_class }}</div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </td>
+                        <td data-label="Bearer Details">
+                            <div class="fw-bold">{{ pickup.bearer_name }}</div>
+                            <div class="text-muted small">{{ pickup.relationship }}</div>
+                        </td>
+                        <td data-label="Status">
+                            {% if pickup.is_used %}
+                                <span class="badge rounded-pill bg-secondary-subtle text-secondary px-3">USED</span>
+                            {% elif pickup.is_expired %}
+                                <span class="badge rounded-pill bg-danger-subtle text-danger px-3">EXPIRED</span>
+                            {% else %}
+                                <span class="badge rounded-pill bg-success-subtle text-success px-3">ACTIVE</span>
+                            {% endif %}
+                        </td>
+                        <td class="pe-4" data-label="QR Code">
+                            {% if pickup.qrcode_image %}
+                                <div class="qr-hover-container">
+                                    <img src="{{ pickup.qrcode_image.url }}" width="50" class="img-thumbnail border-0 p-0 shadow-sm qr-thumbnail">
+                                    <div class="qr-zoom-box shadow-lg">
+                                        <img src="{{ pickup.qrcode_image.url }}" class="img-fluid rounded">
+                                        <div class="mt-2 small text-dark fw-bold font-monospace">{{ pickup.reference|slice:":8" }}</div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5 text-muted">
+                            <i class="bi bi-clock-history display-4 mb-3 d-block"></i>
+                            No pickup history found
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 {% endblock %}

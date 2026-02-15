@@ -75,11 +75,11 @@
                     <div class="card-header bg-primary text-white">
                         <h5 class="mb-0"><i class="bi bi-lightning"></i> Actions</h5>
                     </div>
-                    <div class="card-body">
-                        <a href="{% url 'dashboards:parent_child_results' selected_child.id %}" class="btn btn-primary me-2">
+                    <div class="card-body d-flex flex-wrap gap-2">
+                        <a href="{% url 'dashboards:parent_child_results' selected_child.id %}" class="btn btn-primary flex-fill flex-md-grow-0">
                             <i class="bi bi-graph-up"></i> View Results
                         </a>
-                        <a href="{% url 'dashboards:parent_children_list' %}" class="btn btn-info me-2">
+                        <a href="{% url 'dashboards:parent_children_list' %}" class="btn btn-info flex-fill flex-md-grow-0">
                             <i class="bi bi-list"></i> All Children
                         </a>
                     </div>
@@ -96,8 +96,8 @@
                     </div>
                     <div class="card-body">
                         {% if recent_results %}
-                            <div class="table-responsive">
-                                <table class="table table-sm table-hover">
+                            <div class="table-responsive p-0">
+                                <table class="table table-sm table-hover table-responsive-stack">
                                     <thead>
                                         <tr>
                                             <th>Exam Name</th>
@@ -112,36 +112,36 @@
                                     <tbody>
                                         {% for result in recent_results %}
                                             <tr>
-                                                <td class="align-middle">
+                                                <td class="align-middle" data-label="Exam Name">
                                                     <div class="fw-bold text-primary">{{ result.exam.title }}</div>
                                                     <small class="text-muted">{{ result.exam.school_class.name }}</small>
                                                 </td>
-                                                <td class="align-middle text-nowrap">
+                                                <td class="align-middle text-nowrap" data-label="Date">
                                                     <div>{{ result.started_at|date:"d M Y" }}</div>
                                                     <small class="text-muted">{{ result.started_at|date:"h:i A" }}</small>
                                                 </td>
-                                                <td class="align-middle text-nowrap">
+                                                <td class="align-middle text-nowrap" data-label="Score">
                                                     <span class="fs-6 fw-bold text-dark">{{ result.total_score }}</span>
                                                     <span class="text-muted">/ {{ result.exam.total_marks }}</span>
                                                 </td>
-                                                <td>
+                                                <td data-label="Percentage">
                                                     <span class="badge bg-{% if result.percentage >= 80 %}success{% elif result.percentage >= 60 %}warning{% else %}danger{% endif %}">
                                                         {{ result.percentage }}%
                                                     </span>
                                                 </td>
-                                                <td>
+                                                <td data-label="Grade">
                                                     <strong class="text-{% if result.grade == 'A' %}success{% elif result.grade == 'B' %}info{% elif result.grade == 'C' %}warning{% else %}danger{% endif %}">
                                                         {{ result.grade }}
                                                     </strong>
                                                 </td>
-                                                <td>
+                                                <td data-label="Status">
                                                     {% if result.is_fully_graded %}
                                                         <span class="badge bg-success">Graded</span>
                                                     {% else %}
                                                         <span class="badge bg-warning">Pending</span>
                                                     {% endif %}
                                                 </td>
-                                                <td>
+                                                <td data-label="Action">
                                                     <a href="{% url 'dashboards:exam_result' result.id %}" class="btn btn-sm btn-outline-primary">
                                                         <i class="bi bi-eye"></i>
                                                     </a>

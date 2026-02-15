@@ -151,7 +151,7 @@ urlpatterns = [
     path('bulk/template/<str:format_type>/', views_phase5.download_import_template, name='download_import_template'),
     
     # PERMISSION & ROLE MANAGEMENT VIEWS
-    path('roles/', views_phase5.role_management, name='role_management'),
+    path('roles/', views_phase5.role_management, name='role_management'), 
     path('roles/assign/<int:user_id>/', views_phase5.assign_role_view, name='assign_role'),
     path('permissions/', views_phase5.permission_list, name='permission_list'),
     

@@ -36,7 +36,7 @@
             </form>
         </div>
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table class="table table-hover mb-0 table-responsive-stack">
                 <thead class="table-light">
                     <tr>
                         <th>Student Name</th>
@@ -51,22 +51,22 @@
                     {% if students %}
                         {% for student in students %}
                         <tr>
-                            <td><strong>{{ student.first_name }} {{ student.last_name }}</strong></td>
-                            <td>{{ student.email }}</td>
-                            <td>
+                            <td data-label="Student Name"><strong>{{ student.first_name }} {{ student.last_name }}</strong></td>
+                            <td data-label="Email">{{ student.email }}</td>
+                            <td data-label="Class">
                                 {% if student.student_class %}
                                     {{ student.student_class.name }}
                                 {% else %}
                                     <span class="text-muted">-</span>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td data-label="Enrollment">
                                 <small class="text-muted">
                                     {{ student.date_joined|date:"M d, Y" }}
                                 </small>
                             </td>
-                            <td><span class="badge bg-info">0</span></td>
-                            <td>
+                            <td data-label="Exams Taken"><span class="badge bg-info">0</span></td>
+                            <td data-label="Actions">
                                 <a href="{% url 'dashboards:admin_edit_student' student.id %}" class="btn btn-sm btn-outline-secondary" title="Edit">
                                     <i class="bi bi-pencil"></i>
                                 </a>

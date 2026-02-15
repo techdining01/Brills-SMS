@@ -4,7 +4,7 @@
 {% block extra_css %}
 <style>
   .glass-card {
-    background: rgba(255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 24px;
@@ -43,78 +43,82 @@
 {% endblock %}
 
 {% block content %}
-<div class="container py-5 gsap-hero">
+<div class="container-fluid py-4 py-md-5 gsap-hero">
   <div class="row justify-content-center">
-    <div class="col-lg-10">
-      <div class="glass-card overflow-hidden">
+    <div class="col-xl-10">
+      <div class="glass-card overflow-hidden border shadow-sm">
         <div class="row g-0">
           <!-- Left Side: Information -->
-          <div class="col-lg-5 bg-primary p-5 text-white d-flex flex-column justify-content-center">
-            <h2 class="fw-bold mb-4">Loan Application</h2>
-            <p class="opacity-75 mb-4">Please fill out the form carefully. Your application will be reviewed by the
-              administration department.</p>
+          <div class="col-lg-5 bg-primary p-4 p-md-5 text-white d-flex flex-column justify-content-center">
+            <div class="mb-4">
+              <h2 class="fw-bold mb-3">Loan Application</h2>
+              <p class="opacity-75 mb-0">Please fill out the form carefully. Your application will be reviewed by the
+                administration department.</p>
+            </div>
 
-            <div class="d-flex align-items-center mb-4">
-              <div class="rounded-circle bg-white bg-opacity-25 p-3 me-3">
-                <i class="fas fa-calculator fa-lg"></i>
+            <div class="d-none d-lg-block">
+              <div class="d-flex align-items-center mb-4">
+                <div class="rounded-circle bg-white bg-opacity-25 p-3 me-3 shadow-sm">
+                  <i class="fas fa-calculator fa-lg"></i>
+                </div>
+                <div>
+                  <h6 class="mb-0 fw-bold">Auto-Calculation</h6>
+                  <small class="opacity-75">Monthly deductions are calculated automatically.</small>
+                </div>
               </div>
-              <div>
-                <h6 class="mb-0 fw-bold">Auto-Calculation</h6>
-                <small class="opacity-75">Monthly deductions are calculated automatically.</small>
+
+              <div class="d-flex align-items-center mb-4">
+                <div class="rounded-circle bg-white bg-opacity-25 p-3 me-3 shadow-sm">
+                  <i class="fas fa-shield-alt fa-lg"></i>
+                </div>
+                <div>
+                  <h6 class="mb-0 fw-bold">Secure Process</h6>
+                  <small class="opacity-75">Your financial data is protected and encrypted.</small>
+                </div>
               </div>
             </div>
 
-            <div class="d-flex align-items-center mb-4">
-              <div class="rounded-circle bg-white bg-opacity-25 p-3 me-3">
-                <i class="fas fa-shield-alt fa-lg"></i>
-              </div>
-              <div>
-                <h6 class="mb-0 fw-bold">Secure Process</h6>
-                <small class="opacity-75">Your financial data is protected and encrypted.</small>
-              </div>
-            </div>
-
-            <div class="mt-auto">
-              <a href="{% url 'loans:staff_loan_dashboard' %}" class="btn btn-outline-light rounded-pill px-4">
-                <i class="fas fa-arrow-left me-2"></i>Back to My Loans
+            <div class="mt-4 mt-lg-auto">
+              <a href="{% url 'loans:staff_loan_dashboard' %}" class="btn btn-outline-light rounded-pill px-4 btn-sm py-2">
+                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
               </a>
             </div>
           </div>
 
           <!-- Right Side: Form -->
-          <div class="col-lg-7 p-5 bg-white">
+          <div class="col-lg-7 p-4 p-md-5 bg-white">
             <form method="post">
               {% csrf_token %}
 
               <div class="mb-4">
-                <label class="form-label">Type of Loan</label>
+                <label class="form-label small text-uppercase fw-bold text-secondary">Type of Loan</label>
                 {{ form.loan_type }}
-                <div class="form-text">Choose the purpose of your loan application.</div>
+                <div class="form-text small">Choose the purpose of your loan application.</div>
               </div>
 
               <div class="mb-4">
-                <label class="form-label">Requested Amount (₦)</label>
+                <label class="form-label small text-uppercase fw-bold text-secondary">Requested Amount (₦)</label>
                 <div class="input-group">
                   <span class="input-group-text bg-light border-end-0">₦</span>
                   {{ form.loan_amount }}
                 </div>
-                <div class="form-text">Enter the total amount you wish to borrow.</div>
+                <div class="form-text small">Enter the total amount you wish to borrow.</div>
               </div>
 
               <div class="mb-4">
-                <label class="form-label">Tenure (In Months)</label>
+                <label class="form-label small text-uppercase fw-bold text-secondary">Tenure (In Months)</label>
                 {{ form.tenure_months }}
-                <div class="form-text">How many months would you like to repay the loan?</div>
+                <div class="form-text small">How many months would you like to repay the loan?</div>
               </div>
 
               <div class="loan-info-box mb-4">
-                <h6 class="fw-bold text-primary mb-2"><i class="fas fa-exclamation-circle me-2"></i>Important Note</h6>
-                <p class="small text-muted mb-0">By submitting this application, you agree to the schools loan policy
+                <h6 class="fw-bold text-primary mb-2 small"><i class="fas fa-exclamation-circle me-2"></i>Important Note</h6>
+                <p class="small text-muted mb-0">By submitting this application, you agree to the school's loan policy
                   and direct salary deductions for repayments.</p>
               </div>
 
               <div class="d-grid mt-4">
-                <button type="submit" class="btn btn-primary btn-lg rounded-pill py-3 fw-bold shadow">
+                <button type="submit" class="btn btn-primary btn-lg rounded-pill py-3 fw-bold shadow-sm">
                   Submit Application Request
                 </button>
               </div>

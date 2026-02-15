@@ -61,6 +61,24 @@
             display: flex;
             flex-direction: column;
         }
+        /* Fix oval-looking circles by enforcing square boxes where no explicit width/height is set */
+        .rounded-circle:not(img):not([style*="width"]) {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            aspect-ratio: 1 / 1;
+        }
+        .rounded-circle:not(img):not([style*="width"])[class*="p-"] {
+            width: 2.1em;
+            height: 2.1em;
+            padding: 0 !important;
+        }
+        @media (max-width: 576px) {
+            .rounded-circle:not(img):not([style*="width"])[class*="p-"] {
+                width: 1.8em;
+                height: 1.8em;
+            }
+        }
 
         /* Enhanced Sticky Navigation */
         .navbar-main {
@@ -186,24 +204,45 @@
                 top: 100%;
                 left: 1rem;
                 right: 1rem;
-                max-height: 80vh;
+                max-height: 85vh;
                 overflow-y: auto;
+                z-index: 1050;
             }
 
             .navbar-nav {
-                text-align: center;
+                text-align: left;
+                padding: 0.5rem 0;
             }
 
             .nav-item {
                 margin: 0.25rem 0;
+                border-bottom: 1px solid rgba(0,0,0,0.05);
+            }
+
+            .nav-item:last-child {
+                border-bottom: none;
+            }
+
+            .nav-link {
+                padding: 0.75rem 1rem !important;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
             }
 
             .dropdown-menu {
-                background: rgba(248, 250, 252, 0.9);
+                background: rgba(248, 250, 252, 0.95);
                 backdrop-filter: blur(10px);
                 border: none;
-                box-shadow: var(--shadow);
-                text-align: center;
+                box-shadow: none;
+                text-align: left;
+                padding-left: 1rem;
+                margin: 0;
+            }
+
+            .dropdown-item {
+                padding: 0.6rem 1rem;
+                font-size: 0.95rem;
             }
         }
 
@@ -469,6 +508,25 @@
             .table-responsive {
                 border: 1px solid var(--border);
                 border-radius: 8px;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            /* Responsive Table Helper - Hide on Mobile, Show as Cards */
+            .desktop-only {
+                display: none !important;
+            }
+
+            /* Stacked layout for small screens */
+            .mobile-stacked {
+                display: block !important;
+                width: 100% !important;
+                margin-bottom: 1rem;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .mobile-only {
+                display: none !important;
             }
         }
 
@@ -565,6 +623,9 @@
             margin-top: auto;
             position: relative;
             overflow: hidden;
+            width: 100%;
+            left: 0;
+            right: 0;
         }
 
         footer::before {
@@ -748,6 +809,61 @@
             border-radius: 12px;
             font-size: 0.75rem;
             font-weight: 600;
+        }
+
+        /* Global Responsive Table Styles */
+        .table-responsive-stack tr {
+            display: table-row;
+        }
+
+        @media (max-width: 991.98px) {
+            .table-responsive-stack .thead-light,
+            .table-responsive-stack thead {
+                display: none;
+            }
+            .table-responsive-stack tr {
+                display: block;
+                margin-bottom: 1.25rem;
+                border: 1px solid #e2e8f0;
+                border-radius: 16px;
+                background: #fff;
+                padding: 0.75rem;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            }
+            .table-responsive-stack td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.875rem 0.75rem;
+                border-bottom: 1px solid #f1f5f9;
+                text-align: right;
+                font-size: 0.9rem;
+            }
+            .table-responsive-stack td:last-child {
+                border-bottom: none;
+            }
+            .table-responsive-stack td::before {
+                content: attr(data-label);
+                font-weight: 700;
+                text-transform: uppercase;
+                font-size: 0.7rem;
+                color: #64748b;
+                text-align: left;
+                margin-right: 1.5rem;
+                flex: 1;
+            }
+            .table-responsive-stack td > * {
+                flex: 2;
+                display: flex;
+                justify-content: flex-end;
+            }
+            /* Reset specific padding/alignment for mobile cards */
+            .table-responsive-stack .ps-4, 
+            .table-responsive-stack .pe-4,
+            .table-responsive-stack .px-4 {
+                padding-left: 0.75rem !important;
+                padding-right: 0.75rem !important;
+            }
         }
 
 
@@ -1534,9 +1650,8 @@
 
     <!-- <div id="cart-portal"></div> -->
 
-    <!-- Footer -->
-    <footer class="mt-3 py-5 w-100">
-        <div class="container ">
+    <footer class="mt-auto py-5 w-100">
+        <div class="container-fluid px-4 px-md-5">
             <div class="row g-4">
                 <div class="col-lg-4 col-md-6">
                     <h5>{{ SCHOOL_NAME }}</h5>
@@ -1619,7 +1734,7 @@
                     <small><i class="fas fa-lock me-1"></i> Data Protected</small>
                     <small><i class="fas fa-history me-1"></i> Transaction Backups</small>
                 </div>
-                <small class="d-block mt-2">www.thebrillsschool.edu.ng</small>
+                <small class="d-block mt-2">www.thebrillsschools.edu.ng</small>
             </div>
         </div>
         {% if debug %}
@@ -1780,45 +1895,45 @@
             }
         });
 
-        // Mobile backdrop functionality
-        navbarToggler.addEventListener('click', function () {
-            const isExpanded = this.getAttribute('aria-expanded') === 'true';
-            if (isExpanded) {
-                navbarBackdrop.classList.add('active');
-            } else {
-                navbarBackdrop.classList.remove('active');
-            }
+        // Mobile backdrop functionality using Bootstrap events
+        navbarContent.addEventListener('show.bs.collapse', function () {
+            navbarBackdrop.classList.add('active');
+            document.body.style.overflow = 'hidden'; // Prevent background scroll
+        });
+
+        navbarContent.addEventListener('hide.bs.collapse', function () {
+            navbarBackdrop.classList.remove('active');
+            document.body.style.overflow = ''; // Restore scroll
         });
 
         // Close navbar when clicking backdrop
         navbarBackdrop.addEventListener('click', function () {
-            const bsCollapse = bootstrap.Collapse.getInstance(navbarContent);
+            const bsCollapse = bootstrap.Collapse.getInstance(navbarContent) || new bootstrap.Collapse(navbarContent);
             bsCollapse.hide();
-            navbarBackdrop.classList.remove('active');
         });
 
         // Auto-close navbar when clicking nav links on mobile
         navLinks.forEach(link => {
             link.addEventListener('click', function (e) {
-                // Only auto-close on mobile
-                if (window.innerWidth < 992) {
+                // Only auto-close on mobile if it's not a dropdown toggle
+                if (window.innerWidth < 992 && !this.classList.contains('dropdown-toggle')) {
                     const bsCollapse = bootstrap.Collapse.getInstance(navbarContent);
                     if (bsCollapse) {
                         bsCollapse.hide();
-                        navbarBackdrop.classList.remove('active');
                     }
                 }
             });
         });
 
-        // Close navbar when window is resized to desktop
+        // Handle window resize
         window.addEventListener('resize', function () {
             if (window.innerWidth >= 992) {
+                navbarBackdrop.classList.remove('active');
+                document.body.style.overflow = '';
                 const bsCollapse = bootstrap.Collapse.getInstance(navbarContent);
                 if (bsCollapse) {
-                    bsCollapse.show();
+                    bsCollapse.hide(); // Hide the collapse state for desktop
                 }
-                navbarBackdrop.classList.remove('active');
             }
         });
 
@@ -1841,7 +1956,33 @@
             });
         });
 
-        // Auto-hide alerts (Removed duplicate)
+        // Auto-hide alerts
+        const alerts = document.querySelectorAll('.alert:not(.alert-permanent)');
+        alerts.forEach(alert => {
+            setTimeout(() => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }, 5000);
+        });
+
+        // Initialize Responsive Stack Tables
+        function initResponsiveTables() {
+            const tables = document.querySelectorAll('.table-responsive-stack');
+            tables.forEach(table => {
+                const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.innerText.trim());
+                const rows = table.querySelectorAll('tbody tr');
+                
+                rows.forEach(row => {
+                    const cells = row.querySelectorAll('td');
+                    cells.forEach((cell, index) => {
+                        if (headers[index] && !cell.getAttribute('data-label')) {
+                            cell.setAttribute('data-label', headers[index]);
+                        }
+                    });
+                });
+            });
+        }
+        initResponsiveTables();
 
     });
 

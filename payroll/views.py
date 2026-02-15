@@ -23,6 +23,7 @@ from .admin_forms import AdminPayeeCreationForm
 from .utils import get_loan_deduction, notify_payee_payment_success
 from .paystack_service import process_payroll_payments, retry_failed_payment, PaystackService
 from decimal import Decimal
+from django.views.decorators.http import require_POST
 
 
 @login_required
@@ -125,12 +126,21 @@ def dashboard(request):
         return payee_dashboard(request)
 
 def admin_dashboard(request):
-    periods = PayrollPeriod.objects.filter(is_locked=True).order_by('-year', '-month')[:6]
+    # Only include periods with successful payments
+    from .models import PaymentTransaction
+    success_period_ids = list(
+        PaymentTransaction.objects.filter(status='success')
+        .values_list('payroll_record__payroll_period', flat=True)
+        .distinct()
+    )
+    periods = PayrollPeriod.objects.filter(id__in=success_period_ids).order_by('-year', '-month')[:6]
     labels = [str(p) for p in reversed(periods)]
     
     data = []
     for p in reversed(periods):
-        total = PayrollRecord.objects.filter(payroll_period=p).aggregate(Sum('net_pay'))['net_pay__sum'] or 0
+        total = PaymentTransaction.objects.filter(
+            payroll_record__payroll_period=p, status='success'
+        ).aggregate(Sum('amount'))['amount__sum'] or 0
         data.append(float(total))
         
     chart_data = {
@@ -142,7 +152,8 @@ def admin_dashboard(request):
     
     return render(request, 'payroll/admin_dashboard.html', {
         'chart_data': json.dumps(chart_data),
-        'pending_banks': pending_banks
+        'pending_banks': pending_banks,
+        'has_payment_data': periods.exists()
     })
 
 def payee_dashboard(request):
@@ -221,6 +232,25 @@ def admin_manage_bank_account(request):
         'form': form,
         'accounts': all_accounts
     })
+
+@login_required
+@user_passes_test(lambda u: u.role == 'admin' or u.is_superuser)
+@require_POST
+def toggle_primary_bank_account(request, account_id):
+    account = get_object_or_404(BankAccount, id=account_id)
+    # Toggle the primary flag
+    account.is_primary = not account.is_primary
+    account.save()
+    if account.is_primary:
+        messages.success(request, f"{account} set as Primary for {account.payee.user.get_full_name()}.")
+        # Invalidate any pending transactions tied to this payee so processing can use the new primary
+        PaymentTransaction.objects.filter(
+            payroll_record__payee=account.payee,
+            status='pending'
+        ).update(status='failed', failure_reason='Primary bank changed; please reprocess')
+    else:
+        messages.info(request, f"{account} unset as Primary for {account.payee.user.get_full_name()}.")
+    return redirect('payroll:admin_manage_bank_account')
 
 
 @login_required
@@ -411,7 +441,17 @@ def payroll_detail(request, period_id):
             PayrollRecord.objects.get_or_create(payee=payee, payroll_period=period)
             
     records = period.records.all().select_related('payee__user')
-    return render(request, 'payroll/period_detail.html', {'period': period, 'records': records})
+    aggregates = records.aggregate(
+        total_gross=Sum('gross_pay'),
+        total_deductions=Sum('total_deductions'),
+        total_net=Sum('net_pay'),
+    )
+    totals = {
+        'gross': aggregates.get('total_gross') or 0,
+        'deductions': aggregates.get('total_deductions') or 0,
+        'net': aggregates.get('total_net') or 0,
+    }
+    return render(request, 'payroll/period_detail.html', {'period': period, 'records': records, 'totals': totals})
 
 @login_required
 @user_passes_test(lambda u: u.role == 'admin' or u.is_superuser)
@@ -544,14 +584,16 @@ def payment_status(request, period_id):
         
         # Determine failure reason if idle/failed
         failure_reason = None
+        primary_bank = record.payee.bank_accounts.filter(is_primary=True, is_approved=True).first()
         if not latest_tx:
             idle_count += 1
-            # Check why it wasn't initiated
-            bank = record.payee.bank_accounts.filter(is_primary=True).first()
-            if not bank:
+            # Check why it wasn't initiated using current primary approved bank
+            if not primary_bank:
                 failure_reason = "No primary bank account"
-            elif not bank.is_approved:
-                failure_reason = "Bank account not approved"
+                # Double-check if there is a primary but not approved
+                alt_primary = record.payee.bank_accounts.filter(is_primary=True).first()
+                if alt_primary and not alt_primary.is_approved:
+                    failure_reason = "Bank account not approved"
             else:
                 failure_reason = "Ready for processing"
         elif status == 'failed':
@@ -566,7 +608,8 @@ def payment_status(request, period_id):
             'status': status,
             'failure_reason': failure_reason,
             'can_retry': latest_tx and latest_tx.status == 'failed',
-            'can_process': not latest_tx and failure_reason == "Ready for processing"
+            'can_process': not latest_tx and failure_reason == "Ready for processing",
+            'bank': primary_bank
         })
     
     return render(request, 'payroll/payment_status.html', {
@@ -672,9 +715,10 @@ def payslip_view(request, record_id):
          messages.error(request, "Unauthorized access.")
          return redirect('accounts:dashboard_redirect')
     
-    
+    primary_account = record.payee.bank_accounts.filter(is_primary=True).first()
     return render(request, 'payroll/payslip.html', {
         'record': record,
+        'primary_account': primary_account,
         'SCHOOL_NAME': settings.SCHOOL_NAME,
         'SCHOOL_ADDRESS': settings.SCHOOL_ADDRESS,
         'SCHOOL_LOGO_PATH': settings.SCHOOL_LOGO_PATH

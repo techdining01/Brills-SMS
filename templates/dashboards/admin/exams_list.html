@@ -19,7 +19,7 @@
     {% if page_obj %}
     <div class="card">
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table class="table table-hover mb-0 table-responsive-stack">
                 <thead class="table-light">
                     <tr>
                         <th>Exam Title</th>
@@ -34,19 +34,19 @@
                 <tbody>
                     {% for exam in page_obj %}
                     <tr>
-                        <td><strong>{{ exam.title }}</strong></td>
-                        <td>{{ exam.school_class.name }}</td>
-                        <td><span class="badge bg-info">{{ exam.questions.count }}</span></td>
-                        <td>{{ exam.duration }} min</td>
-                        <td><span class="badge bg-secondary">{{ exam.exam_attempts.count }}</span></td>
-                        <td>
+                        <td data-label="Exam Title"><strong>{{ exam.title }}</strong></td>
+                        <td data-label="Class">{{ exam.school_class.name }}</td>
+                        <td data-label="Questions"><span class="badge bg-info">{{ exam.questions.count }}</span></td>
+                        <td data-label="Duration">{{ exam.duration }} min</td>
+                        <td data-label="Attempts"><span class="badge bg-secondary">{{ exam.exam_attempts.count }}</span></td>
+                        <td data-label="Status">
                             {% if exam.is_published %}
                                 <span class="badge bg-success">Published</span>
                             {% else %}
                                 <span class="badge bg-warning">Draft</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-label="Actions">
                             <a href="{% url 'dashboards:exam_detail' exam.id %}" class="btn btn-sm btn-outline-primary" title="View">
                                 <i class="bi bi-eye"></i>
                             </a>

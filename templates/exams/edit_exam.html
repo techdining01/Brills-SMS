@@ -123,10 +123,10 @@
                         <i class="bi bi-plus-circle"></i> Add Question
                     </a>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0">
                     {% if questions %}
                         <div class="table-responsive">
-                            <table class="table table-hover">
+                            <table class="table table-hover table-responsive-stack mb-0">
                                 <thead>
                                     <tr>
                                         <th style="width: 5%">#</th>
@@ -139,11 +139,11 @@
                                 <tbody>
                                     {% for question in questions %}
                                     <tr>
-                                        <td>{{ question.order }}</td>
-                                        <td>{{ question.text|truncatechars:100 }}</td>
-                                        <td><span class="badge bg-secondary">{{ question.get_type_display }}</span></td>
-                                        <td>{{ question.marks }}</td>
-                                        <td>
+                                        <td data-label="#">{{ question.order }}</td>
+                                        <td data-label="Question">{{ question.text|truncatechars:100 }}</td>
+                                        <td data-label="Type"><span class="badge bg-secondary">{{ question.get_type_display }}</span></td>
+                                        <td data-label="Marks">{{ question.marks }}</td>
+                                        <td data-label="Actions">
                                             <div class="btn-group btn-group-sm">
                                                 <a href="{% url 'dashboards:edit_question' question.id %}" class="btn btn-outline-primary" title="Edit">
                                                     <i class="bi bi-pencil"></i>

@@ -17,8 +17,8 @@
                 <div class="card-header">
                     <h5 class="mb-0">Top Performers</h5>
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
+                <div class="table-responsive p-0">
+                    <table class="table table-hover table-responsive-stack mb-0">
                         <thead class="table-light">
                             <tr>
                                 <th width="50">#</th>
@@ -33,7 +33,7 @@
                             {% if leaderboard %}
                                 {% for entry in leaderboard %}
                                 <tr>
-                                    <td>
+                                    <td data-label="#">
                                         {% if forloop.counter == 1 %}
                                             <span class="badge bg-warning">🥇</span>
                                         {% elif forloop.counter == 2 %}
@@ -44,11 +44,11 @@
                                             {{ forloop.counter }}
                                         {% endif %}
                                     </td>
-                                    <td><strong>{{ entry.student.first_name }} {{ entry.student.last_name }}</strong></td>
-                                    <td>{{ entry.class_name }}</td>
-                                    <td><strong>{{ entry.total_score }}</strong></td>
-                                    <td>{{ entry.exams_count }}</td>
-                                    <td>{{ entry.average_score|floatformat:2 }}%</td>
+                                    <td data-label="Student"><strong>{{ entry.student.first_name }} {{ entry.student.last_name }}</strong></td>
+                                    <td data-label="Class">{{ entry.class_name }}</td>
+                                    <td data-label="Score"><strong>{{ entry.total_score }}</strong></td>
+                                    <td data-label="Exams">{{ entry.exams_count }}</td>
+                                    <td data-label="Average">{{ entry.average_score|floatformat:2 }}%</td>
                                 </tr>
                                 {% endfor %}
                             {% else %}

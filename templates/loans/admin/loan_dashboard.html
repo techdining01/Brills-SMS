@@ -126,65 +126,66 @@
 {% block content %}
 <div class="container-fluid py-4 gsap-hero">
     <!-- Header -->
-    <div class="row align-items-center mb-5">
-        <div class="col-md-6">
-            <h1 class="fw-bold h2 mb-2">Loan Administration</h1>
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <h1 class="fw-bold h2 mb-1">Loan Administration</h1>
             <p class="text-muted mb-0">Overview and management of all staff loan applications.</p>
         </div>
-        <div class="col-md-6 text-md-end mt-3 mt-md-0">
-            <div class="d-flex gap-2 justify-content-md-end">
-                <a href="{% url 'loans:apply_loan' %}" class="btn btn-primary btn-sm">
-                    <i class="fas fa-plus me-2"></i>Apply for Loan
-                </a>
-                <a href="{% url 'loans:export_loans' %}" class="btn btn-outline-dark btn-sm">
-                    <i class="fas fa-file-export me-2"></i>Export </a>
-            </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'loans:apply_loan' %}" class="btn btn-primary btn-sm flex-grow-1 flex-md-grow-0 rounded-pill px-3">
+                <i class="fas fa-plus me-2"></i>Apply
+            </a>
+            <a href="{% url 'loans:export_loans' %}" class="btn btn-outline-dark btn-sm flex-grow-1 flex-md-grow-0 rounded-pill px-3">
+                <i class="fas fa-file-export me-2"></i>Export
+            </a>
         </div>
     </div>
 
     <!-- Stats Grid -->
-    <div class="row g-4 mb-5">
-        <div class="col-xl-3 col-md-6">
-            <div class="glass-card p-4">
-                <div class="stat-icon-wrapper bg-primary-soft">
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-3 col-md-6">
+            <div class="glass-card p-3 p-md-4">
+                <div class="stat-icon-wrapper bg-primary-soft mb-2 mb-md-3">
                     <i class="fas fa-money-bill-wave"></i>
                 </div>
-                <p class="text-muted small fw-600 text-uppercase mb-1">Total Disbursed</p>
-                <h3 class="fw-bold mb-0">₦{{ total_loan_amount|intcomma }}</h3>
+                <p class="text-muted small fw-600 text-uppercase mb-1 d-none d-md-block">Total Disbursed</p>
+                <p class="text-muted small fw-600 text-uppercase mb-1 d-md-none">Disbursed</p>
+                <h3 class="fw-bold mb-0 fs-5 fs-md-3">₦{{ total_loan_amount|intcomma }}</h3>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="glass-card p-4" style="animation-delay: 0.1s">
-                <div class="stat-icon-wrapper bg-warning-soft">
+        <div class="col-6 col-xl-3 col-md-6">
+            <div class="glass-card p-3 p-md-4">
+                <div class="stat-icon-wrapper bg-warning-soft mb-2 mb-md-3">
                     <i class="fas fa-hand-holding-usd"></i>
                 </div>
-                <p class="text-muted small fw-600 text-uppercase mb-1">Total Outstanding</p>
-                <h3 class="fw-bold mb-0">₦{{ total_outstanding|intcomma }}</h3>
+                <p class="text-muted small fw-600 text-uppercase mb-1 d-none d-md-block">Total Outstanding</p>
+                <p class="text-muted small fw-600 text-uppercase mb-1 d-md-none">Outstanding</p>
+                <h3 class="fw-bold mb-0 fs-5 fs-md-3">₦{{ total_outstanding|intcomma }}</h3>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="glass-card p-4" style="animation-delay: 0.2s">
-                <div class="stat-icon-wrapper bg-success-soft">
+        <div class="col-6 col-xl-3 col-md-6">
+            <div class="glass-card p-3 p-md-4">
+                <div class="stat-icon-wrapper bg-success-soft mb-2 mb-md-3">
                     <i class="fas fa-check-circle"></i>
                 </div>
-                <p class="text-muted small fw-600 text-uppercase mb-1">Approved Loans</p>
-                <h3 class="fw-bold mb-0">{{ total_approved }}</h3>
+                <p class="text-muted small fw-600 text-uppercase mb-1">Approved</p>
+                <h3 class="fw-bold mb-0 fs-5 fs-md-3">{{ total_approved }}</h3>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="glass-card p-4" style="animation-delay: 0.3s">
-                <div class="stat-icon-wrapper bg-danger-soft">
+        <div class="col-6 col-xl-3 col-md-6">
+            <div class="glass-card p-3 p-md-4">
+                <div class="stat-icon-wrapper bg-danger-soft mb-2 mb-md-3">
                     <i class="fas fa-clock"></i>
                 </div>
-                <p class="text-muted small fw-600 text-uppercase mb-1">Pending Requests</p>
-                <h3 class="fw-bold mb-0">{{ total_pending }}</h3>
+                <p class="text-muted small fw-600 text-uppercase mb-1">Pending</p>
+                <h3 class="fw-bold mb-0 fs-5 fs-md-3">{{ total_pending }}</h3>
             </div>
         </div>
     </div>
 
     <!-- Main Content Card -->
-    <div class="loan-table-card">
-        <div class="card-header bg-white p-4 border-0 d-flex justify-content-between align-items-center">
+    <div class="loan-table-card shadow-sm border">
+        <div class="card-header bg-white p-3 p-md-4 border-0 d-flex justify-content-between align-items-center">
             <h5 class="fw-bold mb-0">Recent Applications</h5>
             <div class="search-wrapper d-none d-md-block" style="width: 300px;">
                 <i class="fas fa-search text-muted"></i>
@@ -192,9 +193,10 @@
             </div>
         </div>
 
+        <!-- Responsive Table -->
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead>
+            <table class="table table-hover align-middle mb-0 table-responsive-stack">
+                <thead class="thead-light">
                     <tr>
                         <th>Staff Member</th>
                         <th>Loan Type</th>
@@ -207,36 +209,36 @@
                 <tbody>
                     {% for loan in loans %}
                     <tr>
-                        <td>
+                        <td data-label="Staff Member">
                             <div class="d-flex align-items-center">
                                 <div class="avatar-sm rounded-circle bg-light d-flex align-items-center justify-content-center me-3"
                                     style="width: 40px; height: 40px;">
                                     <i class="fas fa-user text-secondary"></i>
                                 </div>
-                                <div>
+                                <div class="text-start">
                                     <h6 class="mb-0 fw-600 text-dark">{{ loan.payee.user.get_full_name }}</h6>
                                     <small class="text-muted">{{ loan.payee.user.email }}</small>
                                 </div>
                             </div>
                         </td>
-                        <td>
+                        <td data-label="Loan Type">
                             <span class="text-capitalize">{{ loan.loan_type }}</span>
                         </td>
-                        <td>
+                        <td data-label="Amount">
                             <span class="fw-bold text-dark">₦{{ loan.loan_amount|intcomma }}</span>
                         </td>
-                        <td class="text-muted">
+                        <td data-label="Applied Date" class="text-muted">
                             {{ loan.applied_at|date:"M d, Y" }}
                         </td>
-                        <td>
+                        <td data-label="Status">
                             <span class="status-badge badge-{{ loan.status }}">
                                 {{ loan.status }}
                             </span>
                         </td>
-                        <td class="text-end">
+                        <td data-label="Actions" class="text-end">
                             <a href="{% url 'loans:admin_loan_detail' loan.id %}"
                                 class="btn btn-primary btn-sm rounded-pill px-3">
-                                <i class="fas fa-eye me-1"></i>View Details
+                                <i class="fas fa-eye me-1"></i>View
                             </a>
                         </td>
                     </tr>
@@ -254,8 +256,10 @@
             </table>
         </div>
 
+        <!-- Mobile View Removed - Replaced by Responsive Stack Table -->
+
         {% if loans.has_other_pages %}
-        <div class="card-footer bg-white p-4 border-0">
+        <div class="card-footer bg-white p-3 p-md-4 border-0">
             <nav aria-label="Page navigation" class="d-flex justify-content-center">
                 <ul class="pagination pagination-rounded mb-0">
                     {% if loans.has_previous %}

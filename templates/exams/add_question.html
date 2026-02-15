@@ -51,8 +51,8 @@
                             
                             {{ formset.management_form }}
                             
-                            <div class="table-responsive">
-                                <table class="table table-bordered">
+                            <div class="table-responsive p-0">
+                                <table class="table table-bordered table-responsive-stack mb-0">
                                     <thead>
                                         <tr>
                                             <th style="width: 70%">Choice Text</th>
@@ -63,17 +63,17 @@
                                     <tbody>
                                         {% for form in formset %}
                                         <tr>
-                                            <td>
+                                            <td data-label="Choice Text">
                                                 {{ form.id }}
                                                 {{ form.text }}
                                                 {% if form.text.errors %}
                                                     <div class="text-danger small">{{ form.text.errors.0 }}</div>
                                                 {% endif %}
                                             </td>
-                                            <td class="text-center align-middle">
+                                            <td data-label="Correct?" class="text-center align-middle">
                                                 {{ form.is_correct }}
                                             </td>
-                                            <td class="text-center align-middle">
+                                            <td data-label="Delete" class="text-center align-middle">
                                                 {% if formset.can_delete %}
                                                     {{ form.DELETE }}
                                                 {% endif %}

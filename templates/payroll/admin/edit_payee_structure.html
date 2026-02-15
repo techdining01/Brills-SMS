@@ -40,8 +40,8 @@
 {% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <div class="d-flex align-items-center gap-3 mb-5">
+<div class="container-fluid py-4">
+    <div class="d-flex align-items-center gap-3 mb-4 mb-md-5">
         <a href="{% url 'payroll:admin_payee_list' %}" class="btn-back" title="Back to Registry">
             <i class="bi bi-arrow-left"></i>
         </a>
@@ -52,14 +52,17 @@
     </div>
 
     <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="glass-card">
+        <div class="col-lg-6 col-md-8">
+            <div class="glass-card p-3 p-md-4 shadow-sm border">
                 <form method="post">
                     {% csrf_token %}
                     
                     <div class="mb-4">
                         <label class="form-label fw-bold text-secondary small text-uppercase">Select Salary Package</label>
-                        {{ form.salary_structure }}
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0"><i class="bi bi-wallet2 text-primary"></i></span>
+                            {{ form.salary_structure }}
+                        </div>
                         {% if form.salary_structure.errors %}
                         <div class="text-danger small mt-1">{{ form.salary_structure.errors }}</div>
                         {% endif %}
@@ -68,11 +71,11 @@
                         </div>
                     </div>
 
-                    <div class="d-grid gap-2 mt-5">
-                        <button type="submit" class="btn btn-primary rounded-pill py-2 fw-bold shadow-sm">
-                            <i class="bi bi-check2-circle me-2"></i> Save Assignment
+                    <div class="d-flex flex-column flex-md-row gap-2 mt-4 mt-md-5">
+                        <button type="submit" class="btn btn-primary flex-grow-1 rounded-pill py-2 fw-bold shadow-sm order-1 order-md-2">
+                            <i class="bi bi-check2-circle me-2"></i>Save Assignment
                         </button>
-                        <a href="{% url 'payroll:admin_payee_list' %}" class="btn btn-light rounded-pill py-2 fw-bold">
+                        <a href="{% url 'payroll:admin_payee_list' %}" class="btn btn-light flex-grow-1 rounded-pill py-2 fw-bold order-2 order-md-1">
                             Cancel
                         </a>
                     </div>

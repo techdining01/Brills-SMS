@@ -4,26 +4,30 @@
 <h4>Orders</h4>
 
     <div class="card shadow-sm">
-        <div class="card-body table-responsive">
-            <table class="table table-hover align-middle">
-        <tr>
-            <th>Orde Ref</th><th>Paystack Ref</th><th>Date</th><th>Parent</th><th>Ward</th><th>Status</th><th>Total</th><th>More</th><th></th>
-        </tr>
-        {% for o in orders %}
-        <tr>
-            <td>{{ o.reference }}</td>
-            <td>{{ o.transaction.gateway_reference }}</td>
-            <td>{{ o.created_at }}</td>
-            <td>{{ o.buyer.get_full_name }}</td>
-            <td>{{ o.ward.get_full_name }}</td>
-            <td>{{ o.status }}</td>
-            <td>₦{{ o.total_amount }}</td>
-            <td>
-                <a href="{% url 'brillspay:admin_order_detail' o.id %}">View</a>
-            </td>
-        </tr>
-        {% endfor %}
-        </table>
+        <div class="card-body table-responsive p-0">
+            <table class="table table-hover align-middle table-responsive-stack mb-0">
+                <thead>
+                    <tr>
+                        <th>Order Ref</th><th>Gateway Ref</th><th>Date</th><th>Parent</th><th>Ward</th><th>Status</th><th>Total</th><th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for o in orders %}
+                    <tr>
+                        <td data-label="Order Ref">{{ o.reference }}</td>
+                        <td data-label="Gateway Ref">{{ o.transaction.gateway_reference|default:"-" }}</td>
+                        <td data-label="Date">{{ o.created_at|date:"M d, Y" }}</td>
+                        <td data-label="Parent">{{ o.buyer.get_full_name }}</td>
+                        <td data-label="Ward">{{ o.ward.get_full_name }}</td>
+                        <td data-label="Status">{{ o.status }}</td>
+                        <td data-label="Total">₦{{ o.total_amount }}</td>
+                        <td data-label="Actions">
+                            <a href="{% url 'brillspay:admin_order_detail' o.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>

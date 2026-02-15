@@ -85,56 +85,68 @@
 {% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container-fluid py-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
         <div class="d-flex align-items-center gap-3">
             <a href="{% url 'payroll:admin_dashboard' %}" class="btn-back" title="Back to Dashboard">
                 <i class="bi bi-arrow-left"></i>
             </a>
             <div>
-                <h1 class="h3 fw-bold mb-1">Payroll History & Management</h1>
-                <p class="text-muted small mb-0">Track and manage all payroll periods.</p>
+                <h1 class="h3 fw-bold mb-1">Payroll History</h1>
+                <p class="text-muted small mb-0 d-none d-sm-block">Track and manage all payroll periods.</p>
             </div>
         </div>
         <a href="{% url 'payroll:generate_payroll' %}" class="btn btn-primary rounded-pill px-4">
-            <i class="bi bi-plus-lg me-1"></i> New Period
+            <i class="bi bi-plus-lg me-1"></i> <span class="d-none d-sm-inline">New Period</span><span class="d-sm-none">New</span>
         </a>
     </div>
 
-    <div class="glass-card">
+    <div class="glass-card shadow-sm border p-0 overflow-hidden">
         <div class="table-responsive">
-            <table class="table period-table table-hover border-0">
+            <table class="table period-table table-hover align-middle mb-0 table-responsive-stack">
                 <thead>
                     <tr>
-                        <th class="border-0">Payroll Period</th>
-                        <th class="border-0">Status</th>
-                        <th class="border-0 text-end">Actions</th>
+                        <th class="ps-4">Payroll Period</th>
+                        <th>Status</th>
+                        <th class="text-end pe-4">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for period in periods %}
                     <tr>
-                        <td class="fw-bold text-dark">{{ period }}</td>
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="bg-primary bg-opacity-10 p-2 rounded-circle text-primary">
+                                    <i class="bi bi-calendar3"></i>
+                                </div>
+                                <div class="text-start">
+                                    <span class="fw-bold text-dark">{{ period }}</span>
+                                    {% if period.is_locked %}
+                                    <br><small class="text-muted">Locked Period</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
                         <td>
                             {% if period.is_locked %}
-                            <span class="badge-status badge-locked">
-                                <i class="bi bi-lock-fill"></i> Locked
-                            </span>
+                                <span class="badge-status badge-locked">
+                                    <i class="bi bi-lock-fill"></i> Locked
+                                </span>
                             {% elif period.is_generated %}
-                            <span class="badge-status badge-generated">
-                                <i class="bi bi-check-circle-fill"></i> Generated
-                            </span>
+                                <span class="badge-status badge-generated">
+                                    <i class="bi bi-check-circle-fill"></i> Generated
+                                </span>
                             {% else %}
-                            <span class="badge-status badge-pending">
-                                <i class="bi bi-clock-history"></i> Pending
-                            </span>
+                                <span class="badge-status badge-pending">
+                                    <i class="bi bi-clock-history"></i> Pending
+                                </span>
                             {% endif %}
                         </td>
-                        <td class="text-end">
+                        <td class="text-end pe-4">
                             <div class="d-flex justify-content-end gap-2">
-                                <a href="{% url 'payroll:payroll_detail' period.id %}"
-                                    class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                                    <i class="bi bi-info-circle me-1"></i> Details
+                                <a href="{% url 'payroll:payroll_detail' period.id %}" 
+                                   class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                    View Details
                                 </a>
                                 
                                 <form action="{% url 'payroll:delete_payroll_period' period.id %}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this payroll period? This action cannot be undone.');">
@@ -149,7 +161,10 @@
                     {% empty %}
                     <tr>
                         <td colspan="3" class="text-center py-5">
-                            <p class="text-muted mb-0">No payroll periods found.</p>
+                            <div class="text-muted">
+                                <i class="bi bi-folder2-open display-4 mb-3 d-block"></i>
+                                <p class="mb-0">No payroll periods found.</p>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -157,5 +172,7 @@
             </table>
         </div>
     </div>
+
+    <!-- Mobile view removed - replaced by responsive stack table -->
 </div>
 {% endblock %}

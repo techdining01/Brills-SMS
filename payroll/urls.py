@@ -23,6 +23,7 @@ urlpatterns = [
     path('transaction/<int:transaction_id>/retry/', views.retry_payment, name='retry_payment'),
     path('webhook/paystack/', views.paystack_webhook, name='paystack_webhook'),
     path('payslip/<int:record_id>/', views.payslip_view, name='payslip_view'),
+    path('bank-account/<int:account_id>/toggle-primary/', views.toggle_primary_bank_account, name='toggle_primary_bank_account'),
     
     # Payee Management
     path('payees/', views.admin_payee_list, name='admin_payee_list'),

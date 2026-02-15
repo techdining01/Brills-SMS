@@ -19,8 +19,8 @@
 
     <div class="card">
         <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle">
+            <div class="table-responsive p-0">
+                <table class="table table-hover align-middle table-responsive-stack">
                     <thead class="table-light">
                         <tr>
                             <th>Student Name</th>
@@ -32,7 +32,7 @@
                     <tbody>
                         {% for student in students %}
                         <tr>
-                            <td>
+                            <td data-label="Student Name">
                                 <div class="d-flex align-items-center">
                                     <div class="avatar-circle me-2 bg-primary text-white">
                                         {{ student.first_name|first }}{{ student.last_name|first }}
@@ -43,9 +43,9 @@
                                     </div>
                                 </div>
                             </td>
-                            <td>{{ student.admission_number|default:"-" }}</td>
-                            <td>{{ student.email }}</td>
-                            <td>
+                            <td data-label="Admission Number">{{ student.admission_number|default:"-" }}</td>
+                            <td data-label="Email">{{ student.email }}</td>
+                            <td data-label="Actions">
                                 <a href="{% url 'dashboards:admin_student_result_detail' student.id %}" class="btn btn-sm btn-primary">
                                     View Detailed Results
                                 </a>

@@ -19,7 +19,7 @@
 
     <div class="card shadow-sm">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0 table-responsive-stack">
                 <thead class="table-light">
                     <tr>
                         <th>Code</th>
@@ -31,10 +31,10 @@
                 <tbody>
                     {% for permission in permissions %}
                     <tr>
-                        <td><code>{{ permission.codename }}</code></td>
-                        <td class="fw-bold">{{ permission.name }}</td>
-                        <td>{{ permission.description }}</td>
-                        <td>
+                        <td data-label="Code"><code>{{ permission.codename }}</code></td>
+                        <td data-label="Name" class="fw-bold">{{ permission.name }}</td>
+                        <td data-label="Description">{{ permission.description }}</td>
+                        <td data-label="Category">
                             <span class="badge bg-light text-dark border">{{ permission.content_type.model|title }}</span>
                         </td>
                     </tr>

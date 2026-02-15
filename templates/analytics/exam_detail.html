@@ -55,10 +55,10 @@
         <div class="card-header">
             <h5 class="mb-0">Question Performance Analysis</h5>
         </div>
-        <div class="card-body">
+        <div class="card-body p-0">
             {% if question_stats %}
-            <div class="table-responsive">
-                <table class="table table-hover align-middle">
+            <div class="table-responsive p-0">
+                <table class="table table-hover align-middle mb-0 table-responsive-stack">
                     <thead>
                         <tr>
                             <th style="width: 40%">Question</th>
@@ -70,14 +70,14 @@
                     <tbody>
                         {% for stat in question_stats %}
                         <tr>
-                            <td>
+                            <td data-label="Question">
                                 <div class="text-wrap" style="max-height: 100px; overflow-y: auto;">
                                     {{ stat.question.text|safe|truncatechars_html:150 }}
                                 </div>
                             </td>
-                            <td><span class="badge bg-secondary">{{ stat.question.get_type_display }}</span></td>
-                            <td class="text-center">{{ stat.correct }} / {{ stat.total_attempts }}</td>
-                            <td>
+                            <td data-label="Type"><span class="badge bg-secondary">{{ stat.question.get_type_display }}</span></td>
+                            <td class="text-center" data-label="Correct / Total">{{ stat.correct }} / {{ stat.total_attempts }}</td>
+                            <td data-label="Accuracy">
                                 <div class="d-flex align-items-center">
                                     <div class="progress flex-grow-1 me-2" style="height: 20px;">
                                         <div class="progress-bar {% if stat.accuracy >= 70 %}bg-success{% elif stat.accuracy >= 40 %}bg-warning{% else %}bg-danger{% endif %}" 

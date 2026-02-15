@@ -22,8 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-
-SECRET_KEY = config('SECRET_KEY')
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-fallback-key-for-build-purposes')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 
@@ -143,11 +142,11 @@ CHANNEL_LAYERS = {
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST'),
-       'PORT': config('DB_PORT'),
+        'NAME': config('DB_NAME', default='thebrills_db'),
+        'USER': config('DB_USER', default='postgres'),
+        'PASSWORD': config('DB_PASSWORD', default='idrees'),
+        'HOST': config('DB_HOST', default='db'),
+       'PORT': config('DB_PORT', default='5432'),
     }
 } 
 
@@ -319,9 +318,9 @@ INTERNAL_IPS = [
 ]
 
 # Paystack Config (Add this new section)
-PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY')
-PAYSTACK_PUBLIC_KEY = config('PAYSTACK_PUBLIC_KEY')
-PAYSTACK_BASE_URL = config('PAYSTACK_BASE_URL')
+PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY', default='pk_test_placeholder')
+PAYSTACK_PUBLIC_KEY = config('PAYSTACK_PUBLIC_KEY', default='sk_test_placeholder')
+PAYSTACK_BASE_URL = config('PAYSTACK_BASE_URL', default='https://api.paystack.co')
 PAYSTACK_WEBHOOK = config(
     'PAYSTACK_WEBHOOK_SECRET', default='https://newsiest-interlineally-guy.ngrok-free.dev/brillspay/paystack/webhook/')
 PAYSTACK_CALLBACK_URL = config(
@@ -379,10 +378,10 @@ EMAIL_HOST_PASSWORD='your-app-password'
 DEFAULT_FROM_EMAIL='noreply@schoolcommerce.com'
 
 # Redis (for Celery)
-REDIS_URL=config("REDIS_URL")
+REDIS_URL=config("REDIS_URL", default='redis://localhost:6379/0')
 
 # Backup
-BACKUP_ENCRYPTION_KEY=config("BACKUP_ENCRYPTION_KEY")
+BACKUP_ENCRYPTION_KEY=config("BACKUP_ENCRYPTION_KEY", default='placeholder-encryption-key')
 BACKUP_RETENTION_DAYS=30
 
 

@@ -16,14 +16,15 @@ RUN apt-get update && apt-get install -y \
 
 # Install dependencies
 COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --default-timeout=100 -r requirements.txt
 RUN pip install gunicorn whitenoise
 
 # Copy project
 COPY . /app/
 
 # Run collectstatic
-RUN python manage.py collectstatic --noinput
+# We set a dummy SECRET_KEY if not present to allow collectstatic to run during build
+RUN DJANGO_SETTINGS_MODULE=school_sms.settings python manage.py collectstatic --noinput
 
 # Start gunicorn
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "school_sms.wsgi:application"]

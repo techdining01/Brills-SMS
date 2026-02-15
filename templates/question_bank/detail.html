@@ -9,13 +9,15 @@
         <div class="col-md-8">
             <h2><i class="bi bi-question-circle"></i> Question Details</h2>
         </div>
-        <div class="col-md-4 text-end">
-            <a href="{% url 'dashboards:question_bank_edit' question.id %}" class="btn btn-secondary me-2">
-                <i class="bi bi-pencil"></i> Edit
-            </a>
-            <a href="{% url 'dashboards:question_bank_list' %}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Back
-            </a>
+        <div class="col-md-4 text-md-end text-start mt-2 mt-md-0">
+            <div class="d-flex flex-wrap gap-2 justify-content-md-end justify-content-start">
+                <a href="{% url 'dashboards:question_bank_edit' question.id %}" class="btn btn-secondary">
+                    <i class="bi bi-pencil"></i> Edit
+                </a>
+                <a href="{% url 'dashboards:question_bank_list' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back
+                </a>
+            </div>
         </div>
     </div>
 

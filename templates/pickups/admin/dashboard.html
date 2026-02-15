@@ -55,7 +55,7 @@
     <div class="card shadow-sm">
         <div class="card-body table-responsive">
 
-            <table class="table table-hover align-middle ">
+            <table class="table table-hover align-middle table-responsive-stack">
                 <thead class="table-light">
                     <tr>
                         <th>Reference</th>
@@ -72,18 +72,18 @@
                 <tbody>
                 {% for pickup in pickups %}
                     <tr>
-                        <td>
+                        <td data-label="Reference">
                             <span class="badge bg-light text-dark">
                                 {{ pickup.reference|slice:":8"|upper }}
                             </span>
                         </td>
 
-                        <td>
+                        <td data-label="Parent">
                             {{ pickup.parent.get_full_name }}<br>
                             <small class="text-muted">{{ pickup.parent.phone_number }}</small>
                         </td>
 
-                        <td>
+                        <td data-label="Students">
                             {% for ps in pickup.students.all %}
                                 <div class="d-flex align-items-center gap-2 mb-1">
                                     <img src="{{ ps.student.profile_picture.url }}"
@@ -101,16 +101,16 @@
                             {% endfor %}
                         </td>
 
-                        <td>
+                        <td data-label="Bearer">
                             {{ pickup.bearer_name }}<br>
                             <small class="text-muted">{{ pickup.relationship }}</small>
                         </td>
 
-                        <td>
+                        <td data-label="Expiry">
                             {{ pickup.expires_at|date:"M d, Y H:i" }}
                         </td>
 
-                        <td>
+                        <td data-label="Status">
                             {% if pickup.is_used %}
                                 <span class="badge bg-secondary">USED</span>
                             {% elif pickup.is_expired %}
@@ -120,14 +120,14 @@
                             {% endif %}
                         </td>
 
-                        <td>
+                        <td data-label="QR">
                             {% if pickup.qrcode_image %}
                                 <img src="{{ pickup.qrcode_image.url }}" width="60">
                             {% else %}
                                 —
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-label="Actions">
                             <div class="btn-group btn-group-sm">
 
                                 <a href="{% url 'pickup:pickup_scan' %}"
@@ -158,7 +158,7 @@
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center text-muted">
+                        <td colspan="8" class="text-center text-muted">
                             No pickup records found
                         </td>
                     </tr>

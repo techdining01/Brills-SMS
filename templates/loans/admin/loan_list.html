@@ -1,33 +1,79 @@
 {% extends "base.html" %}
 {% load humanize %}
 {% block content %}
-<div class="card-body table-responsive mt-4">
-    <h3>All Loan Applications</h3>
-    <table class="table table-striped ">
-        <thead>
-            <tr>
-                <th>Payee</th>
-                <th>Loan Type</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Applied At</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for loan in loans %}
-            <tr>
-                <td>{{ loan.payee.user.get_full_name }}</td>
-                <td>{{ loan.loan_type }}</td>
-                <td>₦{{ loan.loan_amount }}</td>
-                <td>{{ loan.status }}</td>
-                <td>{{ loan.applied_at }}</td>
-                <td>
-                    <a href="{% url 'loans:admin_loan_detail' loan.id %}" class="btn btn-sm btn-primary">View</a>
-                </td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+<div class="container-fluid py-4 gsap-hero">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 mb-md-5">
+        <div>
+            <h1 class="h2 fw-bold text-dark mb-1">Loan Applications</h1>
+            <p class="text-muted small mb-0">Manage and review all staff loan requests</p>
+        </div>
+        <a href="{% url 'loans:admin_loan_dashboard' %}" class="btn btn-outline-primary rounded-pill px-4 btn-sm py-2">
+            <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+        </a>
+    </div>
+
+    <div class="glass-card shadow-sm border p-3 p-md-4">
+        <!-- Desktop Table -->
+        <div class="table-responsive">
+            <table class="table table-hover align-middle table-responsive-stack">
+                <thead class="bg-light thead-light">
+                    <tr>
+                        <th class="border-0 px-4 py-3 small text-uppercase">Payee</th>
+                        <th class="border-0 py-3 small text-uppercase">Loan Type</th>
+                        <th class="border-0 py-3 small text-uppercase">Amount</th>
+                        <th class="border-0 py-3 small text-uppercase text-center">Status</th>
+                        <th class="border-0 py-3 small text-uppercase">Applied At</th>
+                        <th class="border-0 py-3 small text-uppercase text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loan in loans %}
+                    <tr>
+                        <td data-label="Payee" class="px-4">
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-sm rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center me-3" style="width: 32px; height: 32px; font-size: 0.8rem;">
+                                    {{ loan.payee.user.username|first|upper }}
+                                </div>
+                                <span class="fw-bold text-dark">{{ loan.payee.user.get_full_name }}</span>
+                            </div>
+                        </td>
+                        <td data-label="Loan Type" class="text-capitalize">{{ loan.loan_type }}</td>
+                        <td data-label="Amount" class="fw-bold text-primary">₦{{ loan.loan_amount|intcomma }}</td>
+                        <td data-label="Status" class="text-center">
+                            <span class="badge badge-{{ loan.status }} rounded-pill px-3 py-1 small fw-bold text-uppercase" style="
+                                {% if loan.status == 'pending' %}background: #fef3c7; color: #92400e;
+                                {% elif loan.status == 'approved' %}background: #d1fae5; color: #065f46;
+                                {% elif loan.status == 'rejected' %}background: #fee2e2; color: #991b1b;
+                                {% else %}background: #dbeafe; color: #1e40af;{% endif %}
+                            ">
+                                {{ loan.status }}
+                            </span>
+                        </td>
+                        <td data-label="Applied At" class="text-muted small">{{ loan.applied_at|date:"M d, Y" }}</td>
+                        <td data-label="Actions" class="text-end pe-4">
+                            <a href="{% url 'loans:admin_loan_detail' loan.id %}" class="btn btn-primary btn-sm rounded-pill px-3">
+                                View Details
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">No loan applications found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Mobile View Removed - Replaced by Responsive Stack Table -->
+    </div>
 </div>
+
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+    }
+</style>
 {% endblock %}

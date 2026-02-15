@@ -1,21 +1,127 @@
-<img src="{{ pickup.qrcode_image.url }}"
-     class="img-fluid rounded shadow"
-     alt="Pickup QR Code">
+{% extends "base.html" %}
+{% load static %}
 
-<h3>Pickup Authorization</h3>
+{% block title %}Pickup Details{% endblock %}
 
-<p><strong>Bearer:</strong> {{ pickup.bearer_name }}</p>
-<p><strong>Relationship:</strong> {{ pickup.relationship }}</p>
-<p><strong>Expires:</strong> {{ pickup.expires_at }}</p>
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4 class="fw-bold mb-0">Pickup Authorization</h4>
+                        <a href="{% url 'pickup:parent_pickup_history' %}" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-arrow-left me-1"></i> Back to History
+                        </a>
+                    </div>
 
-<h4>Students Covered ({{ pickup.students.count }})</h4>
-<ul>
-  {% for ps in pickup.students.all %}
-    <li>
-      <img src="{{ ps.student.profile.photo.url }}" width="40">
-      {{ ps.student.get_full_name }} — {{ ps.student.school_class }}
-    </li>
-  {% endfor %}
-</ul>
+                    <div class="row g-4">
+                        <div class="col-md-5 text-center">
+                            {% if pickup.qrcode_image %}
+                                <div class="bg-white p-3 rounded border qr-hover-container mb-3">
+                                    <img src="{{ pickup.qrcode_image.url }}" class="img-fluid rounded qr-thumbnail" style="max-height: 250px;">
+                                    <div class="mt-2 small text-muted font-monospace">Hover to enlarge</div>
+                                    
+                                    <div class="qr-zoom-box shadow-lg">
+                                        <img src="{{ pickup.qrcode_image.url }}" class="img-fluid rounded">
+                                        <div class="mt-2 small text-dark fw-bold font-monospace">{{ pickup.reference|slice:":8" }}</div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                            <div class="small text-muted mb-2">Reference</div>
+                            <code class="h5 text-primary">{{ pickup.reference }}</code>
+                        </div>
 
-<img src="{% url 'pickup:pickup_qr' pickup.reference %}">
+                        <div class="col-md-7">
+                            <div class="mb-4">
+                                <h6 class="text-muted text-uppercase small fw-bold mb-2">Bearer Information</h6>
+                                <div class="h5 fw-bold mb-1">{{ pickup.bearer_name }}</div>
+                                <div class="text-muted">{{ pickup.relationship }}</div>
+                            </div>
+
+                            <div class="mb-4">
+                                <h6 class="text-muted text-uppercase small fw-bold mb-2">Validity</h6>
+                                <div class="d-flex align-items-center mb-1">
+                                    <i class="bi bi-calendar-event me-2"></i>
+                                    <span>Expires: {{ pickup.expires_at|date:"M d, Y H:i" }}</span>
+                                </div>
+                                <span class="badge rounded-pill {% if pickup.is_expired %}bg-danger-subtle text-danger{% else %}bg-success-subtle text-success{% endif %}">
+                                    {% if pickup.is_expired %}Expired{% else %}Active{% endif %}
+                                </span>
+                            </div>
+
+                            <div>
+                                <h6 class="text-muted text-uppercase small fw-bold mb-3">Students Covered ({{ pickup.students.count }})</h6>
+                                <div class="list-group list-group-flush">
+                                    {% for ps in pickup.students.all %}
+                                        <div class="list-group-item px-0 border-0 d-flex align-items-center">
+                                            <img src="{{ ps.student.profile.photo.url }}" class="rounded-circle me-3" width="45" height="45" style="object-fit: cover;">
+                                            <div>
+                                                <div class="fw-bold">{{ ps.student.get_full_name }}</div>
+                                                <div class="small text-muted">{{ ps.student.school_class }}</div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.qr-thumbnail {
+    border: 2px solid #2563eb !important;
+    transition: all 0.2s ease;
+}
+.qr-hover-container:hover .qr-thumbnail {
+    border-color: #1d4ed8 !important;
+    opacity: 0.8;
+}
+.qr-hover-container {
+    position: relative;
+    cursor: zoom-in;
+    z-index: 1;
+}
+.qr-hover-container:hover {
+    z-index: 1050;
+}
+.qr-zoom-box {
+    display: none;
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translate(-50%, 0);
+    z-index: 1060;
+    background: white;
+    padding: 15px;
+    border-radius: 12px;
+    width: 280px;
+    text-align: center;
+    border: 1px solid rgba(0,0,0,0.1);
+    pointer-events: none;
+    box-shadow: 0 1rem 3rem rgba(0,0,0,0.2) !important;
+}
+.qr-hover-container:hover .qr-zoom-box {
+    display: block;
+    animation: zoomIn 0.2s ease-out forwards;
+}
+@keyframes zoomIn {
+    from { opacity: 0; transform: translate(-50%, -10px) scale(0.8); }
+    to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+.card {
+    overflow: visible !important;
+}
+@media (max-width: 768px) {
+    .qr-zoom-box {
+        bottom: 0;
+        width: 220px;
+    }
+}
+</style>
+{% endblock %}

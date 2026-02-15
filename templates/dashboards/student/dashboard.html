@@ -50,14 +50,14 @@
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0"><i class="bi bi-lightning"></i> Quick Actions</h5>
                 </div>
-                <div class="card-body">
-                    <a href="{% url 'dashboards:student_available_exams' %}" class="btn btn-primary me-2">
+                <div class="card-body d-flex flex-wrap gap-2">
+                    <a href="{% url 'dashboards:student_available_exams' %}" class="btn btn-primary flex-fill flex-md-grow-0">
                         <i class="bi bi-list"></i> Available Exams
                     </a>
-                    <a href="{% url 'dashboards:student_attempt_history' %}" class="btn btn-info me-2">
+                    <a href="{% url 'dashboards:student_attempt_history' %}" class="btn btn-info flex-fill flex-md-grow-0">
                         <i class="bi bi-graph-up"></i> My Results
                     </a>
-                    <a href="{% url 'dashboards:student_class_leaderboard' %}" class="btn btn-warning">
+                    <a href="{% url 'dashboards:student_class_leaderboard' %}" class="btn btn-warning flex-fill flex-md-grow-0">
                         <i class="bi bi-leaderboard"></i> Leaderboard
                     </a>
                 </div>
@@ -75,7 +75,7 @@
                 <div class="card-body">
                     {% if available_exams %}
                         <div class="table-responsive">
-                            <table class="table table-sm table-hover">
+                            <table class="table table-sm table-hover table-responsive-stack">
                                 <thead>
                                     <tr>
                                         <th>Exam Name</th>
@@ -89,14 +89,14 @@
                                 <tbody>
                                     {% for exam in available_exams %}
                                         <tr>
-                                            <td><strong>{{ exam.title }}</strong></td>
-                                            <td>{{ exam.title }}</td>
-                                            <td>{{ exam.duration }} mins</td>
-                                            <td>{{ exam.questions.count }}</td>
-                                            <td>
+                                            <td data-label="Exam Name"><strong>{{ exam.title }}</strong></td>
+                                            <td data-label="Subject">{{ exam.title }}</td>
+                                            <td data-label="Duration">{{ exam.duration }} mins</td>
+                                            <td data-label="Total Questions">{{ exam.questions.count }}</td>
+                                            <td data-label="Passing Marks">
                                                 <span class="badge bg-info">{{ exam.passing_marks }}</span>
                                             </td>
-                                            <td>
+                                            <td data-label="Action">
                                                 <a href="{% url 'dashboards:start_exam' exam.id %}" class="btn btn-sm btn-success">
                                                     <i class="bi bi-play"></i> Start
                                                 </a>
@@ -124,7 +124,7 @@
                 <div class="card-body">
                     {% if recent_results %}
                         <div class="table-responsive">
-                            <table class="table table-sm table-hover">
+                            <table class="table table-sm table-hover table-responsive-stack">
                                 <thead>
                                     <tr>
                                         <th>Exam Name</th>
@@ -138,20 +138,20 @@
                                 <tbody>
                                     {% for result in recent_results %}
                                         <tr>
-                                            <td><strong>{{ result.exam.title }}</strong></td>
-                                            <td>{{ result.started_at|date:"M d, Y" }}</td>
-                                            <td>{{ result.total_score }}/{{ result.exam.total_marks }}</td>
-                                            <td>
+                                            <td data-label="Exam Name"><strong>{{ result.exam.title }}</strong></td>
+                                            <td data-label="Date Taken">{{ result.started_at|date:"M d, Y" }}</td>
+                                            <td data-label="Score">{{ result.total_score }}/{{ result.exam.total_marks }}</td>
+                                            <td data-label="Percentage">
                                                 <span class="badge bg-{% if result.percentage >= 70 %}success{% elif result.percentage >= 50 %}warning{% else %}danger{% endif %}">
                                                     {{ result.percentage }}%
                                                 </span>
                                             </td>
-                                            <td>
+                                            <td data-label="Grade">
                                                 <strong class="text-{% if result.grade == 'A' %}success{% elif result.grade == 'B' %}info{% elif result.grade == 'C' %}warning{% else %}danger{% endif %}">
                                                     {{ result.grade }}
                                                 </strong>
                                             </td>
-                                            <td>
+                                            <td data-label="Action">
                                                 <a href="{% url 'dashboards:exam_result' result.id %}" class="btn btn-sm btn-outline-primary">
                                                     <i class="bi bi-eye"></i> View
                                                 </a>

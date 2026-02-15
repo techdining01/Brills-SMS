@@ -22,8 +22,8 @@
     </div>
 
     <div class="card shadow-sm">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+        <div class="table-responsive p-0">
+            <table class="table table-hover align-middle mb-0 table-responsive-stack">
                 <thead class="table-light">
                     <tr>
                         <th>Date</th>
@@ -37,14 +37,14 @@
                 <tbody>
                     {% for retake_req in page_obj %}
                     <tr>
-                        <td>{{ retake_req.created_at|date:"M d, Y H:i" }}</td>
-                        <td>
+                        <td data-label="Date">{{ retake_req.created_at|date:"M d, Y H:i" }}</td>
+                        <td data-label="Student">
                             <div>{{ retake_req.student.get_full_name }}</div>
                             <small class="text-muted">{{ retake_req.student.username }}</small>
                         </td>
-                        <td>{{ retake_req.exam.title }}</td>
-                        <td>{{ retake_req.reason|truncatechars:50 }}</td>
-                        <td>
+                        <td data-label="Exam">{{ retake_req.exam.title }}</td>
+                        <td data-label="Reason">{{ retake_req.reason|truncatechars:50 }}</td>
+                        <td data-label="Status">
                             {% if retake_req.status == 'approved' %}
                             <span class="badge bg-success">Approved</span>
                             {% elif retake_req.status == 'denied' %}
@@ -53,7 +53,7 @@
                             <span class="badge bg-warning text-dark">Pending</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-label="Actions">
                             {% if retake_req.status == 'pending' %}
                             <div class="btn-group btn-group-sm">
                                 <form action="{% url 'dashboards:update_retake_request_status' retake_req.id %}" method="post" class="d-inline">

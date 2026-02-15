@@ -5,6 +5,7 @@ NIGERIAN_BANKS = (
     ('058', 'Guaranty Trust Bank'),
     ('057', 'Zenith Bank'),
     ('011', 'First Bank of Nigeria'),
+    ('221', 'Stanbic IBTC Bank'),
     ('033', 'United Bank For Africa'),
     ('214', 'First City Monument Bank'),
     ('232', 'Sterling Bank'),

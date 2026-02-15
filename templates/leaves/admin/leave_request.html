@@ -1,55 +1,98 @@
 {% extends "base.html" %}
+{% block extra_css %}
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 30px;
+        box-shadow: 0 10px 40px rgba(31, 38, 135, 0.07);
+        padding: 2.5rem;
+    }
+
+    .form-label {
+        font-weight: 700;
+        color: var(--dark);
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control,
+    .form-select {
+        background: rgba(255, 255, 255, 0.5);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 15px;
+        padding: 0.75rem 1.25rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        background: white;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
+<div class="container-fluid py-4 py-md-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="d-flex align-items-center mb-4">
+                <a href="{% url 'leaves:admin_dashboard' %}" class="btn btn-light rounded-circle p-2 me-3 shadow-sm">
+                    <i class="bi bi-arrow-left fs-5"></i>
+                </a>
+                <h3 class="fw-bold mb-0">Request Leave (Admin)</h3>
+            </div>
 
-<div class="container">
-  <h3 class="mb-4">Request Leave</h3>
+            <div class="glass-card shadow-sm border p-3 p-md-4">
+                <form method="post">
+                    {% csrf_token %}
 
-  <form method="post" class="card p-4 shadow-sm">
-    {% csrf_token %}
+                    <div class="mb-4">
+                        <label class="form-label">Leave Type</label>
+                        <select name="leave_type" class="form-select" required>
+                            <option value="">-- Select leave type --</option>
+                            {% for t in types %}
+                            <option value="{{ t.id }}">
+                                {{ t.name }} {% if not t.is_paid %}(Unpaid){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
-    <div class="mb-3">
-      <label class="form-label">Leave Type</label>
-      <select name="leave_type" class="form-select" required>
-        <option value="">-- Select leave type --</option>
-        {% for t in types %}
-          <option value="{{ t.id }}">
-            {{ t.name }} {% if not t.is_paid %}(Unpaid){% endif %}
-          </option>
-        {% endfor %}
-      </select>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" name="start_date" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">End Date</label>
+                            <input type="date" name="end_date" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Reason</label>
+                        <textarea name="reason" rows="4" class="form-control"
+                            placeholder="Explain the reason for your leave" required></textarea>
+                    </div>
+
+                    <div class="d-flex flex-column flex-md-row justify-content-end gap-2 mt-4">
+                        <a href="{% url 'leaves:admin_dashboard' %}" class="btn btn-light rounded-pill px-4 order-2 order-md-1">
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary rounded-pill px-4 order-1 order-md-2 shadow-sm">
+                            <i class="bi bi-send me-1"></i>Submit Request
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
-
-    <div class="row mb-3">
-      <div class="col">
-        <label class="form-label">Start Date</label>
-        <input type="date" name="start_date" class="form-control" required>
-      </div>
-      <div class="col">
-        <label class="form-label">End Date</label>
-        <input type="date" name="end_date" class="form-control" required>
-      </div>
-    </div>
-
-    <div class="mb-3">
-      <label class="form-label">Reason</label>
-      <textarea
-        name="reason"
-        rows="4"
-        class="form-control"
-        placeholder="Explain the reason for your leave"
-        required
-      ></textarea>
-    </div>
-
-    <div class="d-flex justify-content-between">
-      <a href="{% url 'leave:staff_dashboard' %}" class="btn btn-secondary">
-        Cancel
-      </a>
-      <button type="submit" class="btn btn-primary">
-        Submit Request
-      </button>
-    </div>
-  </form>
 </div>
-
 {% endblock %}

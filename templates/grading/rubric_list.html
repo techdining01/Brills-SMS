@@ -17,8 +17,8 @@
     </div>
 
     <div class="card">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
+        <div class="table-responsive p-0">
+            <table class="table table-hover table-responsive-stack mb-0">
                 <thead class="table-light">
                     <tr>
                         <th>Rubric Name</th>
@@ -32,17 +32,17 @@
                     {% if rubrics %}
                         {% for rubric in rubrics %}
                         <tr>
-                            <td><strong>{{ rubric.name }}</strong></td>
-                            <td>{{ rubric.total_points }}</td>
-                            <td><span class="badge bg-info">{{ rubric.criteria.count }}</span></td>
-                            <td>
+                            <td data-label="Rubric Name"><strong>{{ rubric.name }}</strong></td>
+                            <td data-label="Total Points">{{ rubric.total_points }}</td>
+                            <td data-label="Criteria"><span class="badge bg-info">{{ rubric.criteria.count }}</span></td>
+                            <td data-label="Status">
                                 {% if rubric.is_published %}
                                     <span class="badge bg-success">Published</span>
                                 {% else %}
                                     <span class="badge bg-warning">Draft</span>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td data-label="Actions">
                                 <a href="{% url 'dashboards:rubric_detail' rubric.id %}" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-eye"></i>
                                 </a>

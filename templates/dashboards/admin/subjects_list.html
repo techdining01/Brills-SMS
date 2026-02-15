@@ -19,8 +19,8 @@
             </a>
         </div>
         <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle">
+            <div class="table-responsive p-0">
+                <table class="table table-hover align-middle table-responsive-stack">
                     <thead class="table-light">
                         <tr>
                             <th>Name</th>
@@ -33,28 +33,28 @@
                     <tbody>
                         {% for subject in subjects %}
                         <tr>
-                            <td>
+                            <td data-label="Name">
                                 <strong>{{ subject.name }}</strong>
                                 {% if subject.description %}
                                 <div class="small text-muted">{{ subject.description|truncatechars:50 }}</div>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td data-label="Classes">
                                 {% for school_class in subject.classes.all %}
                                 <span class="badge bg-secondary me-1">{{ school_class.name }}</span>
                                 {% empty %}
                                 <span class="text-muted">No classes assigned</span>
                                 {% endfor %}
                             </td>
-                            <td>{{ subject.department|default:"-" }}</td>
-                            <td>
+                            <td data-label="Department">{{ subject.department|default:"-" }}</td>
+                            <td data-label="Status">
                                 {% if subject.is_active %}
                                 <span class="badge bg-success">Active</span>
                                 {% else %}
                                 <span class="badge bg-danger">Inactive</span>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td data-label="Actions">
                                 <a href="{% url 'dashboards:admin_edit_subject' subject.id %}" class="btn btn-sm btn-outline-primary me-1">
                                     <i class="bi bi-pencil"></i>
                                 </a>

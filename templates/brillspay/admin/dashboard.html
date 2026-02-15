@@ -22,60 +22,65 @@
 {% block content %}
 <div class="container py-4">
 
-  <nav class="navbar navbar-expand-lg navbar-light bg-light">
-    <ul class="navbar-nav me-auto">
-      <l1 nav-item><a href="{% url 'brillspay:admin_payment_list' %}" class="nav-link">Payments</l1></a>
-      <l1 nav-item><a href="{% url 'brillspay:admin_add_product' %}" class="nav-link">Products</l1></a>
-      <l1 nav-item><a href="{% url 'brillspay:admin_order_list' %}" class="nav-link">Orders</l1></a>
-      <l1 nav-item><a href="{% url 'brillspay:admin_access_list' %}" class="nav-link">Access List</l1></a>
-      <l1 nav-item><a href="{% url 'brillspay:admin_transaction_logs' %}" class="nav-link">Transactions</l1></a>
-      <l1 nav-item><a href="{% url 'brillspay:admin_analytics' %}" class="nav-link">Analytics</l1></a>
-    </ul>
+  <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4 rounded shadow-sm">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNav" aria-controls="adminNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="adminNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item"><a href="{% url 'brillspay:admin_payment_list' %}" class="nav-link">Payments</a></li>
+          <li class="nav-item"><a href="{% url 'brillspay:admin_add_product' %}" class="nav-link">Products</a></li>
+          <li class="nav-item"><a href="{% url 'brillspay:admin_order_list' %}" class="nav-link">Orders</a></li>
+          <li class="nav-item"><a href="{% url 'brillspay:admin_access_list' %}" class="nav-link">Access List</a></li>
+          <li class="nav-item"><a href="{% url 'brillspay:admin_transaction_logs' %}" class="nav-link">Transactions</a></li>
+          <li class="nav-item"><a href="{% url 'brillspay:admin_analytics' %}" class="nav-link">Analytics</a></li>
+        </ul>
+      </div>
+    </div>
   </nav>
-  <div class="d-flex justify-content-between aligh-item-center">
-      <h3 class="fw-bold mb-4">BrillsPay Overview</h3>
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+      <h3 class="fw-bold mb-0">BrillsPay Overview</h3>
       <button class="back-btn btn btn-outline-primary" onclick="safeBack()">
           ← Back
       </button>
     </div>
- 
-<br>
 
   <!-- KPI CARDS -->
-  <div class="row g-4 mb-4">
+  <div class="row g-3 mb-4">
 
-    <div class="col-md-3">
-      <div class="card shadow-sm animate fade-in">
-        <div class="card-body text-center">
-          <h6>Total Revenue</h6>
-          <h3>₦{{ total_sales|floatformat:2 }}</h3>
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm h-100 animate fade-in">
+        <div class="card-body text-center p-3">
+          <h6 class="text-muted small mb-2">Total Revenue</h6>
+          <h4 class="fw-bold mb-0">₦{{ total_sales|floatformat:0|intcomma }}</h4>
         </div>
       </div>
     </div>
 
-    <div class="col-md-3">
-      <div class="card shadow-sm animate fade-in delay-1">
-        <div class="card-body text-center">
-          <h6>Total Orders</h6>
-          <h3>{{ total_orders }}</h3>
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm h-100 animate fade-in delay-1">
+        <div class="card-body text-center p-3">
+          <h6 class="text-muted small mb-2">Total Orders</h6>
+          <h4 class="fw-bold mb-0">{{ total_orders }}</h4>
         </div>
       </div>
     </div>
 
-    <div class="col-md-3">
-      <div class="card shadow-sm animate fade-in delay-2">
-        <div class="card-body text-center">
-          <h6>Transactions</h6>
-          <h3>{{ total_transactions }}</h3>
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm h-100 animate fade-in delay-2">
+        <div class="card-body text-center p-3">
+          <h6 class="text-muted small mb-2">Transactions</h6>
+          <h4 class="fw-bold mb-0">{{ total_transactions }}</h4>
         </div>
       </div>
     </div>
 
-    <div class="col-md-3">
-      <div class="card shadow-sm animate fade-in delay-3">
-        <div class="card-body text-center">
-          <h6>Products</h6>
-          <h3>{{ total_products }}</h3>
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm h-100 animate fade-in delay-3">
+        <div class="card-body text-center p-3">
+          <h6 class="text-muted small mb-2">Products</h6>
+          <h4 class="fw-bold mb-0">{{ total_products }}</h4>
         </div>
       </div>
     </div>
@@ -85,8 +90,8 @@
   <!-- RECENT ORDERS -->
   <div class="card shadow-sm">
   <div class="card-header fw-bold">Recent Orders</div>
-  <div class="card-body table-responsive">
-    <table class="table table-striped table-hover align-middle">
+  <div class="card-body table-responsive p-0">
+    <table class="table table-striped table-hover align-middle mb-0 table-responsive-stack">
       <thead>
         <tr>
           <th>#</th>
@@ -100,15 +105,15 @@
       <tbody>
         {% for o in recent_orders %}
         <tr>
-          <td>{{ o.reference }}</td>
-          <td>{{ o.created_at }}</td>
-          <td>{{ o.buyer.get_full_name }}</td>
-          <td>{{ o.ward.get_full_name }}</td>
-          <td>₦{{ o.total_amount }}</td>
-          <td>{{ o.status }}</td>
+          <td data-label="#">{{ o.reference }}</td>
+          <td data-label="Time">{{ o.created_at|date:"M d, H:i" }}</td>
+          <td data-label="Parent">{{ o.buyer.get_full_name }}</td>
+          <td data-label="Ward">{{ o.ward.get_full_name }}</td>
+          <td data-label="Total">₦{{ o.total_amount }}</td>
+          <td data-label="Status">{{ o.status }}</td>
         </tr>
         {% empty %}
-        <tr><td colspan="5" class="text-center">No orders yet</td></tr>
+        <tr><td colspan="6" class="text-center py-4">No orders yet</td></tr>
         {% endfor %}
       </tbody>
     </table>

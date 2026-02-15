@@ -57,66 +57,6 @@
         border-bottom: 1px solid rgba(0, 0, 0, 0.03);
     }
 
-    /* Mobile Table to Card Layout */
-    @media (max-width: 768px) {
-        .detail-table thead {
-            display: none;
-        }
-        
-        .detail-table, .detail-table tbody, .detail-table tr, .detail-table td {
-            display: block;
-            width: 100%;
-        }
-        
-        .detail-table tr {
-            margin-bottom: 1.5rem;
-            border: 1px solid rgba(0,0,0,0.05);
-            border-radius: 12px;
-            padding: 10px;
-            background: white;
-        }
-        
-        .detail-table td {
-            text-align: right;
-            padding: 8px 15px;
-            border-bottom: 1px solid rgba(0,0,0,0.02);
-            position: relative;
-        }
-        
-        .detail-table td::before {
-            content: attr(data-label);
-            position: absolute;
-            left: 15px;
-            width: 50%;
-            text-align: left;
-            font-weight: 700;
-            text-transform: uppercase;
-            font-size: 0.65rem;
-            color: #64748b;
-        }
-
-        .detail-table td:last-child {
-            border-bottom: none;
-            text-align: center;
-            padding-top: 15px;
-        }
-        
-        .detail-table td:last-child::before {
-            display: none;
-        }
-
-        .detail-table td:first-child {
-            text-align: left;
-            background: #f8fafc;
-            border-radius: 8px;
-            margin-bottom: 10px;
-        }
-        
-        .detail-table td:first-child::before {
-            display: none;
-        }
-    }
-
     .status-badge {
         padding: 0.35rem 0.75rem;
         border-radius: 50px;
@@ -207,30 +147,79 @@
         </div>
     </div>
 
-    <div class="glass-card shadow-sm">
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-4">
+            <div class="glass-card shadow-sm border">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small">Total Gross Pay</div>
+                        <div class="h5 fw-bold mb-0">₦{{ totals.gross|default_if_none:"0"|intcomma }}</div>
+                    </div>
+                    <div class="bg-primary bg-opacity-10 text-primary p-2 rounded-3">
+                        <i class="bi bi-cash-coin"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="glass-card shadow-sm border">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small">Total Deductions</div>
+                        <div class="h5 fw-bold mb-0 text-danger">-₦{{ totals.deductions|default_if_none:"0"|intcomma }}</div>
+                    </div>
+                    <div class="bg-danger bg-opacity-10 text-danger p-2 rounded-3">
+                        <i class="bi bi-dash-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="glass-card shadow-sm border">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small">Total Net Pay</div>
+                        <div class="h5 fw-bold mb-0 text-success">₦{{ totals.net|default_if_none:"0"|intcomma }}</div>
+                    </div>
+                    <div class="bg-success bg-opacity-10 text-success p-2 rounded-3">
+                        <i class="bi bi-wallet2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-card shadow-sm border p-0 overflow-hidden" data-aos="fade-up">
         <div class="table-responsive">
-            <table class="table detail-table table-hover border-0">
+            <table class="table detail-table table-hover align-middle mb-0 table-responsive-stack">
                 <thead>
                     <tr>
-                        <th class="border-0">Staff Member</th>
-                        <th class="border-0">Gross Pay</th>
-                        <th class="border-0">Deductions</th>
-                        <th class="border-0 text-primary">Net Payable</th>
-                        <th class="border-0">Status</th>
-                        <th class="border-0 text-end">Action</th>
+                        <th class="ps-4">Staff Member</th>
+                        <th>Gross Pay</th>
+                        <th>Deductions</th>
+                        <th class="text-primary">Net Payable</th>
+                        <th>Status</th>
+                        <th class="text-end pe-4">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for record in records %}
                     <tr>
-                        <td data-label="Staff Member">
-                            <div class="fw-bold text-dark">{{ record.payee.user.get_full_name }}</div>
-                            <small class="text-muted">{{ record.payee.get_payee_type_display }}</small>
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="bg-primary bg-opacity-10 p-2 rounded-circle text-primary">
+                                    <i class="bi bi-person"></i>
+                                </div>
+                                <div class="text-start">
+                                    <h6 class="fw-bold text-dark mb-0">{{ record.payee.user.get_full_name }}</h6>
+                                    <small class="text-muted">{{ record.payee.get_payee_type_display }}</small>
+                                </div>
+                            </div>
                         </td>
-                        <td data-label="Gross Pay">₦{{ record.gross_pay|default_if_none:"0.00"|intcomma }}</td>
-                        <td data-label="Deductions"><span class="text-danger">-₦{{ record.total_deductions|default_if_none:"0.00"|intcomma}}</span></td>
-                        <td data-label="Net Payable"><span class="fw-bold text-success">₦{{ record.net_pay|default_if_none:"0.00"|intcomma}}</span></td>
-                        <td data-label="Status">
+                        <td>₦{{ record.gross_pay|default_if_none:"0.00"|intcomma }}</td>
+                        <td><span class="text-danger">-₦{{ record.total_deductions|default_if_none:"0.00"|intcomma}}</span></td>
+                        <td><span class="fw-bold text-success">₦{{ record.net_pay|default_if_none:"0.00"|intcomma}}</span></td>
+                        <td>
                             {% if record.is_paid %}
                             <span class="status-badge bg-success-subtle text-success"><i
                                     class="bi bi-check2-circle me-1"></i> Paid</span>

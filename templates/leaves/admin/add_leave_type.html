@@ -1,22 +1,82 @@
 {% extends "base.html" %}
+{% block extra_css %}
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 30px;
+        box-shadow: 0 10px 40px rgba(31, 38, 135, 0.07);
+        padding: 2.5rem;
+    }
+
+    .form-label {
+        font-weight: 700;
+        color: var(--dark);
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control,
+    .form-select {
+        background: rgba(255, 255, 255, 0.5);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 15px;
+        padding: 0.75rem 1.25rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        background: white;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
+<div class="container-fluid py-4 py-md-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-md-8">
+            <div class="d-flex align-items-center mb-4">
+                <a href="{% url 'leaves:admin_dashboard' %}" class="btn btn-light rounded-circle p-2 me-3 shadow-sm">
+                    <i class="bi bi-arrow-left fs-5"></i>
+                </a>
+                <h3 class="fw-bold mb-0">Add Leave Type</h3>
+            </div>
 
-<div class="container ">
-  <h3 class="mb-4">Add Leave Type</h3>
+            <div class="glass-card shadow-sm border p-3 p-md-4">
+                <form method="post">
+                    {% csrf_token %}
 
-  <form method="post" class="card p-4 shadow-sm">
-    {% csrf_token %}
+                    {% for field in form %}
+                    <div class="mb-4">
+                        <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}
+                        <div class="form-text small">{{ field.help_text }}</div>
+                        {% endif %}
+                        {% if field.errors %}
+                        <div class="text-danger small mt-1">{{ field.errors }}</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
 
-    {{ form.as_p }}
-    <div class="d-flex justify-content-between">
-      <a href="{% url 'leaves:admin_dashboard' %}" class="btn btn-secondary">
-        Cancel
-      </a>
-      <button type="submit" class="btn btn-primary">
-        Create Leave Type
-      </button>
+                    <div class="d-flex flex-column flex-md-row justify-content-end gap-2 mt-4">
+                        <a href="{% url 'leaves:admin_dashboard' %}" class="btn btn-light rounded-pill px-4 order-2 order-md-1">
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary rounded-pill px-4 order-1 order-md-2 shadow-sm">
+                            <i class="bi bi-plus-circle me-1"></i>Create Leave Type
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
-  </form>
 </div>
-
 {% endblock %}

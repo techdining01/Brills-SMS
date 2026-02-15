@@ -67,9 +67,9 @@
 {% endblock %}
 
 {% block content %}
-<div class="container py-4 gsap-hero">
+<div class="container-fluid py-4 gsap-hero">
     <!-- Breadcrumb & Actions -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb mb-0">
                 <li class="breadcrumb-item"><a href="{% url 'loans:admin_loan_dashboard' %}"
@@ -77,16 +77,16 @@
                 <li class="breadcrumb-item active" aria-current="page">Loan Details</li>
             </ol>
         </nav>
-        <div class="d-flex gap-2">
-            <a href="{% url 'loans:admin_loan_dashboard' %}" class="btn btn-light rounded-pill px-4 border">
-                <i class="fas fa-arrow-left me-2"></i>Back to List
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'loans:admin_loan_dashboard' %}" class="btn btn-light rounded-pill px-4 border btn-sm py-2">
+                <i class="fas fa-arrow-left me-1"></i>Back
             </a>
             {% if loan.status == "pending" %}
-            <a href="{% url 'loans:approve_loan' loan.id %}" class="btn btn-success rounded-pill px-4 shadow-sm">
-                <i class="fas fa-check-circle me-2"></i>Approve Application
+            <a href="{% url 'loans:approve_loan' loan.id %}" class="btn btn-success rounded-pill px-4 shadow-sm btn-sm py-2">
+                <i class="fas fa-check-circle me-1"></i>Approve
             </a>
-            <a href="{% url 'loans:reject_loan' loan.id %}" class="btn btn-danger rounded-pill px-4 shadow-sm">
-                <i class="fas fa-times-circle me-2"></i>Reject Application
+            <a href="{% url 'loans:reject_loan' loan.id %}" class="btn btn-danger rounded-pill px-4 shadow-sm btn-sm py-2">
+                <i class="fas fa-times-circle me-1"></i>Reject
             </a>
             {% endif %}
         </div>
@@ -95,121 +95,129 @@
     <div class="row g-4 mb-5">
         <!-- Applicant Info -->
         <div class="col-lg-8">
-            <div class="glass-card p-4">
-                <div class="d-flex align-items-center mb-4 border-bottom pb-4">
-                    <div class="avatar-lg rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-4"
-                        style="width: 70px; height: 70px; font-size: 1.5rem;">
+            <div class="glass-card p-3 p-md-4 border">
+                <div class="d-flex flex-column flex-sm-row align-items-sm-center mb-4 border-bottom pb-4">
+                    <div class="avatar-lg rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-sm-4 mb-3 mb-sm-0 shadow-sm"
+                        style="width: 64px; height: 64px; font-size: 1.5rem;">
                         {{ loan.payee.user.username|first|upper }}
                     </div>
-                    <div>
-                        <h3 class="fw-bold mb-1">{{ loan.payee.user.get_full_name }}</h3>
-                        <p class="text-muted mb-0"><i class="fas fa-envelope me-2"></i>{{ loan.payee.user.email }}</p>
-                    </div>
-                    <div class="ms-auto text-end">
-                        <span class="status-badge badge-{{ loan.status }}">
-                            {{ loan.status }}
-                        </span>
+                    <div class="flex-grow-1">
+                        <h2 class="h4 fw-bold text-dark mb-1">{{ loan.payee.user.get_full_name }}</h2>
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <span class="text-muted small"><i class="fas fa-envelope me-1"></i>{{ loan.payee.user.email }}</span>
+                            <span class="status-badge badge-{{ loan.status }} py-1 px-3 small">
+                                {{ loan.status|upper }}
+                            </span>
+                        </div>
                     </div>
                 </div>
 
                 <div class="row g-4">
-                    <div class="col-md-4">
-                        <p class="detail-label">Loan Type</p>
-                        <p class="detail-value text-capitalize">{{ loan.loan_type }}</p>
+                    <div class="col-6 col-md-4">
+                        <div class="detail-label">Loan Type</div>
+                        <div class="detail-value text-capitalize">{{ loan.loan_type }}</div>
                     </div>
-                    <div class="col-md-4">
-                        <p class="detail-label">Total Amount</p>
-                        <p class="detail-value text-primary">₦{{ loan.loan_amount|intcomma }}</p>
+                    <div class="col-6 col-md-4">
+                        <div class="detail-label">Total Amount</div>
+                        <div class="detail-value text-primary">₦{{ loan.loan_amount|intcomma }}</div>
                     </div>
-                    <div class="col-md-4">
-                        <p class="detail-label">Monthly Deduction</p>
-                        <p class="detail-value">₦{{ loan.monthly_deduction|intcomma }}</p>
+                    <div class="col-6 col-md-4">
+                        <div class="detail-label">Monthly Deduction</div>
+                        <div class="detail-value">₦{{ loan.monthly_deduction|intcomma }}</div>
                     </div>
-                    <div class="col-md-4">
-                        <p class="detail-label">Outstanding Balance</p>
-                        <p class="detail-value text-danger">₦{{ loan.outstanding_balance|intcomma }}</p>
+                    <div class="col-6 col-md-4">
+                        <div class="detail-label">Outstanding</div>
+                        <div class="detail-value text-danger">₦{{ loan.outstanding_balance|intcomma }}</div>
                     </div>
-                    <div class="col-md-4">
-                        <p class="detail-label">Application Date</p>
-                        <p class="detail-value">{{ loan.applied_at|date:"M d, Y" }}</p>
+                    <div class="col-6 col-md-4">
+                        <div class="detail-label">Applied Date</div>
+                        <div class="detail-value" style="font-size: 0.9rem;">{{ loan.applied_at|date:"M d, Y" }}</div>
                     </div>
-                    <div class="col-md-4">
-                        <p class="detail-label">Tenure</p>
-                        <p class="detail-value">{{ loan.tenure_months }} Months</p>
+                    <div class="col-6 col-md-4">
+                        <div class="detail-label">Tenure</div>
+                        <div class="detail-value">{{ loan.tenure_months }} Months</div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Sidebar Info -->
+        <!-- Summary Stats -->
         <div class="col-lg-4">
-            <div class="glass-card p-4" style="animation-delay: 0.1s">
-                <h5 class="fw-bold mb-4">Repayment Statistics</h5>
-                <div class="mb-4">
-                    <label class="small fw-bold text-muted mb-2 d-flex justify-content-between">
-                        Overall Progress <span>{{ loan.progress }}%</span>
-                    </label>
-                    <div class="progress" style="height: 12px; border-radius: 50px;">
-                        <div class="progress-bar bg-success progress-bar-striped progress-bar-animated"
-                            role="progressbar" style="width:{{ loan.progress }}%"></div>
-                    </div>
+            <div class="glass-card p-4 border h-100">
+                <h3 class="h5 fw-bold text-dark mb-4">Repayment Progress</h3>
+                
+                <div class="text-center mb-4">
+                    <div class="display-4 fw-bold text-primary mb-1">{{ loan.progress }}%</div>
+                    <div class="text-muted small text-uppercase fw-bold">Amount Recovered</div>
                 </div>
 
-                <div class="list-group list-group-flush">
-                    <div class="list-group-item bg-transparent px-0 d-flex justify-content-between">
-                        <span class="text-muted small">Total Paid</span>
-                        <span class="fw-bold">₦{{ total_paid|intcomma }}</span>
-                    </div>
-                    <div class="list-group-item bg-transparent px-0 d-flex justify-content-between">
-                        <span class="text-muted small">Next Repayment</span>
-                        <span class="fw-bold">{{ loan.applied_at|date:"M Y" }}</span>
-                    </div>
+                <div class="progress mb-4" style="height: 12px; border-radius: 10px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                         role="progressbar" 
+                         style="width: {{ loan.progress }}%" 
+                         aria-valuenow="{{ loan.progress }}" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100"></div>
                 </div>
+
+                <ul class="list-group list-group-flush small">
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0 bg-transparent">
+                        <span class="text-muted">Total Paid</span>
+                        <span class="fw-bold text-success">₦{{ total_paid|intcomma }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0 bg-transparent">
+                        <span class="text-muted">Next Repayment</span>
+                        <span class="fw-bold text-dark">{{ loan.applied_at|date:"M Y" }}</span>
+                    </li>
+                </ul>
             </div>
         </div>
     </div>
 
     <!-- Repayment History -->
-    <div class="repayment-card" style="animation-delay: 0.2s">
-        <div class="card-header bg-white p-4 border-0">
-            <h5 class="fw-bold mb-0">Repayment History</h5>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="bg-light">
-                    <tr>
-                        <th class="ps-4">Amount Paid</th>
-                        <th>Balance After</th>
-                        <th>Payroll Period</th>
-                        <th class="pe-4 text-end">Transaction Date</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for r in repayments %}
-                    <tr>
-                        <td class="ps-4 fw-bold text-success">₦{{ r.amount_paid|intcomma }}</td>
-                        <td class="fw-bold">₦{{ r.balance_after|intcomma }}</td>
-                        <td>
-                            {% if r.payroll_record %}
-                            {{ r.payroll_record.payroll_period }}
-                            {% else %}
-                            <span class="text-muted italic">Manual Entry</span>
-                            {% endif %}
-                        </td>
-                        <td class="pe-4 text-end text-muted">
-                            {{ r.created_at|date:"M d, Y H:i" }}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="4" class="text-center py-5 text-muted">
-                            <i class="fas fa-history fa-2x mb-3 opacity-25"></i>
-                            <p>No repayments have been recorded yet.</p>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <div class="mb-5">
+        <h3 class="h4 fw-bold text-dark mb-4">Repayment History</h3>
+        <div class="glass-card shadow-sm border p-3 p-md-4">
+            <!-- Unified Responsive Table -->
+            <div class="table-responsive">
+                <table class="table table-hover align-middle table-responsive-stack">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="border-0 px-4 py-3 small text-uppercase">Amount Paid</th>
+                            <th class="border-0 py-3 small text-uppercase">Balance After</th>
+                            <th class="border-0 py-3 small text-uppercase">Payroll Period</th>
+                            <th class="border-0 py-3 small text-uppercase text-end pe-4">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in repayments %}
+                        <tr>
+                            <td data-label="Amount Paid" class="px-4 fw-bold text-success">₦{{ r.amount_paid|intcomma }}</td>
+                            <td data-label="Balance After" class="fw-bold">₦{{ r.balance_after|intcomma }}</td>
+                            <td data-label="Payroll Period">
+                                {% if r.payroll_record %}
+                                {{ r.payroll_record.payroll_period }}
+                                {% else %}
+                                <span class="text-muted small">Manual Entry</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Date" class="text-end pe-4 text-muted small">
+                                {{ r.created_at|date:"M d, Y H:i" }}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center py-5 text-muted">
+                                <i class="fas fa-history fa-2x mb-3 opacity-25 d-block"></i>
+                                No repayments have been recorded yet.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Mobile View Removed - Replaced by Responsive Stack Table -->
         </div>
     </div>
 </div>

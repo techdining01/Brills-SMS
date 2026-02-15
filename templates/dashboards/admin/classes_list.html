@@ -19,7 +19,7 @@
     {% if classes %}
     <div class="card">
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table class="table table-hover mb-0 table-responsive-stack">
                 <thead class="table-light">
                     <tr>
                         <th>Class Name</th>
@@ -32,13 +32,13 @@
                 <tbody>
                     {% for class in classes %}
                     <tr>
-                        <td><strong>{{ class.name }}</strong></td>
-                        <td><span class="badge bg-info">{{ class.students.count }}</span></td>
-                        <td><span class="badge bg-secondary">{{ class.class_exam.count }}</span></td>
-                        <td>
+                        <td data-label="Class Name"><strong>{{ class.name }}</strong></td>
+                        <td data-label="Students"><span class="badge bg-info">{{ class.students.count }}</span></td>
+                        <td data-label="Exams"><span class="badge bg-secondary">{{ class.class_exam.count }}</span></td>
+                        <td data-label="Status">
                             <span class="badge bg-success">Active</span>
                         </td>
-                        <td>
+                        <td data-label="Actions">
                             <a href="{% url 'dashboards:admin_edit_class' class.id %}" class="btn btn-sm btn-outline-secondary" title="Edit">
                                 <i class="bi bi-pencil"></i>
                             </a>

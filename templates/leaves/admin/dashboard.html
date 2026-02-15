@@ -60,20 +60,20 @@
 {% endblock %}
 
 {% block content %}
-<div class="container py-5">
-  <div class="d-flex justify-content-between align-items-center mb-5">
+<div class="container-fluid py-4">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
     <div>
       <h1 class="h2 fw-bold text-dark mb-1">Management Overview</h1>
-      <p class="text-muted small">Pending approvals for Payroll, Loans, and Leaves</p>
+      <p class="text-muted small mb-0">Pending approvals for Payroll, Loans, and Leaves</p>
     </div>
 
-    <div>
-      <a href="{% url 'leaves:add_leave_type' %}" class="btn btn-primary rounded-pill px-4 shadow">
-        <i class="bi bi-calendar3 me-2"></i>Add Leave Type
+    <div class="d-flex gap-2">
+      <a href="{% url 'leaves:add_leave_type' %}" class="btn btn-primary rounded-pill px-3 shadow-sm btn-sm flex-grow-1 flex-md-grow-0">
+        <i class="bi bi-plus-circle me-1"></i>Type
       </a>
 
-      <a href="{% url 'leaves:leave_calendar' %}" class="btn btn-primary rounded-pill px-4 shadow">
-        <i class="bi bi-calendar3 me-2"></i>Full Calendar
+      <a href="{% url 'leaves:leave_calendar' %}" class="btn btn-outline-primary rounded-pill px-3 shadow-sm btn-sm flex-grow-1 flex-md-grow-0">
+        <i class="bi bi-calendar3 me-1"></i>Calendar
       </a>
     </div>
   </div>
@@ -81,12 +81,13 @@
   <div class="row g-4 mb-5">
     <!-- Payroll Section -->
     <div class="col-lg-12" data-aos="fade-up">
-      <div class="section-header">
+      <div class="section-header mb-3">
         <h3 class="h5 fw-bold text-dark mb-0">Pending Payroll Periods</h3>
       </div>
-      <div class="glass-card">
+      <div class="glass-card p-3 p-md-4">
+        <!-- Unified Responsive Table -->
         <div class="table-responsive">
-          <table class="table table-premium align-middle mb-0">
+          <table class="table table-premium align-middle mb-0 table-responsive-stack">
             <thead>
               <tr>
                 <th>Period</th>
@@ -97,12 +98,12 @@
             <tbody>
               {% for p in pending_periods %}
               <tr>
-                <td>
+                <td data-label="Period">
                   <div class="fw-bold text-dark">{{ p.month|date:"F" }} {{ p.year }}</div>
                   <small class="text-muted">Generated on {{ p.created_at|date:"M d, Y" }}</small>
                 </td>
-                <td><span class="badge-status bg-info-subtle text-info">Awaiting Approval</span></td>
-                <td class="text-end">
+                <td data-label="Status"><span class="badge-status bg-info-subtle text-info">Awaiting Approval</span></td>
+                <td data-label="Action" class="text-end">
                   <a href="{% url 'payroll:payroll_detail' p.id %}"
                     class="btn btn-sm btn-dark rounded-pill px-4">Review</a>
                 </td>
@@ -115,17 +116,20 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Mobile Cards Removed - Replaced by Responsive Stack Table -->
       </div>
     </div>
 
     <!-- Loans Section -->
     <div class="col-lg-6" data-aos="fade-up" data-aos-delay="100">
-      <div class="section-header">
+      <div class="section-header mb-3">
         <h3 class="h5 fw-bold text-dark mb-0">Loan Requests</h3>
       </div>
-      <div class="glass-card">
+      <div class="glass-card p-3 p-md-4">
+        <!-- Unified Responsive Table -->
         <div class="table-responsive">
-          <table class="table table-premium align-middle mb-0">
+          <table class="table table-premium align-middle mb-0 table-responsive-stack">
             <thead>
               <tr>
                 <th>Staff</th>
@@ -136,12 +140,12 @@
             <tbody>
               {% for loan in pending_loans %}
               <tr>
-                <td>
+                <td data-label="Staff">
                   <div class="fw-bold text-dark">{{ loan.payee.user.get_full_name }}</div>
                   <small class="text-muted">{{ loan.created_at|date:"M d" }}</small>
                 </td>
-                <td><span class="fw-bold text-primary">₦{{ loan.loan_amount|intcomma }}</span></td>
-                <td class="text-end">
+                <td data-label="Amount"><span class="fw-bold text-primary">₦{{ loan.loan_amount|intcomma }}</span></td>
+                <td data-label="Action" class="text-end">
                   <a href="{% url 'loans:admin_loan_detail' loan.id %}" class="btn btn-sm btn-outline-primary rounded-pill px-3">View</a>
                 </td>
               </tr>
@@ -153,17 +157,20 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Mobile Cards Removed - Replaced by Responsive Stack Table -->
       </div>
     </div>
 
     <!-- Leaves Section -->
     <div class="col-lg-6" data-aos="fade-up" data-aos-delay="200">
-      <div class="section-header">
+      <div class="section-header mb-3">
         <h3 class="h5 fw-bold text-dark mb-0">Leave Applications</h3>
       </div>
-      <div class="glass-card">
+      <div class="glass-card p-3 p-md-4">
+        <!-- Unified Responsive Table -->
         <div class="table-responsive">
-          <table class="table table-premium align-middle mb-0">
+          <table class="table table-premium align-middle mb-0 table-responsive-stack">
             <thead>
               <tr>
                 <th>Staff</th>
@@ -174,16 +181,16 @@
             <tbody>
               {% for leave in pending_leaves %}
               <tr>
-                <td>
+                <td data-label="Staff">
                   <div class="fw-bold text-dark">{{ leave.payee.user.get_full_name }}</div>
                   <small class="text-muted">{{ leave.leave_type.name }}</small>
                 </td>
-                <td>
+                <td data-label="Dates">
                   <small class="text-dark d-block fw-medium">{{ leave.start_date|date:"M d" }} —
                     {{leave.end_date|date:"M d" }}</small>
                   <small class="text-primary fw-bold">{{ leave.duration }}d</small>
                 </td>
-                <td class="text-end">
+                <td data-label="Action" class="text-end">
                   <div class="d-flex justify-content-end gap-2">
                     <a href="{% url 'leaves:approve_leave' leave.id %}"
                       class="action-btn bg-success-subtle text-success" title="Approve">
@@ -204,6 +211,8 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Mobile Cards Removed - Replaced by Responsive Stack Table -->
       </div>
     </div>
   </div>

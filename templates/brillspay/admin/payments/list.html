@@ -4,8 +4,8 @@
     <h4>Payments</h4>
 
     <div class="card shadow-sm">
-        <div class="card-body table-responsive">
-            <table class="table table-striped table-hover align-middle">
+        <div class="card-body table-responsive p-0">
+            <table class="table table-striped table-hover align-middle table-responsive-stack mb-0">
                 <thead>
                     <tr>
                         <th>Ref</th><th>Order</th><th>Amount</th><th>Status</th><th>Date</th>
@@ -14,11 +14,11 @@
                 <tbody>
                     {% for tx in transactions %}
                     <tr>
-                        <td>{{ tx.gateway_reference }}</td>
-                        <td>#{{ tx.order.id }}</td>
-                        <td>₦{{ tx.amount }}</td>
-                        <td>{{ tx.status }}</td>
-                        <td>{{ tx.created_at }}</td>
+                        <td data-label="Ref">{{ tx.gateway_reference }}</td>
+                        <td data-label="Order">#{{ tx.order.id }}</td>
+                        <td data-label="Amount">₦{{ tx.amount }}</td>
+                        <td data-label="Status">{{ tx.status }}</td>
+                        <td data-label="Date">{{ tx.created_at|date:"M d, Y" }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
