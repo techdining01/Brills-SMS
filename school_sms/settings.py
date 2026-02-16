@@ -116,8 +116,8 @@ TEMPLATES = [
 ]
 
 
-WSGI_APPLICATION = 'school_sms.wsgi.application'
 ASGI_APPLICATION = 'school_sms.asgi.application'
+WSGI_APPLICATION = 'school_sms.wsgi.application'
 
 # Channels Configuration
 CHANNEL_LAYERS = {
