@@ -206,6 +206,7 @@
                 right: 1rem;
                 max-height: 85vh;
                 overflow-y: auto;
+                overflow-x: hidden;
                 z-index: 1050;
             }
 
@@ -626,6 +627,13 @@
             width: 100%;
             left: 0;
             right: 0;
+        }
+
+        @media (max-width: 576px) {
+            footer .container-fluid {
+                padding-left: 0;
+                padding-right: 0;
+            }
         }
 
         footer::before {
