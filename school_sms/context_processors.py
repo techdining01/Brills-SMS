@@ -3,7 +3,9 @@ from exams.models import Notification, ChatMessage
 
 def school_context(request):
     context = {
-        'SCHOOL_NAME': settings.SCHOOL_NAME
+        'SCHOOL_NAME': settings.SCHOOL_NAME,
+        'SCHOOL_SLOGAN': settings.SCHOOL_SLOGAN,
+        'PORTAL_DOMAIN': settings.PORTAL_DOMAIN
     }
     
     if request.user.is_authenticated:
