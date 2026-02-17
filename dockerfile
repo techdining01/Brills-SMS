@@ -27,4 +27,4 @@ COPY . /app/
 RUN DJANGO_SETTINGS_MODULE=school_sms.settings python manage.py collectstatic --noinput
 
 # Start gunicorn
-CMD ["sh", "-c", "daphne -b 0.0.0.0 -p $PORT school_sms.asgi:application"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && daphne -b 0.0.0.0 -p $PORT school_sms.asgi:application"]
