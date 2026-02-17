@@ -26,5 +26,5 @@ COPY . /app/
 # We set a dummy SECRET_KEY if not present to allow collectstatic to run during build
 RUN DJANGO_SETTINGS_MODULE=school_sms.settings python manage.py collectstatic --noinput
 
-# Start gunicorn
-CMD ["sh", "-c", "python manage.py migrate --noinput && daphne -b 0.0.0.0 -p $PORT school_sms.asgi:application"]
+# Start application with automatic migrations and superuser creation
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py ensure_superuser && python manage.py seed_brillspay && daphne -b 0.0.0.0 -p $PORT school_sms.asgi:application"]
