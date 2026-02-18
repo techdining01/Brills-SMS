@@ -163,12 +163,20 @@ def payee_dashboard(request):
         payee = None
         
     recent_payslips = []
+    has_successful_payment = False
     if payee:
-        recent_payslips = PayrollRecord.objects.filter(payee=payee).order_by('-created_at')[:5]
+        successful_records = PayrollRecord.objects.filter(
+            payee=payee,
+            transactions__status='success'
+        ).order_by('-created_at').distinct()
+        has_successful_payment = successful_records.exists()
+        if has_successful_payment:
+            recent_payslips = successful_records[:5]
         
     return render(request, 'payroll/payee_dashboard.html', {
         'payee': payee,
-        'recent_payslips': recent_payslips
+        'recent_payslips': recent_payslips,
+        'has_successful_payment': has_successful_payment,
     })
 
 
@@ -704,16 +712,23 @@ def paystack_webhook(request):
 def payslip_view(request, record_id):
     record = get_object_or_404(PayrollRecord, id=record_id)
     
-    # Allow access if:
-    # 1. User is an admin or staff member
-    # 2. User is a superuser
-    # 3. record belongs to the user
     is_admin_or_staff = request.user.role in ['admin', 'teacher'] or request.user.is_superuser
     is_owner = record.payee.user == request.user
     
     if not (is_admin_or_staff or is_owner):
          messages.error(request, "Unauthorized access.")
          return redirect('accounts:dashboard_redirect')
+    
+    has_success_tx = PaymentTransaction.objects.filter(
+        payroll_record=record,
+        status='success'
+    ).exists()
+    
+    if not has_success_tx:
+        messages.error(request, "Payslip will be available after your payment is successful.")
+        if is_owner:
+            return redirect('payroll:payee_dashboard')
+        return redirect('payroll:payroll_detail', period_id=record.payroll_period.id)
     
     primary_account = record.payee.bank_accounts.filter(is_primary=True).first()
     return render(request, 'payroll/payslip.html', {

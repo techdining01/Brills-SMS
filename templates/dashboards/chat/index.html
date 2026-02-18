@@ -210,20 +210,47 @@
     
     /* Responsive overrides */
     @media (max-width: 768px) {
-        .chat-sidebar {
-            width: 80px;
+        .chat-wrapper {
+            height: calc(100vh - 120px);
+            min-height: 0;
         }
-        .chat-sidebar .input-group, 
-        .chat-sidebar .chat-item .chat-info,
-        .chat-sidebar .section-header {
+        .chat-container {
+            flex-direction: column;
+            height: 100%;
+        }
+        .chat-sidebar {
+            width: 100%;
+            border-right: none;
+            border-bottom: 1px solid #f1f5f9;
+            flex: 1;
+            min-height: 0;
+        }
+        .chat-main {
+            flex: 1;
+        }
+        .chat-container.mobile-view-list .chat-main {
             display: none;
         }
-        .chat-sidebar .chat-item {
-            justify-content: center;
-            padding: 15px 0;
+        .chat-container.mobile-view-chat .chat-sidebar {
+            display: none;
         }
-        .chat-sidebar .chat-item .avatar {
-            margin-right: 0;
+        .chat-container.mobile-view-chat .chat-main {
+            display: flex;
+        }
+        .chat-header-back {
+            margin-right: 4px;
+            padding: 0;
+            width: 34px;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .chat-header-actions {
+            gap: 6px;
+        }
+        .chat-header-actions .btn {
+            padding-inline: 0.4rem;
         }
     }
 
@@ -327,6 +354,9 @@
             <!-- Header -->
             <div class="chat-header" id="chat-header" style="display: none;">
                 <div class="d-flex align-items-center">
+                    <button type="button" class="btn btn-outline-secondary d-md-none chat-header-back me-2" onclick="showChatList()" aria-label="Back to chats">
+                        <i class="bi bi-arrow-left-short"></i>
+                    </button>
                     <div id="header-avatar" class="avatar me-3" style="width: 45px; height: 45px; border-radius: 50%; background-color: #2563eb; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold;">
                         <span id="header-initials"></span>
                     </div>
@@ -335,9 +365,10 @@
                         <small class="text-success" id="header-status" style="font-size: 0.75rem;">Online</small>
                     </div>
                 </div>
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 chat-header-actions">
                     <button class="btn btn-outline-success btn-sm d-flex align-items-center gap-2 px-3" id="join-call-btn" style="display: none;" onclick="startVideoCall()">
-                        <i class="bi bi-camera-video-fill"></i> Join Call
+                        <i class="bi bi-camera-video-fill"></i>
+                        <span class="d-none d-sm-inline">Join</span>
                     </button>
                     <button class="btn btn-light rounded-circle btn-chat-action" id="p2p-call-btn" onclick="startVideoCall()" title="Start Video Call">
                         <i class="bi bi-camera-video-fill text-primary"></i>
@@ -454,12 +485,12 @@
 </div>
 
 <script>
-    // Global State
     let currentChatType = null;
     let currentTargetId = null;
     let currentUser = { id: {{ user.id }}, username: "{{ user.username }}" };
     let socket = null;
     let allUsers = [];
+    let isMobileView = window.innerWidth <= 768;
     
     // WebRTC State
     let localStream;
@@ -729,7 +760,10 @@
             document.getElementById('p2p-call-btn').style.display = 'inline-block';
         }
         
-        // Load Messages
+        if (isMobileView) {
+            showChatView();
+        }
+
         try {
             // Use dynamic URL from Django template if possible, or fallback to constructed path
             let url = `/dashboard/chat/api/messages/${type}/${id}/`;
@@ -817,7 +851,6 @@
         }, 50); // Small delay to ensure DOM update
     }
 
-    // Sending Messages
     document.getElementById('message-form').onsubmit = async function(e) {
         e.preventDefault();
         const input = document.getElementById('message-input');
@@ -856,7 +889,42 @@
         }
     };
 
-    // --- WebRTC Video Call Logic ---
+    function updateMobileLayout() {
+        const container = document.querySelector('.chat-container');
+        if (!container) return;
+        if (window.innerWidth <= 768) {
+            isMobileView = true;
+            if (!currentTargetId) {
+                container.classList.add('mobile-view-list');
+                container.classList.remove('mobile-view-chat');
+            } else {
+                container.classList.add('mobile-view-chat');
+                container.classList.remove('mobile-view-list');
+            }
+        } else {
+            isMobileView = false;
+            container.classList.remove('mobile-view-list');
+            container.classList.remove('mobile-view-chat');
+        }
+    }
+
+    function showChatList() {
+        const container = document.querySelector('.chat-container');
+        if (!container) return;
+        if (!isMobileView) return;
+        container.classList.add('mobile-view-list');
+        container.classList.remove('mobile-view-chat');
+    }
+
+    function showChatView() {
+        const container = document.querySelector('.chat-container');
+        if (!container) return;
+        if (!isMobileView) return;
+        container.classList.add('mobile-view-chat');
+        container.classList.remove('mobile-view-list');
+    }
+
+    window.addEventListener('resize', updateMobileLayout);
 
     async function startVideoCall() {
         if (!currentTargetId) return;
@@ -1004,9 +1072,9 @@
         }
     }
 
-    // Initialize
     initWebSocket();
     loadConversations();
+    updateMobileLayout();
 
 </script>
 {% endblock %}

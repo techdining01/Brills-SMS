@@ -29,10 +29,13 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-fallback-key-for-buil
 DEBUG = config('DEBUG', default=False, cast=bool)
 
 # Allowed hosts
-ALLOWED_HOSTS = config(
-    'ALLOWED_HOSTS',
-    default='127.0.0.1,the-brills-sms-web1.onrender.com'
-).split(',')
+if config('DEBUG', default=False, cast=bool):
+    ALLOWED_HOSTS = ['*']
+else:
+    ALLOWED_HOSTS = config(
+        'ALLOWED_HOSTS',
+        default='127.0.0.1,localhost,10.103.148.197,the-brills-sms-web1.onrender.com'
+    ).split(',')
 
 CSRF_TRUSTED_ORIGINS = [
     "https://*.ngrok-free.dev",

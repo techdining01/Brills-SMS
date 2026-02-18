@@ -46,6 +46,7 @@
     .table-responsive, .card {
         overflow: visible !important;
     }
+
     /* Mobile adjustment */
     @media (max-width: 768px) {
         .qr-zoom-box {
@@ -60,6 +61,39 @@
             to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
         }
     }
+
+    /* Small-phone optimizations for pickup history cards */
+    @media (max-width: 576px) {
+        .pickup-history-table.table-responsive-stack tr {
+            padding: 0.5rem 0.75rem;
+        }
+
+        .pickup-history-table.table-responsive-stack td {
+            flex-direction: column;
+            align-items: flex-start;
+            text-align: left;
+            padding: 0.6rem 0.4rem;
+            gap: 0.25rem;
+        }
+
+        .pickup-history-table.table-responsive-stack td::before {
+            margin: 0 0 0.2rem 0;
+            flex: 0 0 auto;
+        }
+
+        .pickup-history-table.table-responsive-stack td > * {
+            width: 100%;
+            justify-content: flex-start;
+        }
+
+        .pickup-history-table .qr-hover-container {
+            justify-content: flex-start;
+        }
+
+        .pickup-history-table .qr-thumbnail {
+            width: 42px;
+        }
+    }
 </style>
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -72,7 +106,7 @@
     <!-- Unified Responsive View -->
     <div class="card border-0 shadow-sm">
         <div class="table-responsive p-0">
-            <table class="table table-hover align-middle mb-0 table-responsive-stack">
+            <table class="table table-hover align-middle mb-0 table-responsive-stack pickup-history-table">
                 <thead class="bg-light">
                     <tr>
                         <th class="ps-4">Reference</th>

@@ -100,7 +100,7 @@ class AttemptHistoryAdmin(admin.ModelAdmin):
 # PHASE 5: GRADING RUBRIC ADMIN
 # ============================================================================
 
-@admin.register(GradingRubric)
+# @admin.register(GradingRubric)
 class GradingRubricAdmin(admin.ModelAdmin):
     list_display = ('name', 'total_points', 'criteria_count', 'is_published')
     list_filter = ('is_published',)
@@ -111,14 +111,14 @@ class GradingRubricAdmin(admin.ModelAdmin):
     criteria_count.short_description = 'Criteria'
 
 
-@admin.register(RubricCriteria)
+# @admin.register(RubricCriteria)
 class RubricCriteriaAdmin(admin.ModelAdmin):
     list_display = ('rubric', 'name', 'max_points', 'order')
     list_filter = ('rubric',)
     search_fields = ('name', 'description')
 
 
-@admin.register(RubricScore)
+# @admin.register(RubricScore)
 class RubricScoreAdmin(admin.ModelAdmin):
     list_display = ('criteria', 'level', 'points')
     list_filter = ('criteria__rubric',)
@@ -128,14 +128,14 @@ class RubricScoreAdmin(admin.ModelAdmin):
         return False
 
 
-@admin.register(RubricGrade)
+# @admin.register(RubricGrade)
 class RubricGradeAdmin(admin.ModelAdmin):
     list_display = ('attempt', 'rubric', 'total_score')
     list_filter = ('rubric',)
     readonly_fields = ('attempt', 'rubric')
 
 
-@admin.register(RubricCriteriaGrade)
+# @admin.register(RubricCriteriaGrade)
 class RubricCriteriaGradeAdmin(admin.ModelAdmin):
     list_display = ('rubric_grade', 'criteria', 'points_awarded', 'comment')
     list_filter = ('criteria__rubric',)

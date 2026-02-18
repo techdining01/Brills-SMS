@@ -97,6 +97,20 @@
   .loan-row:hover {
     background-color: #f8fafc;
   }
+
+  .loan-details-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  @media (max-width: 576px) {
+    .loan-details-btn {
+      width: 100%;
+      border-radius: 999px !important;
+      justify-content: center;
+    }
+  }
 </style>
 {% endblock %}
 
@@ -171,8 +185,9 @@
               {{ loan.applied_at|date:"M d, Y" }}
             </td>
             <td class="pe-4 text-end" data-label="Details">
-              <button class="btn btn-light btn-sm rounded-circle" title="View Repayments">
-                <i class="fas fa-history text-secondary"></i>
+              <button class="btn btn-light btn-sm rounded-pill loan-details-btn" title="View Repayments">
+                <i class="fas fa-history text-secondary me-1"></i>
+                Details
               </button>
             </td>
           </tr>

@@ -57,6 +57,7 @@ def staff_dashboard(request):
     payee = get_object_or_404(Payee, user=request.user)
 
     leaves = LeaveRequest.objects.filter(payee=payee).order_by("-start_date")
+    approved_count = LeaveRequest.objects.filter(payee=payee, status="approved").count()
     balance = calculate_leave_balance(payee)
 
     context = {
@@ -64,6 +65,7 @@ def staff_dashboard(request):
         "leaves": Paginator(leaves, 5).get_page(
             request.GET.get("page")
         ),
+        "approved_count": approved_count,
     }
     return render(request, "leaves/staff/dashboard.html", context)
 
