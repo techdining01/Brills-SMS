@@ -34,7 +34,7 @@ if config('DEBUG', default=False, cast=bool):
 else:
     ALLOWED_HOSTS = config(
         'ALLOWED_HOSTS',
-        default='127.0.0.1,localhost,10.103.148.197,the-brills-sms-web1.onrender.com'
+        default='127.0.0.1,localhost,10.103.148.197,the-brills-sms-web1.onrender.com,brills-sms.onrender.com'
     ).split(',')
 
 if '.ngrok-free.dev' not in ALLOWED_HOSTS:
@@ -42,6 +42,7 @@ if '.ngrok-free.dev' not in ALLOWED_HOSTS:
 
 CSRF_TRUSTED_ORIGINS = [
     "https://*.ngrok-free.dev",
+    "https://brills-sms.onrender.com",
 ]
 
 

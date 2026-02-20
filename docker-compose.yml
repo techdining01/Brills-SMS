@@ -9,7 +9,7 @@ services:
       - .env.docker
     environment:
       - DB_HOST=db
-      - ALLOWED_HOSTS=127.0.0.1,localhost,web,10.103.148.197,.ngrok-free.dev
+      - ALLOWED_HOSTS=127.0.0.1,localhost,web,10.103.148.197,.ngrok-free.dev, brills-sms.onrender.com
     expose:
       - "8000"
     depends_on:
