@@ -95,6 +95,7 @@ urlpatterns = [
     path('question/<int:question_id>/edit/', views.edit_question, name='edit_question'),
     path('question/<int:question_id>/delete/', views.delete_question, name='delete_question'),
     path('exam/<int:exam_id>/delete/', views.delete_exam, name='delete_exam'),
+    path('choice/<int:choice_id>/delete/', views.delete_choice_ajax, name='delete_choice_ajax'),
 
     # Student Retake
     path('student/retake/create/<int:exam_id>/', views.student_request_retake, name='student_request_retake'),

@@ -1,7 +1,7 @@
 from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import render, get_object_or_404, redirect
 from .models import Order, Transaction, Product, BrillsPayLog, PaymentTransaction
-from exams.models import ExamAccess
+from exams.models import ExamAccess, SchoolClass, Exam
 from django.db.models import Sum
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -12,6 +12,7 @@ from .forms import ProductForm
 from django.utils import timezone
 from datetime import timedelta
 from django.http import HttpResponse
+from django.core.paginator import Paginator
 import csv
 
 User = get_user_model()
@@ -108,17 +109,16 @@ def admin_add_product(request):
 
 @staff_member_required
 def admin_product_list(request):
-    products = (
-        Product.objects
-        .select_related("category")
-        .order_by("-created_at")
-    )
-
+    products_qs = Product.objects.select_related("category").order_by("-created_at")
+    paginator = Paginator(products_qs, 10)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
     return render(
         request,
         "brillspay/admin/products/product_list.html",
         {
-            "products": products
+            "products": page_obj,
+            "page_obj": page_obj,
         }
     )
 
@@ -211,10 +211,18 @@ def admin_product_delete(request, pk):
 
 @staff_member_required
 def admin_order_list(request):
-    orders = Order.objects.select_related("buyer", "ward").order_by('-created_at')
-    return render(request, "brillspay/admin/orders/list.html", {
-        "orders": orders
-    })
+    orders_qs = Order.objects.select_related("buyer", "ward").order_by("-created_at")
+    paginator = Paginator(orders_qs, 8)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+    return render(
+        request,
+        "brillspay/admin/orders/list.html",
+        {
+            "orders": page_obj,
+            "page_obj": page_obj,
+        }
+    )
 
 
 @staff_member_required
@@ -227,9 +235,9 @@ def admin_order_detail(request, pk):
 
 @staff_member_required
 def admin_payment_list(request):
-    payments = Transaction.objects.all().order_by('-created_at')
+    transactions = Transaction.objects.all().order_by('-created_at')
     return render(request, "brillspay/admin/payments/list.html", {
-        "payments": payments
+        "transactions": transactions
     })
 
 
@@ -244,14 +252,21 @@ def admin_transaction_logs(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_access_list(request):
-    accesses = ExamAccess.objects.select_related(
+    accesses_qs = ExamAccess.objects.select_related(
         "student", "exam"
-    ).order_by("-granted_by")
+    ).order_by("-granted_at")
+
+    paginator = Paginator(accesses_qs, 10)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
 
     return render(
         request,
         "brillspay/admin/access_list.html",
-        {"accesses": accesses}
+        {
+            "accesses": page_obj,
+            "page_obj": page_obj,
+        }
     )
 
 
@@ -288,6 +303,102 @@ def admin_revoke_access(request, access_id):
     )
 
     return redirect("brillspay:admin_access_list")
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_mercy_access(request):
+    classes = SchoolClass.objects.all().order_by("name")
+    selected_class_id = request.GET.get("class")
+    selected_class = None
+    students = []
+    exams = []
+    access_pairs = []
+
+    if selected_class_id:
+        try:
+            selected_class = SchoolClass.objects.get(id=selected_class_id)
+        except SchoolClass.DoesNotExist:
+            selected_class = None
+
+    if selected_class:
+        students = (
+            User.objects
+            .filter(role=User.Role.STUDENT, student_class=selected_class)
+            .order_by("last_name", "first_name")
+        )
+        exams = (
+            Exam.objects
+            .filter(
+                school_class=selected_class,
+                is_active=True,
+                is_published=True
+            )
+            .order_by("start_time")
+        )
+
+        accesses = ExamAccess.objects.filter(
+            exam__in=exams,
+            student__in=students
+        )
+
+        for access in accesses:
+            key = f"{access.student_id}|{access.exam_id}"
+            access_pairs.append(key)
+
+    if request.method == "POST" and selected_class:
+        student_id = request.POST.get("student_id")
+        exam_id = request.POST.get("exam_id")
+        action = request.POST.get("action")
+
+        student = get_object_or_404(
+            User,
+            id=student_id,
+            role=User.Role.STUDENT,
+            student_class=selected_class
+        )
+        exam = get_object_or_404(
+            Exam,
+            id=exam_id,
+            school_class=selected_class
+        )
+
+        if action == "grant":
+            ExamAccess.objects.get_or_create(
+                student=student,
+                exam=exam,
+                defaults={
+                    "granted_by": request.user,
+                    "reason": "Mercy access from Brillspay admin",
+                },
+            )
+            messages.success(
+                request,
+                f"Access granted for {student.get_full_name()} → {exam.title}",
+            )
+        elif action == "revoke":
+            ExamAccess.objects.filter(
+                student=student,
+                exam=exam
+            ).delete()
+            messages.success(
+                request,
+                f"Access revoked for {student.get_full_name()} → {exam.title}",
+            )
+
+        return redirect(f"{request.path}?class={selected_class.id}")
+
+    return render(
+        request,
+        "brillspay/admin/mercy_access.html",
+        {
+            "classes": classes,
+            "selected_class": selected_class,
+            "students": students,
+            "exams": exams,
+            "access_pairs": access_pairs,
+        },
+    )
 
 
 

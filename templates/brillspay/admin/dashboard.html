@@ -21,27 +21,9 @@
 
 {% block content %}
 <div class="container py-4">
-
-  <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4 rounded shadow-sm">
-    <div class="container-fluid">
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNav" aria-controls="adminNav" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="adminNav">
-        <ul class="navbar-nav me-auto">
-          <li class="nav-item"><a href="{% url 'brillspay:admin_payment_list' %}" class="nav-link">Payments</a></li>
-          <li class="nav-item"><a href="{% url 'brillspay:admin_add_product' %}" class="nav-link">Products</a></li>
-          <li class="nav-item"><a href="{% url 'brillspay:admin_order_list' %}" class="nav-link">Orders</a></li>
-          <li class="nav-item"><a href="{% url 'brillspay:admin_access_list' %}" class="nav-link">Access List</a></li>
-          <li class="nav-item"><a href="{% url 'brillspay:admin_transaction_logs' %}" class="nav-link">Transactions</a></li>
-          <li class="nav-item"><a href="{% url 'brillspay:admin_analytics' %}" class="nav-link">Analytics</a></li>
-        </ul>
-      </div>
-    </div>
-  </nav>
   <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
       <h3 class="fw-bold mb-0">BrillsPay Overview</h3>
-      <button class="back-btn btn btn-outline-primary" onclick="safeBack()">
+      <button class="back-btn btn btn-outline-primary text-center" onclick="safeBack()">
           ← Back
       </button>
     </div>

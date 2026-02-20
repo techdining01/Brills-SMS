@@ -59,6 +59,7 @@ urlpatterns = [
     # ACCESS UNLOCKS
     # =======================
     path("admin/access/", admin_views.admin_access_list, name="admin_access_list"),
+    path("admin/mercy/", admin_views.admin_mercy_access, name="admin_mercy_access"),
     
     path("admin/access/grant/<int:order_id>/", admin_views.admin_grant_access, name="admin_grant_access"),
     

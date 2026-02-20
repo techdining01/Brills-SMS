@@ -1,149 +1,173 @@
+from datetime import timedelta
+
+from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from django.contrib.auth import get_user_model
-from exams.models import SchoolClass, Subject, Exam, Question, Choice
-import datetime
-import random
+
+from exams.models import Exam, Question, Choice, SchoolClass, Subject
+
 
 User = get_user_model()
 
+
 class Command(BaseCommand):
-    help = 'Seeds the database with sample exam data for all classes'
+    help = "Seed realistic classes, subjects, exams and questions"
 
-    def handle(self, *args, **kwargs):
-        self.stdout.write('Starting seeding process...')
+    def handle(self, *args, **options):
+        if Exam.objects.exists():
+            self.stdout.write(self.style.WARNING("Exams already exist, skipping exam seeding"))
+            return
 
-        # 1. Clean existing data
-        self.stdout.write('Deleting existing exams...')
-        Exam.objects.all().delete()
-        # Note: Cascade deletes questions, choices, attempts
+        teacher = (
+            User.objects.filter(role=getattr(User.Role, "TEACHER", "TEACHER")).first()
+            or User.objects.filter(is_staff=True).first()
+        )
+        if not teacher:
+            self.stderr.write("❌ No teacher or staff user found. Run seed_accounts first.")
+            return
 
-        # 2. Get Admin User
-        admin_user = User.objects.filter(is_superuser=True).first()
-        if not admin_user:
-            self.stdout.write('Creating superuser...')
-            admin_user = User.objects.create_superuser(
-                username='admin',
-                email='admin@example.com',
-                password='adminpassword',
-                role='ADMIN'
-            )
+        current_year = timezone.now().year
+        academic_year = f"{current_year}/{current_year + 1}"
 
-        # 3. Ensure Classes Exist (Fetch all)
-        classes = SchoolClass.objects.all()
-        if not classes.exists():
-            self.stdout.write('No classes found. Creating defaults...')
-            default_classes = [
-                {'name': 'JSS 1', 'level': 'junior_secondary'},
-                {'name': 'JSS 2', 'level': 'junior_secondary'},
-                {'name': 'JSS 3', 'level': 'junior_secondary'},
-                {'name': 'SSS 1', 'level': 'senior_secondary'},
-                {'name': 'SSS 2', 'level': 'senior_secondary'},
-                {'name': 'SSS 3', 'level': 'senior_secondary'},
-            ]
-            for cls_data in default_classes:
-                SchoolClass.objects.create(
-                    name=cls_data['name'], 
-                    level=cls_data['level'],
-                    academic_year='2024/2025',
-                    teacher=admin_user
-                )
-            classes = SchoolClass.objects.all()
-
-        # 4. Ensure Subjects Exist
-        subject_names = [
-            'Mathematics', 'English Language', 'Basic Science', 
-            'Civic Education', 'Biology', 'Chemistry', 'Physics', 
-            'Economics', 'Government', 'Geography'
+        class_specs = [
+            ("JSS1", "junior_secondary"),
+            ("JSS2", "junior_secondary"),
+            ("JSS3", "junior_secondary"),
         ]
-        
-        all_subjects = []
-        for name in subject_names:
-            sub, _ = Subject.objects.get_or_create(
+
+        classes = []
+        for name, level in class_specs:
+            cls, _ = SchoolClass.objects.get_or_create(
                 name=name,
                 defaults={
-                    'description': f'{name} Subject',
-                    'created_by': admin_user
-                }
+                    "level": level,
+                    "academic_year": academic_year,
+                    "description": f"{name} {academic_year}",
+                    "teacher": teacher,
+                },
             )
-            all_subjects.append(sub)
+            classes.append(cls)
 
-        # 5. Create Exams for EACH class
-        for school_class in classes:
-            self.stdout.write(f'Processing Class: {school_class.name}')
-            
-            # Ensure class has subjects attached
-            # (In many schemas M2M is explicit, here we just make sure there are subjects relevant)
-            # We will pick 3 random subjects for this class
-            
-            selected_subjects = random.sample(all_subjects, 3)
-            
-            for subject in selected_subjects:
-                # Add subject to class if not already (logic from original View/Model usually handles this, but doing it here for safety)
-                subject.classes.add(school_class)
-
-                # Create Exam
-                exam_title = f"{subject.name} - {school_class.name} Term 1 Exam"
-                
-                exam = Exam.objects.create(
-                    title=exam_title,
-                    school_class=school_class,
-                    created_by=admin_user,
-                    duration=60,
-                    start_time=timezone.now(),
-                    end_time=timezone.now() + datetime.timedelta(days=30),
-                    is_published=True,
-                    allow_retake=True,
-                    passing_marks=50
-                )
-                
-                self.add_questions(exam, subject.name)
-        
-        self.stdout.write(self.style.SUCCESS(f'Successfully seeded exams for {classes.count()} classes.'))
-
-    def add_questions(self, exam, subject_name):
-        # Generic questions to seed
-        base_questions = [
-            {
-                'text': f'What is the basics of {subject_name}?',
-                'type': 'objective',
-                'marks': 5,
-                'choices': [
-                    {'text': 'Option A', 'is_correct': False},
-                    {'text': 'Option B', 'is_correct': True},
-                    {'text': 'Option C', 'is_correct': False},
-                    {'text': 'Option D', 'is_correct': False},
-                ]
-            },
-            {
-                'text': f'Explain the importance of {subject_name}.',
-                'type': 'subjective',
-                'marks': 10,
-                'choices': []
-            },
-            {
-                'text': 'True or False: This is a difficult subject?',
-                'type': 'objective',
-                'marks': 2,
-                'choices': [
-                    {'text': 'True', 'is_correct': True},
-                    {'text': 'False', 'is_correct': False},
-                ]
-            }
-        ]
-        
-        for idx, q_data in enumerate(base_questions):
-            question = Question.objects.create(
-                exam=exam,
-                text=q_data['text'],
-                type=q_data['type'],
-                marks=q_data['marks'],
-                order=idx + 1
+        subject_names = ["Mathematics", "English Language", "Basic Science"]
+        subjects = []
+        for name in subject_names:
+            subject, _ = Subject.objects.get_or_create(
+                name=name,
+                defaults={
+                    "description": f"{name} seeded subject",
+                    "department": "Academics",
+                    "created_by": teacher,
+                },
             )
-            
-            for choice_data in q_data['choices']:
-                Choice.objects.create(
-                    question=question,
-                    text=choice_data['text'],
-                    is_correct=choice_data['is_correct']
+            if not subject.classes.exists():
+                subject.classes.set(classes)
+            subjects.append(subject)
+
+        now = timezone.now()
+        exams_created = 0
+
+        for cls in classes:
+            for subject in subjects:
+                title = f"{cls.name} {subject.name} Term Test"
+
+                exam, created = Exam.objects.get_or_create(
+                    title=title,
+                    school_class=cls,
+                    defaults={
+                        "created_by": teacher,
+                        "duration": 40,
+                        "start_time": now + timedelta(days=1),
+                        "end_time": now + timedelta(days=1, minutes=40),
+                        "is_active": True,
+                        "is_published": True,
+                        "allow_retake": False,
+                        "requires_payment": False,
+                        "price": 0,
+                        "passing_marks": 40,
+                    },
                 )
+
+                if not created:
+                    continue
+
+                exams_created += 1
+
+                if subject.name == "Mathematics":
+                    questions_data = [
+                        {
+                            "text": "What is 7 × 6?",
+                            "options": ["11", "36", "42", "56"],
+                            "correct_index": 3,
+                        },
+                        {
+                            "text": "What is 3/5 as a percentage?",
+                            "options": ["20%", "40%", "60%", "80%"],
+                            "correct_index": 3,
+                        },
+                        {
+                            "text": "What is the next number in the sequence 2, 4, 8, 16, ?",
+                            "options": ["18", "24", "30", "32"],
+                            "correct_index": 4,
+                        },
+                    ]
+                elif subject.name == "English Language":
+                    questions_data = [
+                        {
+                            "text": "Choose the correct sentence.",
+                            "options": [
+                                "She do her homework every day.",
+                                "She does her homework every day.",
+                                "She dids her homework every day.",
+                                "She did her homework every days.",
+                            ],
+                            "correct_index": 2,
+                        },
+                        {
+                            "text": "Which word is a noun?",
+                            "options": ["quickly", "beautiful", "teacher", "slowly"],
+                            "correct_index": 3,
+                        },
+                        {
+                            "text": "Which of these is a correct question tag: \"You are coming, ___?\"",
+                            "options": ["isn't you", "are you", "aren't you", "do you"],
+                            "correct_index": 3,
+                        },
+                    ]
+                else:
+                    questions_data = [
+                        {
+                            "text": "Which gas do humans need to breathe in to stay alive?",
+                            "options": ["Carbon dioxide", "Oxygen", "Nitrogen", "Helium"],
+                            "correct_index": 2,
+                        },
+                        {
+                            "text": "What is the main source of energy for the Earth?",
+                            "options": ["The Moon", "The Sun", "The oceans", "The wind"],
+                            "correct_index": 2,
+                        },
+                        {
+                            "text": "Water changes to ice at what temperature?",
+                            "options": ["0°C", "10°C", "50°C", "100°C"],
+                            "correct_index": 1,
+                        },
+                    ]
+
+                for index, q in enumerate(questions_data, start=1):
+                    question = Question.objects.create(
+                        exam=exam,
+                        text=q["text"],
+                        type="objective",
+                        marks=1,
+                        order=index,
+                    )
+
+                    for idx, option_text in enumerate(q["options"], start=1):
+                        Choice.objects.create(
+                            question=question,
+                            text=option_text,
+                            is_correct=idx == q["correct_index"],
+                        )
+
+        self.stdout.write(
+            self.style.SUCCESS(f"✅ Exam seeding completed. Exams created: {exams_created}")
+        )

@@ -28,4 +28,4 @@ RUN DJANGO_SETTINGS_MODULE=school_sms.settings python manage.py collectstatic --
 
 # Start application with automatic migrations and superuser creation using Daphne (ASGI)
 # Uses PORT env var if present (e.g. Render), otherwise defaults to 8000 for local Docker
-CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py ensure_superuser && python manage.py seed_brillspay && daphne -b 0.0.0.0 -p ${PORT:-8000} school_sms.asgi:application"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py ensure_superuser && python manage.py seed_all && daphne -b 0.0.0.0 -p ${PORT:-8000} school_sms.asgi:application"]

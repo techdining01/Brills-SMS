@@ -3,12 +3,13 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from django.db.models import Q, Avg, Sum, Count, F
+from django.db import transaction
 from django.utils import timezone
 from django.core.paginator import Paginator
 from django.core.exceptions import ObjectDoesNotExist
 from django.views.decorators.http import require_POST
 from accounts.models import User
-from exams.models import Exam, RetakeRequest, SystemLog, SchoolClass, Broadcast, ExamAttempt, Question, Choice, ChatMessage, Notification, Subject
+from exams.models import Exam, RetakeRequest, SystemLog, SchoolClass, Broadcast, ExamAttempt, Question, Choice, ChatMessage, Notification, Subject, StudentAnswer
 from . import grading_views, exam_views, notification_views
 from .models import ChatRoom, ChatRoomMessage, ChatRoomReadStatus
 from .forms import SchoolClassForm, StudentForm, ExamForm, QuestionForm, ChoiceForm, SubjectForm
@@ -126,19 +127,41 @@ def student_dashboard(request):
     
     user = request.user
     now = timezone.now()
+
+    expired_attempts = ExamAttempt.objects.filter(
+        student=user,
+        status__in=['in_progress', 'interrupted', 'expired'],
+        exam__end_time__lt=now
+    ).select_related('exam')
+
+    for attempt in expired_attempts:
+        with transaction.atomic():
+            objective_questions = attempt.exam.questions.filter(type='objective')
+            total_objective_score = 0
+            for question in objective_questions:
+                try:
+                    student_answer = StudentAnswer.objects.get(
+                        attempt=attempt,
+                        question=question
+                    )
+                    if student_answer.selected_choice and student_answer.selected_choice.is_correct:
+                        total_objective_score += question.marks
+                except StudentAnswer.DoesNotExist:
+                    pass
+            attempt.status = 'submitted'
+            attempt.completed_at = attempt.exam.end_time
+            attempt.score = total_objective_score
+            attempt.save(update_fields=['status', 'completed_at', 'score'])
     
     # Get student's class
     student_class = user.student_class
     
-    # Base query for exams
-    # Show exams for the student's class that are active, published, and not yet ended
-    # (or ended but maybe still relevant? Usually 'upcoming & available' implies future end_time)
     exams_query = Exam.objects.filter(
-        school_class=student_class,
+        Q(school_class=student_class) | Q(examaccess__student=user),
         is_active=True,
         is_published=True,
         end_time__gte=now
-    ).order_by('start_time')
+    ).distinct().order_by('start_time')
     
     # Filter out exams that are already submitted and don't allow retake
     # (Simple client-side logic for now, though start_exam view should enforce strict rules)
@@ -162,28 +185,35 @@ def student_dashboard(request):
     for exam in exams_query:
         attempts = exam_attempts_map.get(exam.id, [])
         latest_request = requests_map.get(exam.id)
-        
+
         has_submitted = any(a.status == 'submitted' for a in attempts)
         has_in_progress = any(a.status == 'in_progress' for a in attempts)
-        
-        # Determine if exam should be shown
+
         if has_in_progress:
             continue
 
         exam.retake_status = 'none'
+        approved_request = None
+        if latest_request and latest_request.status == 'approved':
+            approved_request = latest_request
+            exam.retake_status = 'approved'
+
         if has_submitted:
-            if latest_request:
-                exam.retake_status = latest_request.status
-            
-            # If not approved for retake, hide it
-            if exam.retake_status != 'approved':
+            if not approved_request:
                 continue
-            
-        # Add status info to exam object for template
+            submitted_after_approval = any(
+                a.status == 'submitted'
+                and a.completed_at
+                and a.completed_at >= approved_request.created_at
+                for a in attempts
+            )
+            if submitted_after_approval:
+                continue
+
         exam.has_submitted = has_submitted
         exam.has_in_progress = has_in_progress
-        exam.can_retake = (exam.retake_status == 'approved')
-        
+        exam.can_retake = approved_request is not None and not has_submitted
+
         available_exams.append(exam)
 
     # Statistics
@@ -431,9 +461,10 @@ def create_exam(request):
 @login_required()
 def edit_exam(request, exam_id):
     exam = get_object_or_404(Exam, id=exam_id)
-    if request.user != exam.created_by and request.user.role != User.Role.ADMIN:
+    is_owner = exam.created_by_id == request.user.id
+    if not is_owner and request.user.role != User.Role.ADMIN:
         messages.error(request, 'Access denied')
-        return redirect('dashboards:accounts:dashboard_redirect')
+        return redirect('accounts:dashboard_redirect')
         
     if request.method == 'POST':
         form = ExamForm(request.POST, instance=exam)
@@ -460,9 +491,10 @@ def edit_exam(request, exam_id):
 @login_required()
 def delete_exam(request, exam_id):
     exam = get_object_or_404(Exam, id=exam_id)
-    if request.user != exam.created_by and request.user.role != User.Role.ADMIN:
+    is_owner = exam.created_by_id == request.user.id
+    if not is_owner and request.user.role != User.Role.ADMIN:
         messages.error(request, 'Access denied')
-        return redirect('accounts:dashboard')
+        return redirect('accounts:dashboard_redirect')
         
     if request.method == 'POST':
         exam.delete()
@@ -477,7 +509,8 @@ def delete_exam(request, exam_id):
 @login_required()
 def publish_exam(request, exam_id):
     exam = get_object_or_404(Exam, id=exam_id)
-    if request.user != exam.created_by and request.user.role != User.Role.ADMIN:
+    is_owner = exam.created_by_id == request.user.id
+    if not is_owner and request.user.role != User.Role.ADMIN:
         messages.error(request, 'Access denied')
         return redirect('dashboards:exam_detail', exam_id=exam.id)
     exam.is_published = True
@@ -488,7 +521,8 @@ def publish_exam(request, exam_id):
 @login_required()
 def unpublish_exam(request, exam_id):
     exam = get_object_or_404(Exam, id=exam_id)
-    if request.user != exam.created_by and request.user.role != User.Role.ADMIN:
+    is_owner = exam.created_by_id == request.user.id
+    if not is_owner and request.user.role != User.Role.ADMIN:
         messages.error(request, 'Access denied')
         return redirect('dashboards:exam_detail', exam_id=exam.id)
     exam.is_published = False
@@ -503,9 +537,9 @@ def exam_detail(request, exam_id):
         return redirect('dashboards:student_dashboard')
         
     exam = get_object_or_404(Exam, id=exam_id)
-    
-    # Optional: If teacher, ensure they own the exam
-    if request.user.role == User.Role.TEACHER and exam.created_by != request.user:
+
+    is_owner = exam.created_by_id == request.user.id
+    if request.user.role == User.Role.TEACHER and not is_owner:
         messages.error(request, 'Access denied. You can only view details of exams you created.')
         return redirect('dashboards:teacher_dashboard')
 
@@ -938,26 +972,23 @@ def edit_question(request, question_id):
         messages.error(request, 'Access denied')
         return redirect('dashboards:edit_exam', exam_id=exam.id)
         
-    ChoiceFormSet = modelformset_factory(Choice, form=ChoiceForm, extra=1, can_delete=True)
+    ChoiceFormSet = modelformset_factory(Choice, form=ChoiceForm, extra=1, can_delete=False)
     
     if request.method == 'POST':
         form = QuestionForm(request.POST, instance=question)
         formset = ChoiceFormSet(request.POST, queryset=question.choices.all())
         
-        if form.is_valid():
+        if form.is_valid() and formset.is_valid():
             question = form.save(commit=False)
             
             if question.type == 'objective':
-                if formset.is_valid():
-                    question.save()
-                    choices = formset.save(commit=False)
-                    for choice in choices:
-                        choice.question = question
-                        choice.save()
-                    for obj in formset.deleted_objects:
-                        obj.delete()
-                    messages.success(request, 'Question updated successfully.')
-                    return redirect('dashboards:edit_exam', exam_id=exam.id)
+                question.save()
+                choices = formset.save(commit=False)
+                for choice in choices:
+                    choice.question = question
+                    choice.save()
+                messages.success(request, 'Question updated successfully.')
+                return redirect('dashboards:edit_exam', exam_id=exam.id)
             else:
                 question.save()
                 messages.success(request, 'Question updated successfully.')
@@ -985,6 +1016,22 @@ def delete_question(request, question_id):
     question.delete()
     messages.success(request, 'Question deleted successfully.')
     return redirect('dashboards:edit_exam', exam_id=exam.id)
+
+
+@login_required()
+def delete_choice_ajax(request, choice_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid method'}, status=405)
+    
+    choice = get_object_or_404(Choice, id=choice_id)
+    question = choice.question
+    exam = question.exam
+    
+    if request.user != exam.created_by and request.user.role != User.Role.ADMIN:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    choice.delete()
+    return JsonResponse({'status': 'ok'})
 
 # Placeholders for missing views to prevent import errors in urls.py
 @login_required()
@@ -1015,7 +1062,11 @@ def admin_edit_class(request, class_id):
             return redirect('dashboards:admin_classes_list')
     else:
         form = SchoolClassForm(instance=school_class)
-    return render(request, 'dashboards/admin/edit_class.html', {'form': form, 'title': 'Edit Class'})
+    return render(
+        request,
+        'dashboards/admin/edit_class.html',
+        {'form': form, 'title': 'Edit Class', 'school_class': school_class},
+    )
 
 @login_required()
 def admin_delete_class(request, class_id):
@@ -1083,12 +1134,17 @@ def admin_delete_subject(request, subject_id):
 
 @login_required()
 def admin_results_dashboard(request):
-    """List classes to view results"""
     if request.user.role != User.Role.ADMIN:
         return redirect('accounts:dashboard_redirect')
         
-    classes = SchoolClass.objects.all().order_by('name')
-    return render(request, 'dashboards/admin/results_dashboard.html', {'classes': classes})
+    classes_list = SchoolClass.objects.all().order_by('name')
+    paginator = Paginator(classes_list, 9)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    return render(request, 'dashboards/admin/results_dashboard.html', {
+        'classes': page_obj,
+        'page_obj': page_obj
+    })
 
 @login_required()
 def admin_class_results(request, class_id):
@@ -1167,13 +1223,18 @@ def update_retake_request_status(request, request_id):
         retake_request.status = 'approved'
         retake_request.reviewed_by = request.user
         retake_request.save()
+
+        ExamAttempt.objects.filter(
+            student=retake_request.student,
+            exam=retake_request.exam,
+            status='submitted'
+        ).update(status='archived')
         
-        # Notify student
         Notification.objects.create(
             sender=request.user,
             recipient=retake_request.student,
             title='Retake Request Approved',
-            message=f'Your retake request for exam "{retake_request.exam.title}" has been approved.',
+            message=f'Your retake request for exam \"{retake_request.exam.title}\" has been approved.',
             related_exam=retake_request.exam.id
         )
         messages.success(request, f'Retake request for {retake_request.student.get_full_name()} approved.')
@@ -1287,46 +1348,44 @@ def student_available_exams(request):
     for exam in exams_query:
         latest_attempt = attempts_map.get(exam.id)
         latest_request = requests_map.get(exam.id)
-        
+
         has_submitted = latest_attempt and latest_attempt.status == 'submitted'
         has_in_progress = latest_attempt and latest_attempt.status == 'in_progress'
-        
-        # Filter out exams that are currently being taken
+
         if has_in_progress:
             continue
-            
-        # Annotate for template
+
         exam.has_in_progress = has_in_progress
         exam.retake_status = 'none'
         exam.can_retake = False
         exam.can_request_retake = False
-        
+
+        approved_request = None
+        if latest_request and latest_request.status == 'approved':
+            approved_request = latest_request
+            exam.retake_status = 'approved'
+
         if has_submitted:
-             if latest_request:
-                 exam.retake_status = latest_request.status # pending, approved, denied
-             
-             # If approved, they can retake
-             exam.can_retake = (exam.retake_status == 'approved')
-             
-             # If not approved, can they request?
-             # Yes, if they haven't pending request and not approved yet.
-             exam.can_request_retake = (exam.retake_status != 'pending' and exam.retake_status != 'approved')
-        
-        # Check time validity
-        # Visible if:
-        # 1. Not expired
-        # 2. Expired but has approved retake
-        # 3. Expired but has special access (maybe? usually access implies time extension or override)
-        
+            if not approved_request:
+                continue
+            if latest_attempt.completed_at and latest_attempt.completed_at >= approved_request.created_at:
+                continue
+
+        if has_submitted:
+            exam.can_retake = approved_request is not None and not has_in_progress
+            exam.can_request_retake = approved_request is None
+        else:
+            if latest_request:
+                exam.retake_status = latest_request.status
+                exam.can_retake = (exam.retake_status == 'approved')
+                exam.can_request_retake = (exam.retake_status != 'pending' and exam.retake_status != 'approved')
+            else:
+                exam.can_request_retake = True
+
         is_expired = exam.end_time < now
         if is_expired and not exam.can_retake:
-            # Check if ExamAccess exists and allows late entry? 
-            # For now, let's assume ExamAccess doesn't override strict end_time unless implemented.
-            # But usually, if you grant access to a specific student, you might want them to take it even if class time is over?
-            # The current model doesn't have "extended_time" on ExamAccess.
-            # So strict end_time applies unless it's a retake.
             continue
-        
+
         available_exams.append(exam)
         
     paginator = Paginator(available_exams, 9)  # 9 exams per page
@@ -1363,7 +1422,64 @@ def student_attempt_history(request):
         'status_filter': status_filter
     })
 @login_required()
-def student_class_leaderboard(request): return render(request, 'dashboards/student/leaderboard.html')
+def student_class_leaderboard(request):
+    user = request.user
+    if user.role != User.Role.STUDENT:
+        return redirect('accounts:dashboard_redirect')
+
+    school_class = user.student_class
+
+    if not school_class:
+        return render(request, 'dashboards/student/class_leaderboard.html', {
+            'school_class': None,
+            'page_obj': None,
+        })
+
+    attempts_qs = ExamAttempt.objects.filter(
+        exam__school_class=school_class,
+        status='submitted'
+    ).annotate(
+        sub_score=Sum('answers__subjective_mark__score')
+    ).select_related('student')
+
+    student_stats = {}
+    for attempt in attempts_qs:
+        student = attempt.student
+        if student not in student_stats:
+            student_stats[student] = {'total_score': 0, 'exams_count': 0}
+
+        total_score = attempt.score + (attempt.sub_score or 0)
+        student_stats[student]['total_score'] += total_score
+        student_stats[student]['exams_count'] += 1
+
+    leaderboard = []
+    for student, stats in student_stats.items():
+        if stats['exams_count'] <= 0:
+            continue
+        avg_score = stats['total_score'] / stats['exams_count']
+        leaderboard.append({
+            'student': student,
+            'avg_score': avg_score,
+            'attempt_count': stats['exams_count'],
+            'is_self': student.id == user.id,
+        })
+
+    leaderboard.sort(key=lambda e: e['avg_score'], reverse=True)
+
+    for idx, entry in enumerate(leaderboard, start=1):
+        entry['rank'] = idx
+
+    if not leaderboard:
+        page_obj = None
+    else:
+        paginator = Paginator(leaderboard, 10)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+
+    return render(request, 'dashboards/student/class_leaderboard.html', {
+        'school_class': school_class,
+        'page_obj': page_obj,
+    })
 @login_required()
 def student_notifications(request): return render(request, 'notifications/list.html')
 @login_required()

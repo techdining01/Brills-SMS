@@ -46,7 +46,7 @@
                         <div id="choicesSection" class="mt-4" style="display: none;">
                             <h6 class="text-primary mb-3 d-flex justify-content-between align-items-center">
                                 Answer Choices
-                                <small class="text-muted fw-normal">Select the correct answer(s)</small>
+                                <small class="text-muted fw-normal">Select the correct answer</small>
                             </h6>
                             
                             {{ formset.management_form }}
@@ -55,14 +55,14 @@
                                 <table class="table table-bordered table-responsive-stack mb-0">
                                     <thead>
                                         <tr>
-                                            <th style="width: 70%">Choice Text</th>
-                                            <th style="width: 20%" class="text-center">Correct?</th>
-                                            <th style="width: 10%" class="text-center">Delete</th>
+                                            <th>Choice Text</th>
+                                            <th class="text-center" style="width: 90px;">Correct</th>
+                                            <th class="text-center" style="width: 60px;">Delete</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% for form in formset %}
-                                        <tr>
+                                        <tr data-choice-id="{{ form.instance.id|default_if_none:'' }}">
                                             <td data-label="Choice Text">
                                                 {{ form.id }}
                                                 {{ form.text }}
@@ -70,12 +70,18 @@
                                                     <div class="text-danger small">{{ form.text.errors.0 }}</div>
                                                 {% endif %}
                                             </td>
-                                            <td data-label="Correct?" class="text-center align-middle">
-                                                {{ form.is_correct }}
+                                            <td data-label="Correct" class="text-center align-middle">
+                                                <div class="form-check d-flex justify-content-center">
+                                                    {{ form.is_correct }}
+                                                </div>
                                             </td>
                                             <td data-label="Delete" class="text-center align-middle">
-                                                {% if formset.can_delete %}
-                                                    {{ form.DELETE }}
+                                                {% if form.instance.id %}
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-danger choice-delete-btn"
+                                                        data-choice-id="{{ form.instance.id }}">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
                                                 {% endif %}
                                             </td>
                                         </tr>
@@ -104,7 +110,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const typeSelect = document.getElementById('questionType');
     const choicesSection = document.getElementById('choicesSection');
-    
+
     function toggleChoices() {
         if (typeSelect.value === 'objective') {
             choicesSection.style.display = 'block';
@@ -112,9 +118,73 @@ document.addEventListener('DOMContentLoaded', function() {
             choicesSection.style.display = 'none';
         }
     }
-    
+
     typeSelect.addEventListener('change', toggleChoices);
     toggleChoices(); // Initial check
+
+    // Enforce single correct answer (radio-like behaviour)
+    function wireCorrectInputs() {
+        const correctInputs = document.querySelectorAll('#choicesSection input[type="checkbox"][name$="-is_correct"]');
+        correctInputs.forEach(function(input) {
+            input.addEventListener('change', function() {
+                if (this.checked) {
+                    correctInputs.forEach(function(other) {
+                        if (other !== input) {
+                            other.checked = false;
+                        }
+                    });
+                }
+            });
+        });
+    }
+    wireCorrectInputs();
+
+    // AJAX delete for choices using trash icon
+    const tableBody = document.querySelector('#choicesSection tbody');
+    if (tableBody) {
+        tableBody.addEventListener('click', function(e) {
+            const btn = e.target.closest('.choice-delete-btn');
+            if (!btn) return;
+
+            const choiceId = btn.getAttribute('data-choice-id');
+            if (!choiceId) return;
+
+            if (!confirm('Delete this choice?')) {
+                return;
+            }
+
+            const row = btn.closest('tr');
+            const urlTemplate = "{% url 'dashboards:delete_choice_ajax' 0 %}";
+            const url = urlTemplate.replace(/0\/?$/, choiceId + "/");
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': (function() {
+                        const input = document.querySelector('input[name=\"csrfmiddlewaretoken\"]');
+                        return input ? input.value : '';
+                    })()
+                }
+            }).then(function(response) {
+                if (!response.ok) {
+                    return response.json().then(function(data) {
+                        throw new Error(data.error || 'Failed to delete choice');
+                    }).catch(function() {
+                        throw new Error('Failed to delete choice');
+                    });
+                }
+                return response.json();
+            }).then(function(data) {
+                if (data.status === 'ok') {
+                    row.remove();
+                    wireCorrectInputs();
+                }
+            }).catch(function(error) {
+                alert(error.message);
+            });
+        });
+    }
 });
 </script>
 {% endblock %}

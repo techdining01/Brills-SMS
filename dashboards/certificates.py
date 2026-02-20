@@ -8,6 +8,7 @@ from django.template.loader import render_to_string
 from django.http import FileResponse
 from django.core.files.base import ContentFile
 from django.utils import timezone
+from django.contrib.auth import get_user_model
 from .models import Certificate, CertificateTemplate
 import secrets
 from django.conf import settings
@@ -289,10 +290,19 @@ def batch_generate_certificates(exam, passing_percentage=60):
     
     certificates_created = []
     
+    User = get_user_model()
+    
     for attempt in attempts:
+        student_id = attempt.student_id
+        if not student_id:
+            continue
+        try:
+            student = User.objects.get(pk=student_id)
+        except User.DoesNotExist:
+            continue
         if attempt.total_score >= passing_marks:
             certificate = create_certificate(
-                student=attempt.student,
+                student=student,
                 exam=exam,
                 attempt=attempt
             )

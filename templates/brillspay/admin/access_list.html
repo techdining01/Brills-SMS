@@ -28,11 +28,21 @@
               <td data-label="Granted Via">
                 {% if a.via_payment %}
                   <span class="badge bg-success">Payment</span>
-                {% else %}
+                {% elif a.granted_by %}
                   <span class="badge bg-secondary">Manual</span>
+                {% else %}
+                  <span class="badge bg-info">System</span>
                 {% endif %}
               </td>
-              <td data-label="Granted By">{{ a.granted_by|default:"System" }}</td>
+              <td data-label="Granted By">
+                {% if a.via_payment and not a.granted_by %}
+                  System
+                {% elif a.granted_by %}
+                  {{ a.granted_by }}
+                {% else %}
+                  System
+                {% endif %}
+              </td>
               <td data-label="Date">{{ a.granted_at|date:"d-m-Y H:i" }}</td>
               <td data-label="Action" class="text-end pe-4">
                 <a
@@ -54,6 +64,45 @@
           </tbody>
         </table>
       </div>
+      {% if accesses.has_other_pages %}
+      <div class="border-top px-3 py-2">
+        <nav aria-label="Access pagination">
+          <ul class="pagination justify-content-center mb-0">
+            {% if accesses.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ accesses.previous_page_number }}" aria-label="Previous">
+                <span aria-hidden="true">&laquo;</span>
+              </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+              <span class="page-link">&laquo;</span>
+            </li>
+            {% endif %}
+
+            {% for i in accesses.paginator.page_range %}
+              {% if accesses.number == i %}
+              <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+              {% else %}
+              <li class="page-item"><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+              {% endif %}
+            {% endfor %}
+
+            {% if accesses.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ accesses.next_page_number }}" aria-label="Next">
+                <span aria-hidden="true">&raquo;</span>
+              </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+              <span class="page-link">&raquo;</span>
+            </li>
+            {% endif %}
+          </ul>
+        </nav>
+      </div>
+      {% endif %}
     </div>
   </div>
 

@@ -37,6 +37,9 @@ else:
         default='127.0.0.1,localhost,10.103.148.197,the-brills-sms-web1.onrender.com'
     ).split(',')
 
+if '.ngrok-free.dev' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('.ngrok-free.dev')
+
 CSRF_TRUSTED_ORIGINS = [
     "https://*.ngrok-free.dev",
 ]
@@ -152,7 +155,7 @@ DATABASES = {
         'USER': config('DB_USER', default='postgres'),
         'PASSWORD': config('DB_PASSWORD', default='idrees'),
         'HOST': config('DB_HOST', default='db'),
-       'PORT': config('DB_PORT', default='5432'),
+        'PORT': config('DB_PORT', default='5432'),
     }
 } 
 
@@ -244,7 +247,7 @@ LOGGING = {
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Africa/Lagos'
 
 USE_I18N = True
 
